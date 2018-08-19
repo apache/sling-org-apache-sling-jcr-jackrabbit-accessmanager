@@ -17,10 +17,12 @@
 package org.apache.sling.jcr.jackrabbit.accessmanager;
 
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.ResourceBundle;
@@ -178,13 +180,17 @@ public class PrivilegesInfo {
 	private AccessControlEntry[] getDeclaredAccessControlEntries(Session session, String absPath) throws RepositoryException {
 		AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(session);
 		AccessControlPolicy[] policies = accessControlManager.getPolicies(absPath);
-		for (AccessControlPolicy accessControlPolicy : policies) {
-			if (accessControlPolicy instanceof AccessControlList) {
-				AccessControlEntry[] accessControlEntries = ((AccessControlList)accessControlPolicy).getAccessControlEntries();
-				return accessControlEntries;
-			}
-		}
-		return new AccessControlEntry[0];
+		
+        List<AccessControlEntry> allEntries = new ArrayList<AccessControlEntry>(); 
+        for (AccessControlPolicy accessControlPolicy : policies) {
+            if (accessControlPolicy instanceof AccessControlList) {
+                AccessControlEntry[] accessControlEntries = ((AccessControlList)accessControlPolicy).getAccessControlEntries();
+                for (AccessControlEntry accessControlEntry : accessControlEntries) {
+					allEntries.add(accessControlEntry);
+				}
+            }
+        }
+        return allEntries.toArray(new AccessControlEntry[allEntries.size()]);
 	}
 
 	/**
@@ -286,13 +292,17 @@ public class PrivilegesInfo {
 	private AccessControlEntry[] getEffectiveAccessControlEntries(Session session, String absPath) throws RepositoryException {
 		AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(session);
 		AccessControlPolicy[] policies = accessControlManager.getEffectivePolicies(absPath);
-		for (AccessControlPolicy accessControlPolicy : policies) {
-			if (accessControlPolicy instanceof AccessControlList) {
-				AccessControlEntry[] accessControlEntries = ((AccessControlList)accessControlPolicy).getAccessControlEntries();
-				return accessControlEntries;
-			}
-		}
-		return new AccessControlEntry[0];
+		
+        List<AccessControlEntry> allEntries = new ArrayList<AccessControlEntry>(); 
+        for (AccessControlPolicy accessControlPolicy : policies) {
+            if (accessControlPolicy instanceof AccessControlList) {
+                AccessControlEntry[] accessControlEntries = ((AccessControlList)accessControlPolicy).getAccessControlEntries();
+                for (AccessControlEntry accessControlEntry : accessControlEntries) {
+					allEntries.add(accessControlEntry);
+				}
+            }
+        }
+        return allEntries.toArray(new AccessControlEntry[allEntries.size()]);
 	}
 
 	/**
