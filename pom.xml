@@ -49,6 +49,9 @@
                 <extensions>true</extensions>
                 <configuration>
                     <instructions>
+                        <Embed-Dependency>
+                            org.apache.sling.servlets.post;inline="org/apache/sling/servlets/post/impl/helper/MediaRangeList*"
+                        </Embed-Dependency>
                     </instructions>
                 </configuration>
             </plugin>

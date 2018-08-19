@@ -18,7 +18,9 @@ package org.apache.sling.jcr.jackrabbit.accessmanager.post;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
@@ -34,13 +36,17 @@ import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.resource.ResourceNotFoundException;
 import org.apache.sling.api.resource.ResourceUtil;
-import org.apache.sling.servlets.post.HtmlResponse;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 import org.apache.sling.api.wrappers.SlingRequestPaths;
 import org.apache.sling.servlets.post.AbstractPostResponse;
-import org.apache.sling.servlets.post.Modification;
-import org.apache.sling.servlets.post.SlingPostConstants;
+import org.apache.sling.servlets.post.HtmlResponse;
 import org.apache.sling.servlets.post.JSONResponse;
+import org.apache.sling.servlets.post.Modification;
+import org.apache.sling.servlets.post.PostResponse;
+import org.apache.sling.servlets.post.PostResponseCreator;
+import org.apache.sling.servlets.post.SlingPostConstants;
+import org.apache.sling.servlets.post.impl.helper.MediaRangeList;
+import org.osgi.framework.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,6 +61,13 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
      */
     private final Logger log = LoggerFactory.getLogger(getClass());
 
+    /** Sorted list of post response creator holders. */
+    private final List<PostResponseCreatorHolder> postResponseCreators = new ArrayList<>();
+
+    /** Cached array of post response creators used during request processing. */
+    private PostResponseCreator[] cachedPostResponseCreators = new PostResponseCreator[0];
+
+
 	/* (non-Javadoc)
 	 * @see org.apache.sling.api.servlets.SlingAllMethodsServlet#doPost(org.apache.sling.api.SlingHttpServletRequest, org.apache.sling.api.SlingHttpServletResponse)
 	 */
@@ -63,7 +76,7 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
 			SlingHttpServletResponse httpResponse) throws ServletException,
 			IOException {
         // prepare the response
-		AbstractPostResponse response = createHtmlResponse(request);
+    	PostResponse response = createPostResponse(request);
         response.setReferer(request.getHeader("referer"));
 
         // calculate the paths
@@ -145,13 +158,53 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
      *   <li>the response content type is application/json
      * </ul>
      * or a {@link org.apache.sling.api.servlets.HtmlResponse} otherwise
+     * @deprecated use {@link #createPostResponse(SlingHttpServletRequest)} instead
      */
+	@Deprecated
     protected AbstractPostResponse createHtmlResponse(SlingHttpServletRequest req) {
-    	if (JSONResponse.RESPONSE_CONTENT_TYPE.equals(req.getResponseContentType())) {
-    		return new JSONResponse();
-    	} else {
+    	return (AbstractPostResponse)createPostResponse(req);
+    }
+	
+    /**
+     * Creates an instance of a PostResponse.
+     * @param req The request being serviced
+     * @return a {@link org.apache.sling.servlets.post.impl.helper.JSONResponse} if any of these conditions are true:
+     * <ul>
+     *   <li> the request has an <code>Accept</code> header of <code>application/json</code></li>
+     *   <li>the request is a JSON POST request (see SLING-1172)</li>
+     *   <li>the request has a request parameter <code>:accept=application/json</code></li>
+     * </ul>
+     * or a {@link org.apache.sling.api.servlets.PostResponse} otherwise
+     */
+    PostResponse createPostResponse(final SlingHttpServletRequest req) {
+        for (final PostResponseCreator creator : cachedPostResponseCreators) {
+            final PostResponse response = creator.createPostResponse(req);
+            if (response != null) {
+                return response;
+            }
+        }
+
+        //for backward compatibility, if no "accept" request param or header is supplied
+        // then prefer the SlingHttpServletRequest#getResponseContentType value
+        MediaRangeList mediaRangeList = null;
+        String queryParam = req.getParameter(MediaRangeList.PARAM_ACCEPT);
+        if (queryParam == null || queryParam.trim().length() == 0) {
+        	String headerValue = req.getHeader(MediaRangeList.HEADER_ACCEPT);
+        	if (headerValue == null || headerValue.trim().length() == 0) {
+        		//no param or header supplied, so try the response content type
+        		mediaRangeList = new MediaRangeList(req.getResponseContentType());
+        	}
+        }
+
+        // Fall through to default behavior
+        if (mediaRangeList == null) {
+        	mediaRangeList = new MediaRangeList(req);
+        }
+        if (JSONResponse.RESPONSE_CONTENT_TYPE.equals(mediaRangeList.prefer("text/html", JSONResponse.RESPONSE_CONTENT_TYPE))) {
+            return new JSONResponse();
+        } else {
             return new HtmlResponse();
-    	}
+        }
     }
 	
 	/**
@@ -160,9 +213,24 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
 	 * @param request the sling http request to process
 	 * @param response the response
 	 * @param changes
+	 * 
+	 * @deprecated use {@link #handleOperation(SlingHttpServletRequest, PostResponse, List)} instead
+	 */
+    @Deprecated
+	protected void handleOperation(SlingHttpServletRequest request,
+			AbstractPostResponse response, List<Modification> changes) throws RepositoryException {
+		handleOperation(request, (PostResponse)response, changes);
+	}
+    
+	/**
+	 * Extending Servlet should implement this operation to do the work
+	 *
+	 * @param request the sling http request to process
+	 * @param response the response
+	 * @param changes
 	 */
 	abstract protected void handleOperation(SlingHttpServletRequest request,
-			AbstractPostResponse response, List<Modification> changes) throws RepositoryException;
+			PostResponse response, List<Modification> changes) throws RepositoryException;
 
 
     /**
@@ -170,8 +238,20 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
      *
      * @param ctx the post processor
      * @return the redirect location or <code>null</code>
+     * @deprecated use {@link #getRedirectUrl(HttpServletRequest, PostResponse)} instead
      */
+	@Deprecated
     protected String getRedirectUrl(HttpServletRequest request, AbstractPostResponse ctx) {
+    	return getRedirectUrl(request, (PostResponse)ctx);
+    }
+    
+    /**
+     * compute redirect URL (SLING-126)
+     *
+     * @param ctx the post processor
+     * @return the redirect location or <code>null</code>
+     */
+    protected String getRedirectUrl(HttpServletRequest request, PostResponse ctx) {
         // redirect param has priority (but see below, magic star)
         String result = request.getParameter(SlingPostConstants.RP_REDIRECT_TO);
         if (result != null && ctx.getPath() != null) {
@@ -321,4 +401,74 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
                 + resourcePath);
 
     }
+
+
+    /**
+     * Bind a new post response creator
+     */
+	// NOTE: the @Reference annotation is not inherited, so subclasses will need to override the #bindPostResponseCreator 
+	// and #unbindPostResponseCreator methods to provide the @Reference annotation.     
+	//
+	// @Reference(service = PostResponseCreator.class,
+	//         cardinality = ReferenceCardinality.MULTIPLE,
+	//         policy = ReferencePolicy.DYNAMIC)
+    protected void bindPostResponseCreator(final PostResponseCreator creator, final Map<String, Object> properties) {
+        final PostResponseCreatorHolder nngh = new PostResponseCreatorHolder();
+        nngh.creator = creator;
+        nngh.ranking = getRanking(properties);
+
+        synchronized ( this.postResponseCreators ) {
+            int index = 0;
+            while ( index < this.postResponseCreators.size() &&
+                    nngh.ranking < this.postResponseCreators.get(index).ranking ) {
+                index++;
+            }
+            if ( index == this.postResponseCreators.size() ) {
+                this.postResponseCreators.add(nngh);
+            } else {
+                this.postResponseCreators.add(index, nngh);
+            }
+            this.updatePostResponseCreatorCache();
+        }
+    }
+
+    /**
+     * Unbind a post response creator
+     */
+    protected void unbindPostResponseCreator(final PostResponseCreator creator, final Map<String, Object> properties) {
+        synchronized ( this.postResponseCreators ) {
+            final Iterator<PostResponseCreatorHolder> i = this.postResponseCreators.iterator();
+            while ( i.hasNext() ) {
+                final PostResponseCreatorHolder current = i.next();
+                if ( current.creator == creator ) {
+                    i.remove();
+                }
+            }
+            this.updatePostResponseCreatorCache();
+        }
+    }
+
+    /**
+     * Update the post response creator cache
+     * This method is called by sync'ed methods, no need to add additional syncing.
+     */
+    private void updatePostResponseCreatorCache() {
+        final PostResponseCreator[] localCache = new PostResponseCreator[this.postResponseCreators.size()];
+        int index = 0;
+        for(final PostResponseCreatorHolder current : this.postResponseCreators) {
+            localCache[index] = current.creator;
+            index++;
+        }
+        this.cachedPostResponseCreators = localCache;
+    }
+    
+    private int getRanking(final Map<String, Object> properties) {
+        final Object val = properties.get(Constants.SERVICE_RANKING);
+        return val instanceof Integer ? (Integer)val : 0;
+    }
+    
+    private static final class PostResponseCreatorHolder {
+        public PostResponseCreator creator;
+        public int ranking;
+    }    
 }

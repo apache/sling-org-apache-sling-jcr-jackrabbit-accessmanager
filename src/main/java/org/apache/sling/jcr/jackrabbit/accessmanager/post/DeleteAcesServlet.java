@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.jcr.Item;
@@ -34,10 +35,14 @@ import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.resource.ResourceNotFoundException;
 import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.apache.sling.jcr.jackrabbit.accessmanager.DeleteAces;
-import org.apache.sling.servlets.post.AbstractPostResponse;
 import org.apache.sling.servlets.post.Modification;
+import org.apache.sling.servlets.post.PostResponse;
+import org.apache.sling.servlets.post.PostResponseCreator;
 import org.apache.sling.servlets.post.SlingPostConstants;
 import org.osgi.service.component.annotations.Component;
+import org.osgi.service.component.annotations.Reference;
+import org.osgi.service.component.annotations.ReferenceCardinality;
+import org.osgi.service.component.annotations.ReferencePolicy;
 
 /**
  * <p>
@@ -80,12 +85,34 @@ import org.osgi.service.component.annotations.Component;
 public class DeleteAcesServlet extends AbstractAccessPostServlet implements DeleteAces {
 	private static final long serialVersionUID = 3784866802938282971L;
 
+    /**
+     * Overridden since the @Reference annotation is not inherited from the super method
+     *  
+	 * @see org.apache.sling.jackrabbit.usermanager.impl.post.AbstractPostServlet#bindPostResponseCreator(org.apache.sling.servlets.post.PostResponseCreator, java.util.Map)
+	 */
+	@Override
+    @Reference(service = PostResponseCreator.class,
+	    cardinality = ReferenceCardinality.MULTIPLE,
+	    policy = ReferencePolicy.DYNAMIC)
+	protected void bindPostResponseCreator(PostResponseCreator creator, Map<String, Object> properties) {
+		super.bindPostResponseCreator(creator, properties);
+	}
+	
 	/* (non-Javadoc)
-	 * @see org.apache.sling.jackrabbit.accessmanager.post.AbstractAccessPostServlet#handleOperation(org.apache.sling.api.SlingHttpServletRequest, org.apache.sling.api.servlets.HtmlResponse, java.util.List)
+	 * @see org.apache.sling.jackrabbit.usermanager.impl.post.AbstractPostServlet#unbindPostResponseCreator(org.apache.sling.servlets.post.PostResponseCreator, java.util.Map)
+	 */
+	@Override
+	protected void unbindPostResponseCreator(PostResponseCreator creator, Map<String, Object> properties) {
+		super.unbindPostResponseCreator(creator, properties);
+	}
+    
+	
+	/* (non-Javadoc)
+	 * @see org.apache.sling.jackrabbit.accessmanager.post.AbstractAccessPostServlet#handleOperation(org.apache.sling.api.SlingHttpServletRequest, org.apache.sling.servlets.post.PostResponse, java.util.List)
 	 */
 	@Override
 	protected void handleOperation(SlingHttpServletRequest request,
-			AbstractPostResponse htmlResponse, List<Modification> changes)
+			PostResponse htmlResponse, List<Modification> changes)
 			throws RepositoryException {
 
 		Session session = request.getResourceResolver().adaptTo(Session.class);
