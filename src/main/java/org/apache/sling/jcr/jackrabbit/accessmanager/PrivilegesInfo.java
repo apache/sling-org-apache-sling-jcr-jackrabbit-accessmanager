@@ -31,12 +31,15 @@ import java.util.Set;
 import javax.jcr.Node;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
+import javax.jcr.Value;
+import javax.jcr.ValueFormatException;
 import javax.jcr.security.AccessControlEntry;
 import javax.jcr.security.AccessControlList;
 import javax.jcr.security.AccessControlManager;
 import javax.jcr.security.AccessControlPolicy;
 import javax.jcr.security.Privilege;
 
+import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
 import org.apache.sling.jcr.base.util.AccessControlUtil;
 
 /**
@@ -241,6 +244,58 @@ public class PrivilegesInfo {
 		return rights;
 	}
 	
+	/**
+	 * Returns the restrictions for the specified path.
+	 * 
+	 * @param node the node to inspect
+	 * @param principalId the principalId to get the access rights for
+	 * @return map of restrictions (key is restriction name, value is Value or Value[])
+	 * @throws RepositoryException
+	 */
+	public Map<String, Object> getDeclaredRestrictionsForPrincipal(Node node, String principalId) throws RepositoryException {
+		return getDeclaredRestrictionsForPrincipal(node.getSession(), node.getPath(), principalId);
+	}
+	
+	/**
+	 * Returns the restrictions for the specified path.
+	 * 
+	 * @param session the session for the current user
+	 * @param absPath the path to get the privileges for
+	 * @param principalId the principalId to get the access rights for
+	 * @return map of restrictions (key is restriction name, value is Value or Value[])
+	 * @throws RepositoryException
+	 */
+	public Map<String, Object> getDeclaredRestrictionsForPrincipal(Session session, String absPath, String principalId) throws RepositoryException {
+		Map<String, Object> restrictions = new LinkedHashMap<>();
+		AccessControlEntry[] entries = getDeclaredAccessControlEntries(session, absPath);
+		if (entries != null) {
+			for (AccessControlEntry ace : entries) {
+				if (principalId.equals(ace.getPrincipal().getName())) {
+					if (ace instanceof JackrabbitAccessControlEntry) {
+						JackrabbitAccessControlEntry jace = (JackrabbitAccessControlEntry)ace;
+						String[] restrictionNames = jace.getRestrictionNames();
+						if (restrictionNames != null) {
+							for (String name : restrictionNames) {
+								try {
+									Value value = jace.getRestriction(name);
+									if (value != null) {
+										restrictions.put(name, value);
+									}									
+								} catch (ValueFormatException vfe) {
+									//try multi-value restriction
+									Value[] values = jace.getRestrictions(name);
+									if (values != null && values.length > 0) {
+										restrictions.put(name,  values);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		return restrictions;
+	}
 
 	
 	

@@ -28,9 +28,13 @@ import java.util.Set;
 import javax.jcr.Item;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
+import javax.jcr.Value;
+import javax.jcr.ValueFactory;
 import javax.servlet.Servlet;
 
 import org.apache.jackrabbit.api.security.principal.PrincipalManager;
+import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionDefinition;
+import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.resource.ResourceNotFoundException;
 import org.apache.sling.jcr.base.util.AccessControlUtil;
@@ -42,6 +46,7 @@ import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.component.annotations.ReferencePolicy;
+import org.osgi.service.component.annotations.ReferencePolicyOption;
 
 /**
  * <p>
@@ -65,6 +70,12 @@ import org.osgi.service.component.annotations.ReferencePolicy;
  * <dd>One or more privileges, either granted or denied or none, which will be applied
  * to (or removed from) the node ACL. Any permissions that are present in an
  * existing ACE for the principal but not in the request are left untouched.</dd>
+ * </dl>
+ * <dt>restriction@*</dt>
+ * <dd>One or more restrictions which will be applied to the ACE</dd>
+ * </dl>
+ * <dt>restriction@*@Delete</dt>
+ * <dd>One or more restrictions which will be removed from the ACE</dd>
  * </dl>
  *
  * <h4>Response</h4>
@@ -94,6 +105,19 @@ property= {
 public class ModifyAceServlet extends AbstractAccessPostServlet implements ModifyAce {
 	private static final long serialVersionUID = -9182485466670280437L;
 
+	private RestrictionProvider restrictionProvider = null;
+
+	// NOTE: the @Reference annotation is not inherited, so subclasses will need to override the #bindRestrictionProvider 
+	// and #unbindRestrictionProvider methods to provide the @Reference annotation.     
+	//
+    @Reference(cardinality=ReferenceCardinality.OPTIONAL, policy = ReferencePolicy.DYNAMIC, policyOption=ReferencePolicyOption.GREEDY)
+    protected void bindRestrictionProvider(RestrictionProvider rp) {
+    	this.restrictionProvider = rp;
+    }
+    protected void unbindRestrictionProvider(RestrictionProvider rp) {
+    	this.restrictionProvider = null;
+    }
+    
     /**
      * Overridden since the @Reference annotation is not inherited from the super method
      *  
@@ -126,7 +150,15 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
 		Session session = request.getResourceResolver().adaptTo(Session.class);
     	String resourcePath = request.getResource().getPath();
 		String principalId = request.getParameter("principalId");
-		Map<String, String> privileges = new HashMap<String, String>();
+		Map<String, String> privileges = new HashMap<>();
+		Map<String, Value> restrictions = new HashMap<>();
+		Map<String, Value[]> mvRestrictions = new HashMap<>();
+		Set<String> removeRestrictionNames = new HashSet<>();
+
+		//lazy initialized map for quick lookup when processing POSTed restrictions
+		Map<String, RestrictionDefinition> supportedRestrictionsMap = null;
+		ValueFactory factory = session.getValueFactory();
+
 		Enumeration<?> parameterNames = request.getParameterNames();
 		while (parameterNames.hasMoreElements()) {
 			Object nextElement = parameterNames.nextElement();
@@ -136,19 +168,74 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
 					String privilegeName = paramName.substring(10);
 					String parameterValue = request.getParameter(paramName);
 					privileges.put(privilegeName, parameterValue);
+				} else if (paramName.startsWith("restriction@")) {
+					if (restrictionProvider == null) {
+						throw new IllegalArgumentException("No restriction provider is available so unable to process POSTed restriction values");
+					}
+					if (supportedRestrictionsMap == null) {
+						supportedRestrictionsMap = new HashMap<>();
+
+						//populate the map for quick lookup below
+						Set<RestrictionDefinition> supportedRestrictions = restrictionProvider.getSupportedRestrictions(resourcePath);
+						for (RestrictionDefinition restrictionDefinition : supportedRestrictions) {
+							supportedRestrictionsMap.put(restrictionDefinition.getName(), restrictionDefinition);
+						}
+					}
+					
+					if (paramName.endsWith("@Delete")) {
+						String restrictionName = paramName.substring(12, paramName.length() - 7);
+						removeRestrictionNames.add(restrictionName);
+					} else {
+						String restrictionName = paramName.substring(12);
+						String[] parameterValues = request.getParameterValues(paramName);
+						if (parameterValues != null) {
+							RestrictionDefinition rd = supportedRestrictionsMap.get(restrictionName);
+							if (rd == null) {
+								//illegal restriction name?
+								throw new IllegalArgumentException("Invalid or not supported restriction name was supplied");
+							}
+							
+							boolean multival = rd.getRequiredType().isArray();
+							int restrictionType = rd.getRequiredType().tag();
+							
+							if (multival) {
+								Value [] v = new Value[parameterValues.length];
+								for (int j = 0; j < parameterValues.length; j++) {
+									String string = parameterValues[j];
+									v[j] = factory.createValue(string, restrictionType);
+								}
+
+								mvRestrictions.put(restrictionName, v);
+							} else if (parameterValues.length > 0) {
+								Value v = factory.createValue(parameterValues[0], restrictionType);
+								restrictions.put(restrictionName, v);
+							}
+						}
+					}
 				}
 			}
 		}
 		String order = request.getParameter("order");
-    	modifyAce(session, resourcePath, principalId, privileges, order);
+    	modifyAce(session, resourcePath, principalId, privileges, order, restrictions, mvRestrictions, 
+    			removeRestrictionNames);
 	}
 	
+
 	/* (non-Javadoc)
 	 * @see org.apache.sling.jcr.jackrabbit.accessmanager.ModifyAce#modifyAce(javax.jcr.Session, java.lang.String, java.lang.String, java.util.Map, java.lang.String)
 	 */
 	public void modifyAce(Session jcrSession, String resourcePath,
 			String principalId, Map<String, String> privileges, String order)
 			throws RepositoryException {
+		modifyAce(jcrSession, resourcePath, principalId, privileges, order, null, null, null);
+	}
+	/* (non-Javadoc)
+	 * @see org.apache.sling.jcr.jackrabbit.accessmanager.ModifyAce#modifyAce(javax.jcr.Session, java.lang.String, java.lang.String, java.util.Map, java.lang.String, java.util.Map, java.util.Map, java.util.Set)
+	 */
+	@Override
+	public void modifyAce(Session jcrSession, String resourcePath, String principalId, Map<String, String> privileges,
+			String order, Map<String, Value> restrictions, Map<String, Value[]> mvRestrictions,
+			Set<String> removeRestrictionNames) throws RepositoryException {
 		if (jcrSession == null) {
 			throw new RepositoryException("JCR Session not found");
 		}
@@ -174,20 +261,22 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
 		Set<String> grantedPrivilegeNames = new HashSet<String>();
 		Set<String> deniedPrivilegeNames = new HashSet<String>();
 		Set<String> removedPrivilegeNames = new HashSet<String>();
-		Set<Entry<String, String>> entrySet = privileges.entrySet();
-		for (Entry<String, String> entry : entrySet) {
-			String privilegeName = entry.getKey();
-			if (privilegeName.startsWith("privilege@")) {
-				privilegeName = privilegeName.substring(10);
-			}
-			String parameterValue = entry.getValue();
-			if (parameterValue != null && parameterValue.length() > 0) {
-				if ("granted".equals(parameterValue)) {
-					grantedPrivilegeNames.add(privilegeName);
-				} else if ("denied".equals(parameterValue)) {
-					deniedPrivilegeNames.add(privilegeName);
-				} else if ("none".equals(parameterValue)){
-					removedPrivilegeNames.add(privilegeName);
+		if (privileges != null) {
+			Set<Entry<String, String>> entrySet = privileges.entrySet();
+			for (Entry<String, String> entry : entrySet) {
+				String privilegeName = entry.getKey();
+				if (privilegeName.startsWith("privilege@")) {
+					privilegeName = privilegeName.substring(10);
+				}
+				String parameterValue = entry.getValue();
+				if (parameterValue != null && parameterValue.length() > 0) {
+					if ("granted".equals(parameterValue)) {
+						grantedPrivilegeNames.add(privilegeName);
+					} else if ("denied".equals(parameterValue)) {
+						deniedPrivilegeNames.add(privilegeName);
+					} else if ("none".equals(parameterValue)){
+						removedPrivilegeNames.add(privilegeName);
+					}
 				}
 			}
 		}
@@ -198,7 +287,10 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
 					grantedPrivilegeNames.toArray(new String[grantedPrivilegeNames.size()]),
 					deniedPrivilegeNames.toArray(new String[deniedPrivilegeNames.size()]),
 					removedPrivilegeNames.toArray(new String[removedPrivilegeNames.size()]),
-					order);
+					order,
+					restrictions,
+					mvRestrictions,
+					removeRestrictionNames);
 			if (jcrSession.hasPendingChanges()) {
 				jcrSession.save();
 			}

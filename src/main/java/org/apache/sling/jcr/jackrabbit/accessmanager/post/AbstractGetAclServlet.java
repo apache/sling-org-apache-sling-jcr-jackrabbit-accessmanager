@@ -17,6 +17,7 @@
 package org.apache.sling.jcr.jackrabbit.accessmanager.post;
 
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -31,6 +32,8 @@ import javax.jcr.AccessDeniedException;
 import javax.jcr.Item;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
+import javax.jcr.Value;
+import javax.jcr.ValueFormatException;
 import javax.jcr.security.AccessControlEntry;
 import javax.jcr.security.Privilege;
 import javax.json.Json;
@@ -41,6 +44,7 @@ import javax.json.stream.JsonGenerator;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.resource.ResourceNotFoundException;
@@ -120,6 +124,7 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
 
         AccessControlEntry[] declaredAccessControlEntries = getAccessControlEntries(jcrSession, resourcePath);
         Map<String, Map<String, Object>> aclMap = new LinkedHashMap<String, Map<String,Object>>();
+        Map<String, Map<String, Object>> restrictionMap = new LinkedHashMap<String, Map<String,Object>>();
         int sequence = 0;
 
         for (AccessControlEntry ace : declaredAccessControlEntries) {
@@ -134,8 +139,31 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
         //evaluate these in reverse order so the most entries with highest specificity are last
         for (int i = declaredAccessControlEntries.length - 1; i >= 0; i--) {
 			AccessControlEntry ace = declaredAccessControlEntries[i];
-
 			Principal principal = ace.getPrincipal();
+
+			if (ace instanceof JackrabbitAccessControlEntry) {
+				JackrabbitAccessControlEntry jace = (JackrabbitAccessControlEntry)ace;
+				String[] restrictionNames = jace.getRestrictionNames();
+				if (restrictionNames != null) {
+					Map<String, Object> restrictions = restrictionMap.get(principal.getName());
+					if (restrictions == null) {
+						restrictions = new HashMap<>();
+						restrictionMap.put(principal.getName(), restrictions);
+					}
+					for (String rname : restrictionNames) {
+						try {
+							//try as a single-value restriction
+							Value value = jace.getRestriction(rname);
+							restrictions.put(rname, value);
+						} catch (ValueFormatException vfe) {
+							//try as a multi-value restriction
+							Value[] values = jace.getRestrictions(rname);
+							restrictions.put(rname, values);
+						}
+					}
+				}
+			}
+			
             Map<String, Object> map = aclMap.get(principal.getName());
 
             Set<Privilege> grantedSet = (Set<Privilege>) map.get("granted");
@@ -196,6 +224,30 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
                 aceObject.add("denied", arrayBuilder);
             }
             aceObject.add("order", (Integer) value.get("order"));
+
+            Map<String, Object> restrictions = restrictionMap.get(principalName);
+            if (restrictions != null && !restrictions.isEmpty()) {
+            	Set<Entry<String, Object>> entrySet2 = restrictions.entrySet();
+            	JsonObjectBuilder jsonRestrictions = Json.createObjectBuilder();
+            	for (Entry<String, Object> entry2 : entrySet2) {
+    				Object rvalue = entry2.getValue();
+    				if (rvalue != null) {
+    					if (rvalue.getClass().isArray()) {
+    		                JsonArrayBuilder arrayBuilder = Json.createArrayBuilder();
+    		                int length = Array.getLength(rvalue);
+    		                for (int i= 0; i  < length; i++) {
+    		                	Object object = Array.get(rvalue, i);
+    		                	addTo(arrayBuilder, object);
+    		                }
+    		                jsonRestrictions.add(entry2.getKey(), arrayBuilder);
+    					} else {
+    						addTo(jsonRestrictions, entry2.getKey(), rvalue);
+    					}
+    				}
+    			}
+            	aceObject.add("restrictions", jsonRestrictions);
+            }
+            
             aclList.add(aceObject.build());
         }
         JsonObjectBuilder jsonAclMap = Json.createObjectBuilder();
@@ -208,6 +260,7 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
             }
             jsonAclMap.add(entry.getKey(), builder);
         }
+
         for (JsonObject jsonObj : aclList) {
             jsonAclMap.add(jsonObj.getString("principal"), jsonObj);
         }
@@ -216,27 +269,31 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
     }
     
     private JsonObjectBuilder addTo(JsonObjectBuilder builder, String key, Object value) {
-        if (value instanceof Byte || value instanceof Short || value instanceof Integer || value instanceof Long)
-        {
+        if (value instanceof Byte || value instanceof Short || value instanceof Integer || value instanceof Long) {
             builder.add(key, ((Number) value).longValue());
-        }
-        else if (value instanceof Float || value instanceof Double)
-        {
+        } else if (value instanceof Float || value instanceof Double) {
             builder.add(key, ((Number) value).doubleValue());
-        }
-        else if (value instanceof Privilege)
-        {
+        } else if (value instanceof Privilege) {
             JsonObjectBuilder privilegeBuilder = Json.createObjectBuilder();
             privilegeBuilder.add("name", ((Privilege) value).getName());
             builder.add(key, privilegeBuilder);
-        }
-        else if (value instanceof String)
-        {
+        } else if (value instanceof String) {
             builder.add(key, (String) value);
-        }
-        else
-        {
+        } else {
             builder.add(key, value.toString());
+        }
+        return builder;
+    }
+
+    private JsonArrayBuilder addTo(JsonArrayBuilder builder, Object value) {
+        if (value instanceof Byte || value instanceof Short || value instanceof Integer || value instanceof Long) {
+            builder.add(((Number) value).longValue());
+        } else if (value instanceof Float || value instanceof Double) {
+            builder.add(((Number) value).doubleValue());
+        } else if (value instanceof String) {
+            builder.add((String) value);
+        } else {
+            builder.add(value.toString());
         }
         return builder;
     }
