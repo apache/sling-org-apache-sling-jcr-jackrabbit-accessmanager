@@ -217,9 +217,19 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
 		}
 		String order = request.getParameter("order");
     	modifyAce(session, resourcePath, principalId, privileges, order, restrictions, mvRestrictions, 
-    			removeRestrictionNames);
+    			removeRestrictionNames, false);
 	}
 	
+
+	/* (non-Javadoc)
+	 * @see org.apache.sling.jcr.jackrabbit.accessmanager.ModifyAce#modifyAce(javax.jcr.Session, java.lang.String, java.lang.String, java.util.Map, java.lang.String, boolean)
+	 */
+	@Override
+	public void modifyAce(Session jcrSession, String resourcePath, String principalId, Map<String, String> privileges,
+			String order, boolean autoSave) throws RepositoryException {
+		modifyAce(jcrSession, resourcePath, principalId, privileges, order, 
+				null, null, null, autoSave);
+	}
 
 	/* (non-Javadoc)
 	 * @see org.apache.sling.jcr.jackrabbit.accessmanager.ModifyAce#modifyAce(javax.jcr.Session, java.lang.String, java.lang.String, java.util.Map, java.lang.String)
@@ -227,7 +237,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
 	public void modifyAce(Session jcrSession, String resourcePath,
 			String principalId, Map<String, String> privileges, String order)
 			throws RepositoryException {
-		modifyAce(jcrSession, resourcePath, principalId, privileges, order, null, null, null);
+		modifyAce(jcrSession, resourcePath, principalId, privileges, order, true);
 	}
 	/* (non-Javadoc)
 	 * @see org.apache.sling.jcr.jackrabbit.accessmanager.ModifyAce#modifyAce(javax.jcr.Session, java.lang.String, java.lang.String, java.util.Map, java.lang.String, java.util.Map, java.util.Map, java.util.Set)
@@ -236,6 +246,17 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
 	public void modifyAce(Session jcrSession, String resourcePath, String principalId, Map<String, String> privileges,
 			String order, Map<String, Value> restrictions, Map<String, Value[]> mvRestrictions,
 			Set<String> removeRestrictionNames) throws RepositoryException {
+		modifyAce(jcrSession, resourcePath, principalId, privileges, order, 
+				restrictions, mvRestrictions, removeRestrictionNames, true);
+	}	
+	
+	/* (non-Javadoc)
+	 * @see org.apache.sling.jcr.jackrabbit.accessmanager.ModifyAce#modifyAce(javax.jcr.Session, java.lang.String, java.lang.String, java.util.Map, java.lang.String, java.util.Map, java.util.Map, java.util.Set, boolean)
+	 */
+	@Override
+	public void modifyAce(Session jcrSession, String resourcePath, String principalId, Map<String, String> privileges,
+			String order, Map<String, Value> restrictions, Map<String, Value[]> mvRestrictions,
+			Set<String> removeRestrictionNames, boolean autoSave) throws RepositoryException {
 		if (jcrSession == null) {
 			throw new RepositoryException("JCR Session not found");
 		}
@@ -291,7 +312,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
 					restrictions,
 					mvRestrictions,
 					removeRestrictionNames);
-			if (jcrSession.hasPendingChanges()) {
+			if (autoSave && jcrSession.hasPendingChanges()) {
 				jcrSession.save();
 			}
 		} catch (RepositoryException re) {
