@@ -266,6 +266,9 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
 		}
 		PrincipalManager principalManager = AccessControlUtil.getPrincipalManager(jcrSession);
 		Principal principal = principalManager.getPrincipal(principalId);
+		if (principal == null) {
+			throw new RepositoryException("Invalid principalId was submitted.");
+		}
 		
     	if (resourcePath == null) {
 			throw new ResourceNotFoundException("Resource path was not supplied.");
