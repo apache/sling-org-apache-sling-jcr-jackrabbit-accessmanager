@@ -16,6 +16,7 @@
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager.post;
 
+import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -31,6 +32,7 @@ import javax.jcr.security.AccessControlList;
 import javax.jcr.security.AccessControlManager;
 import javax.servlet.Servlet;
 
+import org.apache.jackrabbit.api.security.principal.PrincipalManager;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.resource.ResourceNotFoundException;
 import org.apache.sling.jcr.base.util.AccessControlUtil;
@@ -156,6 +158,22 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
 			Set<String> pidSet = new HashSet<String>();
 			pidSet.addAll(Arrays.asList(principalNamesToDelete));
 
+			// validate that the submitted names are valid
+			Set<String> notFound = null;
+			PrincipalManager principalManager = AccessControlUtil.getPrincipalManager(jcrSession);
+			for (String pid : pidSet) {
+				Principal principal = principalManager.getPrincipal(pid);
+				if (principal == null) {
+					if (notFound == null) {
+						notFound = new HashSet<>();
+					}
+					notFound.add(pid);
+				}
+			}
+			if (notFound != null && !notFound.isEmpty()) {
+				throw new RepositoryException("Invalid principalId was submitted.");
+			}
+			
 			try {
 				AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(jcrSession);
 				AccessControlList updatedAcl = getAccessControlListOrNull(accessControlManager, resourcePath, false);
