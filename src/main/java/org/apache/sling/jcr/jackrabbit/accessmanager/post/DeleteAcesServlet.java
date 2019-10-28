@@ -127,7 +127,7 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
 		Session session = request.getResourceResolver().adaptTo(Session.class);
     	String resourcePath = request.getResource().getPath();
         String[] applyTo = request.getParameterValues(SlingPostConstants.RP_APPLY_TO);
-        deleteAces(session, resourcePath, applyTo);
+        deleteAces(session, resourcePath, applyTo, changes);
 	}
 
 	/* (non-Javadoc)
@@ -135,7 +135,14 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
 	 */
 	public void deleteAces(Session jcrSession, String resourcePath,
 			String[] principalNamesToDelete) throws RepositoryException {
-
+		deleteAces(jcrSession, resourcePath, principalNamesToDelete, null);
+	}
+	
+	/* (non-Javadoc)
+	 * @see org.apache.sling.jcr.jackrabbit.accessmanager.DeleteAces#deleteAces(javax.jcr.Session, java.lang.String, java.lang.String[])
+	 */
+	protected void deleteAces(Session jcrSession, String resourcePath,
+			String[] principalNamesToDelete, List<Modification> changes) throws RepositoryException {
         if (principalNamesToDelete == null) {
 			throw new RepositoryException("principalIds were not sumitted.");
         } else {
@@ -177,6 +184,7 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
 			try {
 				AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(jcrSession);
 				AccessControlList updatedAcl = getAccessControlListOrNull(accessControlManager, resourcePath, false);
+
 				// if there is no AccessControlList, then there is nothing to be deleted
 				if (updatedAcl == null) {
 					// log the warning about principals where no ACE was found
@@ -208,7 +216,11 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
 
 					// log the warning about principals where no ACE was found
 					for (String pid : pidSet) {
-						if (!removedPidSet.contains(pid)) {
+						if (removedPidSet.contains(pid)) {
+							if (changes != null) {
+								changes.add(Modification.onDeleted(pid));
+							}
+						} else {
 							log.warn("No AccessControlEntry was found to be deleted for principal: " + pid);
 						}
 					}
