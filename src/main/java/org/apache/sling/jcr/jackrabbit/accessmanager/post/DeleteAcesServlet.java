@@ -43,6 +43,8 @@ import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.component.annotations.ReferencePolicy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>
@@ -84,6 +86,11 @@ import org.osgi.service.component.annotations.ReferencePolicy;
     })
 public class DeleteAcesServlet extends AbstractAccessPostServlet implements DeleteAces {
 	private static final long serialVersionUID = 3784866802938282971L;
+
+	/**
+     * default log
+     */
+    private final Logger log = LoggerFactory.getLogger(getClass());
 
     /**
      * Overridden since the @Reference annotation is not inherited from the super method
@@ -151,26 +158,46 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
 
 			try {
 				AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(jcrSession);
-				AccessControlList updatedAcl = getAccessControlList(accessControlManager, resourcePath, false);
-
-				//keep track of the existing Aces for the target principal
-				AccessControlEntry[] accessControlEntries = updatedAcl.getAccessControlEntries();
-				List<AccessControlEntry> oldAces = new ArrayList<AccessControlEntry>();
-				for (AccessControlEntry ace : accessControlEntries) {
-					if (pidSet.contains(ace.getPrincipal().getName())) {
-						oldAces.add(ace);
+				AccessControlList updatedAcl = getAccessControlListOrNull(accessControlManager, resourcePath, false);
+				// if there is no AccessControlList, then there is nothing to be deleted
+				if (updatedAcl == null) {
+					// log the warning about principals where no ACE was found
+					for (String pid : pidSet) {
+						log.warn("No AccessControlEntry was found to be deleted for principal: " + pid);
 					}
-				}
-
-				//remove the old aces
-				if (!oldAces.isEmpty()) {
-					for (AccessControlEntry ace : oldAces) {
-						updatedAcl.removeAccessControlEntry(ace);
+				} else {
+					//keep track of the existing Aces for the target principal
+					AccessControlEntry[] accessControlEntries = updatedAcl.getAccessControlEntries();
+					List<AccessControlEntry> oldAces = new ArrayList<AccessControlEntry>();
+					for (AccessControlEntry ace : accessControlEntries) {
+						if (pidSet.contains(ace.getPrincipal().getName())) {
+							oldAces.add(ace);
+						}
 					}
-				}
 
-				//apply the changed policy
-				accessControlManager.setPolicy(resourcePath, updatedAcl);
+					// track which of the submitted principals had an ACE removed
+					Set<String> removedPidSet = new HashSet<>();
+					
+					//remove the old aces
+					if (!oldAces.isEmpty()) {
+						for (AccessControlEntry ace : oldAces) {
+							updatedAcl.removeAccessControlEntry(ace);
+					
+							// remove from the candidate set
+							removedPidSet.add(ace.getPrincipal().getName());
+						}
+					}
+
+					// log the warning about principals where no ACE was found
+					for (String pid : pidSet) {
+						if (!removedPidSet.contains(pid)) {
+							log.warn("No AccessControlEntry was found to be deleted for principal: " + pid);
+						}
+					}
+
+					//apply the changed policy
+					accessControlManager.setPolicy(resourcePath, updatedAcl);
+				}
 			} catch (RepositoryException re) {
 				throw new RepositoryException("Failed to delete access control.", re);
 			}

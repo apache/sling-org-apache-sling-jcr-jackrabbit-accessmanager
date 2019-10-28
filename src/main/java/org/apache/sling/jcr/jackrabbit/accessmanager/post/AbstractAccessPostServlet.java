@@ -402,6 +402,45 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
 
     }
 
+    /**
+     * Returns an <code>AccessControlList</code> to edit for the node at the
+     * given <code>resourcePath</code>.
+     *
+     * @param accessControlManager The manager providing access control lists
+     * @param resourcePath The node path for which to return an access control
+     *            list
+     * @param mayCreate <code>true</code> if an access control list should be
+     *            created if the node does not have one yet.
+     * @return The <code>AccessControlList</code> to modify to control access to
+     *         the node or null if one could not be located or created
+     */
+    protected AccessControlList getAccessControlListOrNull(
+            final AccessControlManager accessControlManager,
+            final String resourcePath, final boolean mayCreate)
+            throws RepositoryException {
+    	AccessControlList acl = null;
+        // check for an existing access control list to edit
+        AccessControlPolicy[] policies = accessControlManager.getPolicies(resourcePath);
+        for (AccessControlPolicy policy : policies) {
+            if (policy instanceof AccessControlList) {
+                acl = (AccessControlList) policy;
+            }
+        }
+
+        if (acl == null) {
+            // no existing access control list, try to create if allowed
+            if (mayCreate) {
+                AccessControlPolicyIterator applicablePolicies = accessControlManager.getApplicablePolicies(resourcePath);
+                while (applicablePolicies.hasNext()) {
+                    AccessControlPolicy policy = applicablePolicies.nextAccessControlPolicy();
+                    if (policy instanceof AccessControlList) {
+                        acl = (AccessControlList) policy;
+                    }
+                }
+            }
+        }
+        return acl;
+    }
 
     /**
      * Bind a new post response creator
