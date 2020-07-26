@@ -22,13 +22,12 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>org.apache.sling</groupId>
-        <artifactId>sling</artifactId>
-        <version>30</version>
+        <artifactId>sling-bundle-parent</artifactId>
+        <version>39</version>
         <relativePath />
     </parent>
 
     <artifactId>org.apache.sling.jcr.jackrabbit.accessmanager</artifactId>
-    <packaging>bundle</packaging>
     <version>3.0.5-SNAPSHOT</version>
     <name>Apache Sling Jackrabbit JSR-283 Access Control Manager Support</name>
     <description>
@@ -47,18 +46,6 @@
 
     <build>
         <plugins>
-            <plugin>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>maven-bundle-plugin</artifactId>
-                <extensions>true</extensions>
-                <configuration>
-                    <instructions>
-                        <Embed-Dependency>
-                            org.apache.sling.servlets.post;inline="org/apache/sling/servlets/post/impl/helper/MediaRangeList*"
-                        </Embed-Dependency>
-                    </instructions>
-                </configuration>
-            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
@@ -79,8 +66,11 @@
             <groupId>org.osgi</groupId>
             <artifactId>osgi.cmpn</artifactId>
             <scope>provided</scope>
+        </dependency>        
+        <dependency>
+            <groupId>org.osgi</groupId>
+            <artifactId>org.osgi.annotation.versioning</artifactId>
         </dependency>
-
             
         <dependency>
             <groupId>javax.servlet</groupId>
@@ -137,7 +127,7 @@
         </dependency>
         <dependency>
             <groupId>org.apache.sling</groupId>
-            <artifactId>org.apache.sling.testing.sling-mock</artifactId>
+            <artifactId>org.apache.sling.testing.sling-mock.junit4</artifactId>
             <version>2.3.4</version>
             <scope>test</scope>
         </dependency>        
