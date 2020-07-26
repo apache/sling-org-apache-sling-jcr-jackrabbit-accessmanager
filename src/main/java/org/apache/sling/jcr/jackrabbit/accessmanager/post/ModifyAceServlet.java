@@ -58,6 +58,7 @@ import org.osgi.service.component.annotations.ReferencePolicyOption;
  * Modify a principal's ACEs for the node identified as a resource by the request
  * URL &gt;resource&lt;.modifyAce.html
  * </p>
+ * <h3>Transport Details:</h3>
  * <h4>Methods</h4>
  * <ul>
  * <li>POST</li>
@@ -70,10 +71,8 @@ import org.osgi.service.component.annotations.ReferencePolicyOption;
  * <dd>One or more privileges, either granted or denied or none, which will be applied
  * to (or removed from) the node ACL. Any permissions that are present in an
  * existing ACE for the principal but not in the request are left untouched.</dd>
- * </dl>
  * <dt>restriction@*</dt>
  * <dd>One or more restrictions which will be applied to the ACE</dd>
- * </dl>
  * <dt>restriction@*@Delete</dt>
  * <dd>One or more restrictions which will be removed from the ACE</dd>
  * </dl>
@@ -120,8 +119,6 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
     
     /**
      * Overridden since the @Reference annotation is not inherited from the super method
-     *  
-	 * @see org.apache.sling.jackrabbit.usermanager.impl.post.AbstractPostServlet#bindPostResponseCreator(org.apache.sling.servlets.post.PostResponseCreator, java.util.Map)
 	 */
 	@Override
     @Reference(service = PostResponseCreator.class,

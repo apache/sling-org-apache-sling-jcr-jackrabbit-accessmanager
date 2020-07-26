@@ -52,7 +52,7 @@ public class PrivilegesInfo {
 	 * 
 	 * @param node the node to check
 	 * @return array of Privileges
-	 * @throws RepositoryException
+	 * @throws RepositoryException if any errors reading the information
 	 */
 	public Privilege [] getSupportedPrivileges(Node node) throws RepositoryException {
 		return getSupportedPrivileges(node.getSession(), node.getPath());
@@ -64,7 +64,7 @@ public class PrivilegesInfo {
 	 * @param session the session for the current user
 	 * @param absPath the path to get the privileges for
 	 * @return array of Privileges
-	 * @throws RepositoryException
+	 * @throws RepositoryException if any errors reading the information
 	 */
 	public Privilege [] getSupportedPrivileges(Session session, String absPath) throws RepositoryException {
 		AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(session);
@@ -141,7 +141,7 @@ public class PrivilegesInfo {
 	 * 
 	 * @param node the node to get the access rights for
 	 * @return map of access rights.  Key is the user/group principal, value contains the granted/denied privileges
-	 * @throws RepositoryException
+	 * @throws RepositoryException if any errors reading the information
 	 */
 	public Map<Principal, AccessRights> getDeclaredAccessRights(Node node) throws RepositoryException {
 		Map<Principal, AccessRights> accessRights = getDeclaredAccessRights(node.getSession(), node.getPath());
@@ -155,7 +155,7 @@ public class PrivilegesInfo {
 	 * @param session the current user session.
 	 * @param absPath the path of the resource to get the access rights for
 	 * @return map of access rights.  Key is the user/group principal, value contains the granted/denied privileges
-	 * @throws RepositoryException
+	 * @throws RepositoryException if any errors reading the information
 	 */
 	public Map<Principal, AccessRights> getDeclaredAccessRights(Session session, String absPath) throws RepositoryException {
 		Map<Principal, AccessRights> accessMap = new LinkedHashMap<Principal, AccessRights>();
@@ -203,7 +203,7 @@ public class PrivilegesInfo {
 	 * @param node the JCR node to retrieve the access rights for
 	 * @param principalId the principalId to get the access rights for
 	 * @return access rights for the specified principal
-	 * @throws RepositoryException
+	 * @throws RepositoryException if any errors reading the information
 	 */
 	public AccessRights getDeclaredAccessRightsForPrincipal(Node node, String principalId) throws RepositoryException {
 		return getDeclaredAccessRightsForPrincipal(node.getSession(), node.getPath(), principalId);
@@ -217,7 +217,7 @@ public class PrivilegesInfo {
 	 * @param absPath the path of the resource to retrieve the rights for
 	 * @param principalId the principalId to get the access rights for
 	 * @return access rights for the specified principal
-	 * @throws RepositoryException
+	 * @throws RepositoryException if any errors reading the information
 	 */
 	public AccessRights getDeclaredAccessRightsForPrincipal(Session session, String absPath, String principalId) throws RepositoryException {
 		AccessRights rights = new AccessRights();
@@ -250,7 +250,7 @@ public class PrivilegesInfo {
 	 * @param node the node to inspect
 	 * @param principalId the principalId to get the access rights for
 	 * @return map of restrictions (key is restriction name, value is Value or Value[])
-	 * @throws RepositoryException
+	 * @throws RepositoryException if any errors reading the information
 	 */
 	public Map<String, Object> getDeclaredRestrictionsForPrincipal(Node node, String principalId) throws RepositoryException {
 		return getDeclaredRestrictionsForPrincipal(node.getSession(), node.getPath(), principalId);
@@ -263,7 +263,7 @@ public class PrivilegesInfo {
 	 * @param absPath the path to get the privileges for
 	 * @param principalId the principalId to get the access rights for
 	 * @return map of restrictions (key is restriction name, value is Value or Value[])
-	 * @throws RepositoryException
+	 * @throws RepositoryException if any errors reading the information
 	 */
 	public Map<String, Object> getDeclaredRestrictionsForPrincipal(Session session, String absPath, String principalId) throws RepositoryException {
 		Map<String, Object> restrictions = new LinkedHashMap<>();
@@ -305,7 +305,7 @@ public class PrivilegesInfo {
 	 * 
 	 * @param node the node to get the access rights for
 	 * @return map of access rights.  Key is the user/group principal, value contains the granted/denied privileges
-	 * @throws RepositoryException
+	 * @throws RepositoryException if any errors reading the information
 	 */
 	public Map<Principal, AccessRights> getEffectiveAccessRights(Node node) throws RepositoryException {
 		Map<Principal, AccessRights> accessRights = getEffectiveAccessRights(node.getSession(), node.getPath());
@@ -319,7 +319,7 @@ public class PrivilegesInfo {
 	 * @param session the current user session.
 	 * @param absPath the path of the resource to get the access rights for
 	 * @return map of access rights.  Key is the user/group principal, value contains the granted/denied privileges
-	 * @throws RepositoryException
+	 * @throws RepositoryException if any errors reading the information
 	 */
 	public Map<Principal, AccessRights> getEffectiveAccessRights(Session session, String absPath) throws RepositoryException {
 		Map<Principal, AccessRights> accessMap = new LinkedHashMap<Principal, AccessRights>();
@@ -367,7 +367,7 @@ public class PrivilegesInfo {
 	 * @param node the JCR node to retrieve the access rights for
 	 * @param principalId the principalId to get the access rights for
 	 * @return access rights for the specified principal
-	 * @throws RepositoryException
+	 * @throws RepositoryException if any errors reading the information
 	 */
 	public AccessRights getEffectiveAccessRightsForPrincipal(Node node, String principalId) throws RepositoryException {
 		return getEffectiveAccessRightsForPrincipal(node.getSession(), node.getPath(), principalId);
@@ -381,7 +381,7 @@ public class PrivilegesInfo {
 	 * @param absPath the path of the resource to retrieve the rights for
 	 * @param principalId the principalId to get the access rights for
 	 * @return access rights for the specified principal
-	 * @throws RepositoryException
+	 * @throws RepositoryException if any errors reading the information
 	 */
 	public AccessRights getEffectiveAccessRightsForPrincipal(Session session, String absPath, String principalId) throws RepositoryException {
 		AccessRights rights = new AccessRights();

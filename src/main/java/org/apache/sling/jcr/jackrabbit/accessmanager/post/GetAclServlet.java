@@ -42,6 +42,7 @@ import org.osgi.service.component.annotations.Component;
  * &gt;resource&lt;.acl.json Provided the user has access to the ACL, they get a chunk of
  * JSON of the form.
  * </p>
+ * <h3>Transport Details:</h3>
  * <h4>Methods</h4>
  * <ul>
  * <li>GET</li>
@@ -56,8 +57,7 @@ import org.osgi.service.component.annotations.Component;
  * <dd>Failure. HTML explains the failure.</dd>
  * </dl>
  * <h4>Example Response</h4>
- * <code>
- * <pre>
+ * <code style='white-space: pre'>
  * {
  * &quot;principalNameA&quot;:
  *      { &quot;granted&quot; : [
@@ -94,7 +94,6 @@ import org.osgi.service.component.annotations.Component;
  *           &quot;permission7&quot;,
  *           &quot;permission8&quot;] }
  * }
- * </pre>
  * </code>
  */
 

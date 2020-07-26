@@ -58,6 +58,7 @@ import org.slf4j.LoggerFactory;
  * Delete a set of Ace's from a node, the node is identified as a resource by the request
  * url &gt;resource&lt;.deleteAce.html
  * </p>
+ * <h3>Transport Details:</h3>
  * <h4>Methods</h4>
  * <ul>
  * <li>POST</li>
@@ -96,8 +97,6 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
 
     /**
      * Overridden since the @Reference annotation is not inherited from the super method
-     *  
-	 * @see org.apache.sling.jackrabbit.usermanager.impl.post.AbstractPostServlet#bindPostResponseCreator(org.apache.sling.servlets.post.PostResponseCreator, java.util.Map)
 	 */
 	@Override
     @Reference(service = PostResponseCreator.class,

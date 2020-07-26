@@ -153,11 +153,11 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
     /**
      * Creates an instance of a HtmlResponse.
      * @param req The request being serviced
-     * @return a {@link org.apache.sling.servlets.post.impl.helper.JSONResponse} if any of these conditions are true:
+     * @return a {@link org.apache.sling.servlets.post.JSONResponse} if any of these conditions are true:
      * <ul>
      *   <li>the response content type is application/json
      * </ul>
-     * or a {@link org.apache.sling.api.servlets.HtmlResponse} otherwise
+     * or a {@link org.apache.sling.servlets.post.HtmlResponse} otherwise
      * @deprecated use {@link #createPostResponse(SlingHttpServletRequest)} instead
      */
 	@Deprecated
@@ -168,7 +168,7 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
     /**
      * Creates an instance of a PostResponse.
      * @param req The request being serviced
-     * @return a {@link org.apache.sling.servlets.post.impl.helper.JSONResponse} if any of these conditions are true:
+     * @return a {@link org.apache.sling.servlets.post.JSONResponse} if any of these conditions are true:
      * <ul>
      *   <li> the request has an <code>Accept</code> header of <code>application/json</code></li>
      *   <li>the request is a JSON POST request (see SLING-1172)</li>
@@ -212,7 +212,8 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
 	 *
 	 * @param request the sling http request to process
 	 * @param response the response
-	 * @param changes
+     * @param changes the changes to report
+	 * @throws RepositoryException if any errors applying the changes 
 	 * 
 	 * @deprecated use {@link #handleOperation(SlingHttpServletRequest, PostResponse, List)} instead
 	 */
@@ -227,7 +228,8 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
 	 *
 	 * @param request the sling http request to process
 	 * @param response the response
-	 * @param changes
+     * @param changes the changes to report
+	 * @throws RepositoryException if any errors applying the changes 
 	 */
 	abstract protected void handleOperation(SlingHttpServletRequest request,
 			PostResponse response, List<Modification> changes) throws RepositoryException;
@@ -236,6 +238,7 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
     /**
      * compute redirect URL (SLING-126)
      *
+	 * @param request the sling http request to process
      * @param ctx the post processor
      * @return the redirect location or <code>null</code>
      * @deprecated use {@link #getRedirectUrl(HttpServletRequest, PostResponse)} instead
@@ -248,6 +251,7 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
     /**
      * compute redirect URL (SLING-126)
      *
+	 * @param request the sling http request to process
      * @param ctx the post processor
      * @return the redirect location or <code>null</code>
      */
@@ -326,6 +330,9 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
      * <p>
      * This method may be overwritten by extension if the operation has
      * different requirements on path processing.
+     * </p>
+	 * @param request the sling http request to process
+	 * @return the resolved path of the found item
      */
     protected String getItemPath(SlingHttpServletRequest request) {
         return request.getResource().getPath();
@@ -335,6 +342,7 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
      * Returns an external form of the given path prepending the context path
      * and appending a display extension.
      *
+	 * @param request the sling http request to process
      * @param path the path to externalize
      * @return the url
      */
@@ -413,6 +421,7 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
      *            created if the node does not have one yet.
      * @return The <code>AccessControlList</code> to modify to control access to
      *         the node or null if one could not be located or created
+	 * @throws RepositoryException if any errors reading the information
      */
     protected AccessControlList getAccessControlListOrNull(
             final AccessControlManager accessControlManager,
@@ -444,6 +453,9 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
 
     /**
      * Bind a new post response creator
+     * 
+     * @param creator the response creator service reference
+     * @param properties the component properties for the service reference
      */
 	// NOTE: the @Reference annotation is not inherited, so subclasses will need to override the #bindPostResponseCreator 
 	// and #unbindPostResponseCreator methods to provide the @Reference annotation.     
@@ -473,6 +485,9 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
 
     /**
      * Unbind a post response creator
+     * 
+     * @param creator the response creator service reference
+     * @param properties the component properties for the service reference
      */
     protected void unbindPostResponseCreator(final PostResponseCreator creator, final Map<String, Object> properties) {
         synchronized ( this.postResponseCreators ) {

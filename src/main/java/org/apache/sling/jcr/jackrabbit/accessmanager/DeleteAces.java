@@ -36,7 +36,7 @@ public interface DeleteAces {
 	 * @param jcrSession the JCR session of the user updating the user
 	 * @param resourcePath The path of the resource to update the ACL for (required)
 	 * @param principalNamesToDelete An array of ace principal names to delete.. (required)
-	 * @throws RepositoryException
+	 * @throws RepositoryException if any errors applying the changes 
 	 */
 	void deleteAces(Session jcrSession,
 							String resourcePath,
