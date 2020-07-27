@@ -40,8 +40,10 @@
         <url>https://gitbox.apache.org/repos/asf?p=sling-org-apache-sling-jcr-jackrabbit-accessmanager.git</url>
       <tag>HEAD</tag>
     </scm>
+
     <properties>
         <sling.java.version>8</sling.java.version>
+        <project.build.outputTimestamp>2020-07-27T15:10:15Z</project.build.outputTimestamp>
     </properties>
 
     <build>
