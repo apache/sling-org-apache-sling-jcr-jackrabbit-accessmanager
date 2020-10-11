@@ -17,6 +17,8 @@
 package org.apache.sling.jcr.jackrabbit.accessmanager.post;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -54,9 +56,9 @@ import org.slf4j.LoggerFactory;
  * Base class for all the POST servlets for the AccessManager operations
  */
 public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
-	private static final long serialVersionUID = -5918670409789895333L;
+    private static final long serialVersionUID = -5918670409789895333L;
 
-	/**
+    /**
      * default log
      */
     private final Logger log = LoggerFactory.getLogger(getClass());
@@ -68,15 +70,15 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
     private PostResponseCreator[] cachedPostResponseCreators = new PostResponseCreator[0];
 
 
-	/* (non-Javadoc)
-	 * @see org.apache.sling.api.servlets.SlingAllMethodsServlet#doPost(org.apache.sling.api.SlingHttpServletRequest, org.apache.sling.api.SlingHttpServletResponse)
-	 */
-	@Override
-	protected void doPost(SlingHttpServletRequest request,
-			SlingHttpServletResponse httpResponse) throws ServletException,
-			IOException {
+    /* (non-Javadoc)
+     * @see org.apache.sling.api.servlets.SlingAllMethodsServlet#doPost(org.apache.sling.api.SlingHttpServletRequest, org.apache.sling.api.SlingHttpServletResponse)
+     */
+    @Override
+    protected void doPost(SlingHttpServletRequest request,
+            SlingHttpServletResponse httpResponse) throws ServletException,
+            IOException {
         // prepare the response
-    	PostResponse response = createPostResponse(request);
+        PostResponse response = createPostResponse(request);
         response.setReferer(request.getHeader("referer"));
 
         // calculate the paths
@@ -89,7 +91,7 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
         // parent location
         path = ResourceUtil.getParent(path);
         if (path != null) {
-        	response.setParentLocation(externalizePath(request, path));
+            response.setParentLocation(externalizePath(request, path));
         }
 
         Session session = request.getResourceResolver().adaptTo(Session.class);
@@ -110,8 +112,8 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
                     case COPY :   response.onCopied(change.getSource(), change.getDestination()); break;
                     case CREATE : response.onCreated(change.getSource()); break;
                     case ORDER : response.onChange("ordered", change.getSource(), change.getDestination()); break;
-				default:
-					break;
+                default:
+                    break;
                 }
             }
 
@@ -148,7 +150,7 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
 
         // create a html response and send if unsuccessful or no redirect
         response.send(httpResponse, isSetStatus(request));
-	}
+    }
 
     /**
      * Creates an instance of a HtmlResponse.
@@ -160,11 +162,11 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
      * or a {@link org.apache.sling.servlets.post.HtmlResponse} otherwise
      * @deprecated use {@link #createPostResponse(SlingHttpServletRequest)} instead
      */
-	@Deprecated
+    @Deprecated
     protected AbstractPostResponse createHtmlResponse(SlingHttpServletRequest req) {
-    	return (AbstractPostResponse)createPostResponse(req);
+        return (AbstractPostResponse)createPostResponse(req);
     }
-	
+
     /**
      * Creates an instance of a PostResponse.
      * @param req The request being serviced
@@ -189,16 +191,16 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
         MediaRangeList mediaRangeList = null;
         String queryParam = req.getParameter(MediaRangeList.PARAM_ACCEPT);
         if (queryParam == null || queryParam.trim().length() == 0) {
-        	String headerValue = req.getHeader(MediaRangeList.HEADER_ACCEPT);
-        	if (headerValue == null || headerValue.trim().length() == 0) {
-        		//no param or header supplied, so try the response content type
-        		mediaRangeList = new MediaRangeList(req.getResponseContentType());
-        	}
+            String headerValue = req.getHeader(MediaRangeList.HEADER_ACCEPT);
+            if (headerValue == null || headerValue.trim().length() == 0) {
+                //no param or header supplied, so try the response content type
+                mediaRangeList = new MediaRangeList(req.getResponseContentType());
+            }
         }
 
         // Fall through to default behavior
         if (mediaRangeList == null) {
-        	mediaRangeList = new MediaRangeList(req);
+            mediaRangeList = new MediaRangeList(req);
         }
         if (JSONResponse.RESPONSE_CONTENT_TYPE.equals(mediaRangeList.prefer("text/html", JSONResponse.RESPONSE_CONTENT_TYPE))) {
             return new JSONResponse();
@@ -206,89 +208,104 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
             return new HtmlResponse();
         }
     }
-	
-	/**
-	 * Extending Servlet should implement this operation to do the work
-	 *
-	 * @param request the sling http request to process
-	 * @param response the response
+
+    /**
+     * Extending Servlet should implement this operation to do the work
+     *
+     * @param request the sling http request to process
+     * @param response the response
      * @param changes the changes to report
-	 * @throws RepositoryException if any errors applying the changes 
-	 * 
-	 * @deprecated use {@link #handleOperation(SlingHttpServletRequest, PostResponse, List)} instead
-	 */
+     * @throws RepositoryException if any errors applying the changes 
+     * 
+     * @deprecated use {@link #handleOperation(SlingHttpServletRequest, PostResponse, List)} instead
+     */
     @Deprecated
-	protected void handleOperation(SlingHttpServletRequest request,
-			AbstractPostResponse response, List<Modification> changes) throws RepositoryException {
-		handleOperation(request, (PostResponse)response, changes);
-	}
+    protected void handleOperation(SlingHttpServletRequest request,
+            AbstractPostResponse response, List<Modification> changes) throws RepositoryException {
+        handleOperation(request, (PostResponse)response, changes);
+    }
     
-	/**
-	 * Extending Servlet should implement this operation to do the work
-	 *
-	 * @param request the sling http request to process
-	 * @param response the response
+    /**
+     * Extending Servlet should implement this operation to do the work
+     *
+     * @param request the sling http request to process
+     * @param response the response
      * @param changes the changes to report
-	 * @throws RepositoryException if any errors applying the changes 
-	 */
-	abstract protected void handleOperation(SlingHttpServletRequest request,
-			PostResponse response, List<Modification> changes) throws RepositoryException;
+     * @throws RepositoryException if any errors applying the changes 
+     */
+    abstract protected void handleOperation(SlingHttpServletRequest request,
+            PostResponse response, List<Modification> changes) throws RepositoryException;
 
 
     /**
      * compute redirect URL (SLING-126)
      *
-	 * @param request the sling http request to process
+     * @param request the sling http request to process
      * @param ctx the post processor
      * @return the redirect location or <code>null</code>
      * @deprecated use {@link #getRedirectUrl(HttpServletRequest, PostResponse)} instead
      */
-	@Deprecated
+    @Deprecated
     protected String getRedirectUrl(HttpServletRequest request, AbstractPostResponse ctx) {
-    	return getRedirectUrl(request, (PostResponse)ctx);
+        return getRedirectUrl(request, (PostResponse)ctx);
     }
     
     /**
      * compute redirect URL (SLING-126)
      *
-	 * @param request the sling http request to process
+     * @param request the sling http request to process
      * @param ctx the post processor
      * @return the redirect location or <code>null</code>
      */
     protected String getRedirectUrl(HttpServletRequest request, PostResponse ctx) {
         // redirect param has priority (but see below, magic star)
         String result = request.getParameter(SlingPostConstants.RP_REDIRECT_TO);
-        if (result != null && ctx.getPath() != null) {
-
-            // redirect to created/modified Resource
-            int star = result.indexOf('*');
-            if (star >= 0) {
-                StringBuffer buf = new StringBuffer();
-
-                // anything before the star
-                if (star > 0) {
-                    buf.append(result.substring(0, star));
+        if (result != null) {
+            try {
+                URI redirectUri = new URI(result);
+                if (redirectUri.getAuthority() != null) {
+                    // if it has a host information
+                    log.warn("redirect target ({}) does include host information ({}). This is not allowed for security reasons!", result, redirectUri.getAuthority());
+                    return null;
                 }
-
-                // append the name of the manipulated node
-                buf.append(ResourceUtil.getName(ctx.getPath()));
-
-                // anything after the star
-                if (star < result.length() - 1) {
-                    buf.append(result.substring(star + 1));
-                }
-
-                // use the created path as the redirect result
-                result = buf.toString();
-
-            } else if (result.endsWith(SlingPostConstants.DEFAULT_CREATE_SUFFIX)) {
-                // if the redirect has a trailing slash, append modified node
-                // name
-                result = result.concat(ResourceUtil.getName(ctx.getPath()));
+            } catch (URISyntaxException e) {
+                log.warn("given redirect target ({}) is not a valid uri: {}", result, e);
+                return null;
             }
 
-            if (log.isDebugEnabled()) {
-                log.debug("Will redirect to " + result);
+            log.debug("redirect requested as [{}] for path [{}]", result, ctx.getPath());
+
+            if (ctx.getPath() != null) {
+                // redirect to created/modified Resource
+                int star = result.indexOf('*');
+                if (star >= 0) {
+                    StringBuffer buf = new StringBuffer();
+
+                    // anything before the star
+                    if (star > 0) {
+                        buf.append(result.substring(0, star));
+                    }
+
+                    // append the name of the manipulated node
+                    buf.append(ResourceUtil.getName(ctx.getPath()));
+
+                    // anything after the star
+                    if (star < result.length() - 1) {
+                        buf.append(result.substring(star + 1));
+                    }
+
+                    // use the created path as the redirect result
+                    result = buf.toString();
+
+                } else if (result.endsWith(SlingPostConstants.DEFAULT_CREATE_SUFFIX)) {
+                    // if the redirect has a trailing slash, append modified node
+                    // name
+                    result = result.concat(ResourceUtil.getName(ctx.getPath()));
+                }
+
+                if (log.isDebugEnabled()) {
+                    log.debug("Will redirect to " + result);
+                }
             }
         }
         return result;
@@ -323,7 +340,7 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
         return true;
     }
 
-	// ------ These methods were copied from AbstractSlingPostOperation ------
+    // ------ These methods were copied from AbstractSlingPostOperation ------
 
     /**
      * Returns the path of the resource of the request as the item path.
@@ -331,8 +348,8 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
      * This method may be overwritten by extension if the operation has
      * different requirements on path processing.
      * </p>
-	 * @param request the sling http request to process
-	 * @return the resolved path of the found item
+     * @param request the sling http request to process
+     * @return the resolved path of the found item
      */
     protected String getItemPath(SlingHttpServletRequest request) {
         return request.getResource().getPath();
@@ -342,7 +359,7 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
      * Returns an external form of the given path prepending the context path
      * and appending a display extension.
      *
-	 * @param request the sling http request to process
+     * @param request the sling http request to process
      * @param path the path to externalize
      * @return the url
      */
@@ -421,13 +438,13 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
      *            created if the node does not have one yet.
      * @return The <code>AccessControlList</code> to modify to control access to
      *         the node or null if one could not be located or created
-	 * @throws RepositoryException if any errors reading the information
+     * @throws RepositoryException if any errors reading the information
      */
     protected AccessControlList getAccessControlListOrNull(
             final AccessControlManager accessControlManager,
             final String resourcePath, final boolean mayCreate)
             throws RepositoryException {
-    	AccessControlList acl = null;
+        AccessControlList acl = null;
         // check for an existing access control list to edit
         AccessControlPolicy[] policies = accessControlManager.getPolicies(resourcePath);
         for (AccessControlPolicy policy : policies) {
@@ -457,21 +474,19 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
      * @param creator the response creator service reference
      * @param properties the component properties for the service reference
      */
-	// NOTE: the @Reference annotation is not inherited, so subclasses will need to override the #bindPostResponseCreator 
-	// and #unbindPostResponseCreator methods to provide the @Reference annotation.     
-	//
-	// @Reference(service = PostResponseCreator.class,
-	//         cardinality = ReferenceCardinality.MULTIPLE,
-	//         policy = ReferencePolicy.DYNAMIC)
+    // NOTE: the @Reference annotation is not inherited, so subclasses will need to override the #bindPostResponseCreator
+    // and #unbindPostResponseCreator methods to provide the @Reference annotation.
+    //
+    // @Reference(service = PostResponseCreator.class,
+    //         cardinality = ReferenceCardinality.MULTIPLE,
+    //         policy = ReferencePolicy.DYNAMIC)
     protected void bindPostResponseCreator(final PostResponseCreator creator, final Map<String, Object> properties) {
-        final PostResponseCreatorHolder nngh = new PostResponseCreatorHolder();
-        nngh.creator = creator;
-        nngh.ranking = getRanking(properties);
+        final PostResponseCreatorHolder nngh = new PostResponseCreatorHolder(creator, getRanking(properties));
 
         synchronized ( this.postResponseCreators ) {
             int index = 0;
             while ( index < this.postResponseCreators.size() &&
-                    nngh.ranking < this.postResponseCreators.get(index).ranking ) {
+                    nngh.getRanking() < this.postResponseCreators.get(index).getRanking() ) {
                 index++;
             }
             if ( index == this.postResponseCreators.size() ) {
@@ -494,7 +509,7 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
             final Iterator<PostResponseCreatorHolder> i = this.postResponseCreators.iterator();
             while ( i.hasNext() ) {
                 final PostResponseCreatorHolder current = i.next();
-                if ( current.creator == creator ) {
+                if ( current.getCreator() == creator ) {
                     i.remove();
                 }
             }
@@ -510,7 +525,7 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
         final PostResponseCreator[] localCache = new PostResponseCreator[this.postResponseCreators.size()];
         int index = 0;
         for(final PostResponseCreatorHolder current : this.postResponseCreators) {
-            localCache[index] = current.creator;
+            localCache[index] = current.getCreator();
             index++;
         }
         this.cachedPostResponseCreators = localCache;
@@ -522,7 +537,21 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
     }
     
     private static final class PostResponseCreatorHolder {
-        public PostResponseCreator creator;
-        public int ranking;
+        private final PostResponseCreator creator;
+        private final int ranking;
+
+        public PostResponseCreatorHolder(PostResponseCreator creator, int ranking) {
+            this.creator = creator;
+            this.ranking = ranking;
+        }
+
+        public PostResponseCreator getCreator() {
+            return creator;
+        }
+
+        public int getRanking() {
+            return ranking;
+        }
+
     }    
 }
