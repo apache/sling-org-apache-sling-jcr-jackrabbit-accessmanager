@@ -157,22 +157,8 @@ public class PrivilegesInfo {
 	 * @throws RepositoryException if any errors reading the information
 	 */
 	public Map<Principal, AccessRights> getDeclaredAccessRights(Session session, String absPath) throws RepositoryException {
-		Map<Principal, AccessRights> accessMap = new LinkedHashMap<>();
 		AccessControlEntry[] entries = getDeclaredAccessControlEntries(session, absPath);
-		if (entries != null) {
-			for (AccessControlEntry ace : entries) {
-				Principal principal = ace.getPrincipal();
-				AccessRights accessPrivileges = accessMap.computeIfAbsent(principal, k -> new AccessRights());
-				boolean allow = AccessControlUtil.isAllow(ace);
-				if (allow) {
-					accessPrivileges.getGranted().addAll(Arrays.asList(ace.getPrivileges()));
-				} else {
-					accessPrivileges.getDenied().addAll(Arrays.asList(ace.getPrivileges()));
-				}
-			}
-		}
-		
-		return accessMap;
+		return mergePrivilegesFromEntries(entries);
 	}
 
 	private AccessControlEntry[] getDeclaredAccessControlEntries(Session session, String absPath) throws RepositoryException {
@@ -313,8 +299,20 @@ public class PrivilegesInfo {
 	 * @throws RepositoryException if any errors reading the information
 	 */
 	public Map<Principal, AccessRights> getEffectiveAccessRights(Session session, String absPath) throws RepositoryException {
-		Map<Principal, AccessRights> accessMap = new LinkedHashMap<>();
 		AccessControlEntry[] entries = getEffectiveAccessControlEntries(session, absPath);
+		return mergePrivilegesFromEntries(entries);
+	}
+
+	/**
+	 * Loop through each of the entries to merge the granted and denied privileges into
+	 * the map
+	 * 
+	 * @param entries the entries to process
+	 * @throws RepositoryException if any errors reading the information
+	 */
+	private Map<Principal, AccessRights> mergePrivilegesFromEntries(AccessControlEntry[] entries)
+			throws RepositoryException {
+		Map<Principal, AccessRights> accessMap = new LinkedHashMap<>();
 		if (entries != null) {
 			for (AccessControlEntry ace : entries) {
 				Principal principal = ace.getPrincipal();
@@ -327,7 +325,6 @@ public class PrivilegesInfo {
 				}
 			}
 		}
-		
 		return accessMap;
 	}
 	
