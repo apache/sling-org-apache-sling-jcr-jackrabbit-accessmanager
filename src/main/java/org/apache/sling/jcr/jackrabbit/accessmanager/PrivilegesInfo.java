@@ -162,11 +162,7 @@ public class PrivilegesInfo {
 		if (entries != null) {
 			for (AccessControlEntry ace : entries) {
 				Principal principal = ace.getPrincipal();
-				AccessRights accessPrivileges = accessMap.get(principal);
-				if (accessPrivileges == null) {
-					accessPrivileges = new AccessRights();
-					accessMap.put(principal, accessPrivileges);
-				}
+				AccessRights accessPrivileges = accessMap.computeIfAbsent(principal, k -> new AccessRights());
 				boolean allow = AccessControlUtil.isAllow(ace);
 				if (allow) {
 					accessPrivileges.getGranted().addAll(Arrays.asList(ace.getPrivileges()));
@@ -322,16 +318,12 @@ public class PrivilegesInfo {
 		if (entries != null) {
 			for (AccessControlEntry ace : entries) {
 				Principal principal = ace.getPrincipal();
-				AccessRights accessPrivleges = accessMap.get(principal);
-				if (accessPrivleges == null) {
-					accessPrivleges = new AccessRights();
-					accessMap.put(principal, accessPrivleges);
-				}
+				AccessRights accessPrivileges = accessMap.computeIfAbsent(principal, k -> new AccessRights());
 				boolean allow = AccessControlUtil.isAllow(ace);
 				if (allow) {
-					accessPrivleges.getGranted().addAll(Arrays.asList(ace.getPrivileges()));
+					accessPrivileges.getGranted().addAll(Arrays.asList(ace.getPrivileges()));
 				} else {
-					accessPrivleges.getDenied().addAll(Arrays.asList(ace.getPrivileges()));
+					accessPrivileges.getDenied().addAll(Arrays.asList(ace.getPrivileges()));
 				}
 			}
 		}
