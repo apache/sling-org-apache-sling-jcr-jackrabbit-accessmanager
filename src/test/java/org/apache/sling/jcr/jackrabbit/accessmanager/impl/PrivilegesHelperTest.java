@@ -33,7 +33,6 @@ import javax.jcr.security.AccessControlManager;
 import javax.jcr.security.Privilege;
 
 import org.apache.sling.jcr.base.util.AccessControlUtil;
-import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrivilegesHelper;
 import org.apache.sling.testing.mock.sling.ResourceResolverType;
 import org.apache.sling.testing.mock.sling.junit.SlingContext;
 import org.junit.Before;
@@ -46,19 +45,17 @@ public class PrivilegesHelperTest {
     public final SlingContext context = new SlingContext(ResourceResolverType.JCR_OAK);
     
     private Map<Privilege, Set<Privilege>> privilegeToAncestorMap;
-    private Session session;
     private AccessControlManager acm;
 
     @Before
-    public void buildPrivilegesMap() throws Exception {
-        
-        session = context.resourceResolver().adaptTo(Session.class);
+    public void buildPrivilegesMap() throws RepositoryException {
+        Session session = context.resourceResolver().adaptTo(Session.class);
         privilegeToAncestorMap = PrivilegesHelper.buildPrivilegeToAncestorMap(session, "/");
         acm = AccessControlUtil.getAccessControlManager(session);
     }
     
     @Test
-    public void mergeAddsMissingPrivilege() throws Exception {
+    public void mergeAddsMissingPrivilege() throws RepositoryException {
         
         Privilege write = priv(Privilege.JCR_WRITE);
         Privilege read = priv(Privilege.JCR_READ);
@@ -81,7 +78,7 @@ public class PrivilegesHelperTest {
     }
 
     @Test
-    public void mergeRemovesExistingDeniedPrivilege() throws Exception {
+    public void mergeRemovesExistingDeniedPrivilege() throws RepositoryException {
         
         Privilege write = priv(Privilege.JCR_WRITE);
         
@@ -98,7 +95,7 @@ public class PrivilegesHelperTest {
     }    
     
     @Test
-    public void mergeAggregateOverlappingPrivilegesOnBothSides() throws Exception {
+    public void mergeAggregateOverlappingPrivilegesOnBothSides() throws RepositoryException {
 
         Privilege all = priv(Privilege.JCR_ALL);
         Privilege write = priv(Privilege.JCR_WRITE);
@@ -117,7 +114,7 @@ public class PrivilegesHelperTest {
     }
     
     @Test
-    public void mergeAggregateNonOverlappingPrivilegesOnBothSides() throws Exception {
+    public void mergeAggregateNonOverlappingPrivilegesOnBothSides() throws RepositoryException {
         
         Privilege read = priv(Privilege.JCR_READ);
         Privilege write = priv(Privilege.JCR_WRITE);
@@ -142,7 +139,7 @@ public class PrivilegesHelperTest {
      * Validates that two identical privileges are merged
      */
     @Test
-    public void mergeIdenticalPrivileges() throws Exception {
+    public void mergeIdenticalPrivileges() throws RepositoryException {
         
         Privilege read = priv(Privilege.JCR_READ);
         
@@ -164,7 +161,7 @@ public class PrivilegesHelperTest {
      * Validates that the <tt>jcr:modifyProperties</tt> is recognized as being aggregated into <tt>jcr:write</tt>
      */
     @Test
-    public void mergeAggregatePrivileges() throws Exception {
+    public void mergeAggregatePrivileges() throws RepositoryException {
         
         Privilege write = priv(Privilege.JCR_WRITE);
         Privilege modifyProps = priv(Privilege.JCR_MODIFY_PROPERTIES);
@@ -187,7 +184,7 @@ public class PrivilegesHelperTest {
      * privileges are reported
      */
     @Test
-    public void mergeRemoveAggregatePrivileges() throws Exception {
+    public void mergeRemoveAggregatePrivileges() throws RepositoryException {
         
         Privilege write = priv(Privilege.JCR_WRITE);
         Privilege modifyProps = priv(Privilege.JCR_MODIFY_PROPERTIES);

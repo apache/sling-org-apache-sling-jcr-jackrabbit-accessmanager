@@ -93,7 +93,7 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
 	/**
      * default log
      */
-    private final Logger log = LoggerFactory.getLogger(getClass());
+    private final transient Logger log = LoggerFactory.getLogger(getClass());
 
     /**
      * Overridden since the @Reference annotation is not inherited from the super method
@@ -110,7 +110,7 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
 	 * @see org.apache.sling.jackrabbit.usermanager.impl.post.AbstractPostServlet#unbindPostResponseCreator(org.apache.sling.servlets.post.PostResponseCreator, java.util.Map)
 	 */
 	@Override
-	protected void unbindPostResponseCreator(PostResponseCreator creator, Map<String, Object> properties) {
+	protected void unbindPostResponseCreator(PostResponseCreator creator, Map<String, Object> properties) { //NOSONAR
 		super.unbindPostResponseCreator(creator, properties);
 	}
     
@@ -161,7 +161,7 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
     		}
 
     		//load the principalIds array into a set for quick lookup below
-			Set<String> pidSet = new HashSet<String>();
+			Set<String> pidSet = new HashSet<>();
 			pidSet.addAll(Arrays.asList(principalNamesToDelete));
 
 			// validate that the submitted names are valid
@@ -188,12 +188,12 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
 				if (updatedAcl == null) {
 					// log the warning about principals where no ACE was found
 					for (String pid : pidSet) {
-						log.warn("No AccessControlEntry was found to be deleted for principal: " + pid);
+						log.warn("No AccessControlEntry was found to be deleted for principal: {}", pid);
 					}
 				} else {
 					//keep track of the existing Aces for the target principal
 					AccessControlEntry[] accessControlEntries = updatedAcl.getAccessControlEntries();
-					List<AccessControlEntry> oldAces = new ArrayList<AccessControlEntry>();
+					List<AccessControlEntry> oldAces = new ArrayList<>();
 					for (AccessControlEntry ace : accessControlEntries) {
 						if (pidSet.contains(ace.getPrincipal().getName())) {
 							oldAces.add(ace);
@@ -220,7 +220,7 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
 								changes.add(Modification.onDeleted(pid));
 							}
 						} else {
-							log.warn("No AccessControlEntry was found to be deleted for principal: " + pid);
+							log.warn("No AccessControlEntry was found to be deleted for principal: {}", pid);
 						}
 					}
 

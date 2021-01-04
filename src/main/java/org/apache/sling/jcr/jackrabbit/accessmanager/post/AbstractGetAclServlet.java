@@ -57,10 +57,14 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("serial")
 public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
 
-    /**
+    protected static final String KEY_ORDER = "order";
+	protected static final String KEY_DENIED = "denied";
+	protected static final String KEY_GRANTED = "granted";
+
+	/**
      * default log
      */
-    private final Logger log = LoggerFactory.getLogger(getClass());
+    private final transient Logger log = LoggerFactory.getLogger(getClass());
 
     /* (non-Javadoc)
      * @see org.apache.sling.api.servlets.SlingSafeMethodsServlet#doGet(org.apache.sling.api.SlingHttpServletRequest, org.apache.sling.api.SlingHttpServletResponse)
@@ -80,7 +84,7 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
 
 	        boolean isTidy = false;
 	        final String[] selectors = request.getRequestPathInfo().getSelectors();
-	        if (selectors != null && selectors.length > 0) {
+	        if (selectors.length > 0) {
 	        	for (final String level : selectors) {
 		            if("tidy".equals(level)) {
 		            	isTidy = true;
@@ -91,15 +95,16 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
 
 	        Map<String, Object> options = new HashMap<>();
             options.put(JsonGenerator.PRETTY_PRINTING, isTidy);
-	        Json.createGeneratorFactory(options).createGenerator(response.getWriter()).write(acl).flush();
+	        try (JsonGenerator generator = Json.createGeneratorFactory(options).createGenerator(response.getWriter())) {
+				generator.write(acl).flush();
+	        }
         } catch (AccessDeniedException ade) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
         } catch (ResourceNotFoundException rnfe) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND, rnfe.getMessage());
         } catch (Throwable throwable) {
-            log.debug("Exception while handling GET "
-                + request.getResource().getPath() + " with "
-                + getClass().getName(), throwable);
+            log.debug(String.format("Exception while handling GET %s with %s",
+                request.getResource().getPath(), getClass().getName()), throwable);
             throw new ServletException(throwable);
         }
     }
@@ -123,17 +128,17 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
         Map<Privilege, Set<Privilege>> privilegeToAncestorMap = PrivilegesHelper.buildPrivilegeToAncestorMap(jcrSession, resourcePath);
 
         AccessControlEntry[] declaredAccessControlEntries = getAccessControlEntries(jcrSession, resourcePath);
-        Map<String, Map<String, Object>> aclMap = new LinkedHashMap<String, Map<String,Object>>();
-        Map<String, Map<String, Object>> restrictionMap = new LinkedHashMap<String, Map<String,Object>>();
+        Map<String, Map<String, Object>> aclMap = new LinkedHashMap<>();
+        Map<String, Map<String, Object>> restrictionMap = new LinkedHashMap<>();
         int sequence = 0;
 
         for (AccessControlEntry ace : declaredAccessControlEntries) {
             Principal principal = ace.getPrincipal();
             Map<String, Object> map = aclMap.get(principal.getName());
             if (map == null) {
-                map = new LinkedHashMap<String, Object>();
+                map = new LinkedHashMap<>();
                 aclMap.put(principal.getName(), map);
-                map.put("order", sequence++);
+                map.put(KEY_ORDER, sequence++);
             }
         }
         //evaluate these in reverse order so the most entries with highest specificity are last
@@ -166,15 +171,15 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
 			
             Map<String, Object> map = aclMap.get(principal.getName());
 
-            Set<Privilege> grantedSet = (Set<Privilege>) map.get("granted");
+            Set<Privilege> grantedSet = (Set<Privilege>) map.get(KEY_GRANTED);
             if (grantedSet == null) {
-                grantedSet = new LinkedHashSet<Privilege>();
-                map.put("granted", grantedSet);
+                grantedSet = new LinkedHashSet<>();
+                map.put(KEY_GRANTED, grantedSet);
             }
-            Set<Privilege> deniedSet = (Set<Privilege>) map.get("denied");
+            Set<Privilege> deniedSet = (Set<Privilege>) map.get(KEY_DENIED);
             if (deniedSet == null) {
-                deniedSet = new LinkedHashSet<Privilege>();
-                map.put("denied", deniedSet);
+                deniedSet = new LinkedHashSet<>();
+                map.put(KEY_DENIED, deniedSet);
             }
 
             boolean allow = AccessControlUtil.isAllow(ace);
@@ -204,26 +209,26 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
             JsonObjectBuilder aceObject = Json.createObjectBuilder();
             aceObject.add("principal", principalName);
 
-            Set<Privilege> grantedSet = (Set<Privilege>) value.get("granted");
+            Set<Privilege> grantedSet = (Set<Privilege>) value.get(KEY_GRANTED);
             if (grantedSet != null && !grantedSet.isEmpty()) {
                 JsonArrayBuilder arrayBuilder = Json.createArrayBuilder();
                 for (Privilege v : grantedSet)
                 {
                     arrayBuilder.add(v.getName());
                 }
-                aceObject.add("granted", arrayBuilder);
+                aceObject.add(KEY_GRANTED, arrayBuilder);
             }
 
-            Set<Privilege> deniedSet = (Set<Privilege>) value.get("denied");
+            Set<Privilege> deniedSet = (Set<Privilege>) value.get(KEY_DENIED);
             if (deniedSet != null && !deniedSet.isEmpty()) {
                 JsonArrayBuilder arrayBuilder = Json.createArrayBuilder();
                 for (Privilege v : deniedSet)
                 {
                     arrayBuilder.add(v.getName());
                 }
-                aceObject.add("denied", arrayBuilder);
+                aceObject.add(KEY_DENIED, arrayBuilder);
             }
-            aceObject.add("order", (Integer) value.get("order"));
+            aceObject.add(KEY_ORDER, (Integer) value.get(KEY_ORDER));
 
             Map<String, Object> restrictions = restrictionMap.get(principalName);
             if (restrictions != null && !restrictions.isEmpty()) {

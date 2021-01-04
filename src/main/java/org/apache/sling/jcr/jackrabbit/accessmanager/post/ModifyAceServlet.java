@@ -113,7 +113,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
     protected void bindRestrictionProvider(RestrictionProvider rp) {
     	this.restrictionProvider = rp;
     }
-    protected void unbindRestrictionProvider(RestrictionProvider rp) {
+    protected void unbindRestrictionProvider(RestrictionProvider rp) { //NOSONAR
     	this.restrictionProvider = null;
     }
     
@@ -132,7 +132,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
 	 * @see org.apache.sling.jackrabbit.usermanager.impl.post.AbstractPostServlet#unbindPostResponseCreator(org.apache.sling.servlets.post.PostResponseCreator, java.util.Map)
 	 */
 	@Override
-	protected void unbindPostResponseCreator(PostResponseCreator creator, Map<String, Object> properties) {
+	protected void unbindPostResponseCreator(PostResponseCreator creator, Map<String, Object> properties) { //NOSONAR
 		super.unbindPostResponseCreator(creator, properties);
 	}
     
@@ -288,9 +288,9 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
 		}
 		
 		// Collect the modified privileges from the request.
-		Set<String> grantedPrivilegeNames = new HashSet<String>();
-		Set<String> deniedPrivilegeNames = new HashSet<String>();
-		Set<String> removedPrivilegeNames = new HashSet<String>();
+		Set<String> grantedPrivilegeNames = new HashSet<>();
+		Set<String> deniedPrivilegeNames = new HashSet<>();
+		Set<String> removedPrivilegeNames = new HashSet<>();
 		if (privileges != null) {
 			Set<Entry<String, String>> entrySet = privileges.entrySet();
 			for (Entry<String, String> entry : entrySet) {
