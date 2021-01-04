@@ -61,7 +61,7 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
     /**
      * default log
      */
-    private final Logger log = LoggerFactory.getLogger(getClass());
+    private final transient Logger log = LoggerFactory.getLogger(getClass());
 
     /** Sorted list of post response creator holders. */
     private final List<PostResponseCreatorHolder> postResponseCreators = new ArrayList<>();
@@ -96,12 +96,10 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
 
         Session session = request.getResourceResolver().adaptTo(Session.class);
 
-        final List<Modification> changes = new ArrayList<Modification>();
+        final List<Modification> changes = new ArrayList<>();
 
         try {
             handleOperation(request, response, changes);
-
-            //TODO: maybe handle SlingAuthorizablePostProcessor handlers here
 
             // set changes on html response
             for(Modification change : changes) {
@@ -124,9 +122,8 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
             response.setStatus(HttpServletResponse.SC_NOT_FOUND,
                 rnfe.getMessage());
         } catch (Throwable throwable) {
-            log.debug("Exception while handling POST "
-                + request.getResource().getPath() + " with "
-                + getClass().getName(), throwable);
+            log.debug(String.format("Exception while handling POST %s with %s",
+                    request.getResource().getPath(), getClass().getName()), throwable);
             response.setError(throwable);
         } finally {
             try {
@@ -233,7 +230,7 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
      * @param changes the changes to report
      * @throws RepositoryException if any errors applying the changes 
      */
-    abstract protected void handleOperation(SlingHttpServletRequest request,
+    protected abstract void handleOperation(SlingHttpServletRequest request,
             PostResponse response, List<Modification> changes) throws RepositoryException;
 
 
@@ -279,7 +276,7 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
                 // redirect to created/modified Resource
                 int star = result.indexOf('*');
                 if (star >= 0) {
-                    StringBuffer buf = new StringBuffer();
+                    StringBuilder buf = new StringBuilder();
 
                     // anything before the star
                     if (star > 0) {
@@ -304,7 +301,7 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
                 }
 
                 if (log.isDebugEnabled()) {
-                    log.debug("Will redirect to " + result);
+                    log.debug("Will redirect to {}", result);
                 }
             }
         }
@@ -334,9 +331,8 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
             return true;
         }
 
-        log.debug(
-            "getStatusMode: Parameter {} set to unknown value {}, assuming standard status code",
-            SlingPostConstants.RP_STATUS);
+        log.debug("getStatusMode: Parameter {} set to unknown value {}, assuming standard status code",
+            SlingPostConstants.RP_STATUS, statusParam);
         return true;
     }
 
@@ -365,7 +361,7 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
      */
     protected final String externalizePath(SlingHttpServletRequest request,
             String path) {
-        StringBuffer ret = new StringBuffer();
+        StringBuilder ret = new StringBuilder();
         ret.append(SlingRequestPaths.getContextPath(request));
         ret.append(request.getResourceResolver().map(path));
 
@@ -453,15 +449,13 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
             }
         }
 
-        if (acl == null) {
+        if (acl == null && mayCreate) {
             // no existing access control list, try to create if allowed
-            if (mayCreate) {
-                AccessControlPolicyIterator applicablePolicies = accessControlManager.getApplicablePolicies(resourcePath);
-                while (applicablePolicies.hasNext()) {
-                    AccessControlPolicy policy = applicablePolicies.nextAccessControlPolicy();
-                    if (policy instanceof AccessControlList) {
-                        acl = (AccessControlList) policy;
-                    }
+            AccessControlPolicyIterator applicablePolicies = accessControlManager.getApplicablePolicies(resourcePath);
+            while (applicablePolicies.hasNext()) {
+                AccessControlPolicy policy = applicablePolicies.nextAccessControlPolicy();
+                if (policy instanceof AccessControlList) {
+                    acl = (AccessControlList) policy;
                 }
             }
         }

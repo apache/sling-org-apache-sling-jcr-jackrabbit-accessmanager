@@ -40,6 +40,7 @@ import javax.jcr.security.AccessControlPolicy;
 import javax.jcr.security.Privilege;
 
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
+import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
 import org.apache.sling.jcr.base.util.AccessControlUtil;
 
 /**
@@ -68,8 +69,7 @@ public class PrivilegesInfo {
 	 */
 	public Privilege [] getSupportedPrivileges(Session session, String absPath) throws RepositoryException {
 		AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(session);
-		Privilege[] supportedPrivileges = accessControlManager.getSupportedPrivileges(absPath);
-		return supportedPrivileges;
+		return accessControlManager.getSupportedPrivileges(absPath);
 	}
 	
 	/**
@@ -77,10 +77,10 @@ public class PrivilegesInfo {
 	 * and/or denied for a specific principal.
 	 */
 	public static class AccessRights {
-		private Set<Privilege> granted = new HashSet<Privilege>();
-		private Set<Privilege> denied = new HashSet<Privilege>();
+		private Set<Privilege> granted = new HashSet<>();
+		private Set<Privilege> denied = new HashSet<>();
 
-		private transient static ResourceBundle resBundle = null; 
+		private ResourceBundle resBundle = null;
 		private ResourceBundle getResourceBundle(Locale locale) {
 			if (resBundle == null || !resBundle.getLocale().equals(locale)) {
 				resBundle = ResourceBundle.getBundle(getClass().getPackage().getName() + ".PrivilegesResources", locale);
@@ -110,10 +110,10 @@ public class PrivilegesInfo {
 					//check if the single privilege is jcr:all or jcr:read
 					Iterator<Privilege> iterator = granted.iterator();
 					Privilege next = iterator.next();
-					if ("jcr:all".equals(next.getName())) {
+					if (PrivilegeConstants.JCR_ALL.equals(next.getName())) {
 						//full control privilege set
 						return getResourceBundle(locale).getString("privilegeset.all");
-					} else if ("jcr:read".equals(next.getName())) {
+					} else if (PrivilegeConstants.JCR_READ.equals(next.getName())) {
 						//readonly privilege set
 						return getResourceBundle(locale).getString("privilegeset.readonly");
 					} 
@@ -122,8 +122,8 @@ public class PrivilegesInfo {
 					Iterator<Privilege> iterator = granted.iterator();
 					Privilege next = iterator.next();
 					Privilege next2 = iterator.next();
-					if ( ("jcr:read".equals(next.getName()) && "jcr:write".equals(next2.getName())) ||
-							("jcr:read".equals(next2.getName()) && "jcr:write".equals(next.getName())) ) {
+					if ( (PrivilegeConstants.JCR_READ.equals(next.getName()) && PrivilegeConstants.JCR_WRITE.equals(next2.getName())) ||
+							(PrivilegeConstants.JCR_READ.equals(next2.getName()) && PrivilegeConstants.JCR_WRITE.equals(next.getName())) ) {
 						//read/write privileges
 						return getResourceBundle(locale).getString("privilegeset.readwrite");
 					}
@@ -144,8 +144,7 @@ public class PrivilegesInfo {
 	 * @throws RepositoryException if any errors reading the information
 	 */
 	public Map<Principal, AccessRights> getDeclaredAccessRights(Node node) throws RepositoryException {
-		Map<Principal, AccessRights> accessRights = getDeclaredAccessRights(node.getSession(), node.getPath());
-		return accessRights;
+		return getDeclaredAccessRights(node.getSession(), node.getPath());
 	}
 	
 	/**
@@ -158,39 +157,19 @@ public class PrivilegesInfo {
 	 * @throws RepositoryException if any errors reading the information
 	 */
 	public Map<Principal, AccessRights> getDeclaredAccessRights(Session session, String absPath) throws RepositoryException {
-		Map<Principal, AccessRights> accessMap = new LinkedHashMap<Principal, AccessRights>();
 		AccessControlEntry[] entries = getDeclaredAccessControlEntries(session, absPath);
-		if (entries != null) {
-			for (AccessControlEntry ace : entries) {
-				Principal principal = ace.getPrincipal();
-				AccessRights accessPrivileges = accessMap.get(principal);
-				if (accessPrivileges == null) {
-					accessPrivileges = new AccessRights();
-					accessMap.put(principal, accessPrivileges);
-				}
-				boolean allow = AccessControlUtil.isAllow(ace);
-				if (allow) {
-					accessPrivileges.getGranted().addAll(Arrays.asList(ace.getPrivileges()));
-				} else {
-					accessPrivileges.getDenied().addAll(Arrays.asList(ace.getPrivileges()));
-				}
-			}
-		}
-		
-		return accessMap;
+		return mergePrivilegesFromEntries(entries);
 	}
 
 	private AccessControlEntry[] getDeclaredAccessControlEntries(Session session, String absPath) throws RepositoryException {
 		AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(session);
 		AccessControlPolicy[] policies = accessControlManager.getPolicies(absPath);
 		
-        List<AccessControlEntry> allEntries = new ArrayList<AccessControlEntry>(); 
+        List<AccessControlEntry> allEntries = new ArrayList<>();
         for (AccessControlPolicy accessControlPolicy : policies) {
             if (accessControlPolicy instanceof AccessControlList) {
                 AccessControlEntry[] accessControlEntries = ((AccessControlList)accessControlPolicy).getAccessControlEntries();
-                for (AccessControlEntry accessControlEntry : accessControlEntries) {
-					allEntries.add(accessControlEntry);
-				}
+                allEntries.addAll(Arrays.asList(accessControlEntries));
             }
         }
         return allEntries.toArray(new AccessControlEntry[allEntries.size()]);
@@ -270,23 +249,22 @@ public class PrivilegesInfo {
 		AccessControlEntry[] entries = getDeclaredAccessControlEntries(session, absPath);
 		if (entries != null) {
 			for (AccessControlEntry ace : entries) {
-				if (principalId.equals(ace.getPrincipal().getName())) {
-					if (ace instanceof JackrabbitAccessControlEntry) {
-						JackrabbitAccessControlEntry jace = (JackrabbitAccessControlEntry)ace;
-						String[] restrictionNames = jace.getRestrictionNames();
-						if (restrictionNames != null) {
-							for (String name : restrictionNames) {
-								try {
-									Value value = jace.getRestriction(name);
-									if (value != null) {
-										restrictions.put(name, value);
-									}									
-								} catch (ValueFormatException vfe) {
-									//try multi-value restriction
-									Value[] values = jace.getRestrictions(name);
-									if (values != null && values.length > 0) {
-										restrictions.put(name,  values);
-									}
+				if (principalId.equals(ace.getPrincipal().getName()) &&
+						ace instanceof JackrabbitAccessControlEntry) {
+					JackrabbitAccessControlEntry jace = (JackrabbitAccessControlEntry)ace;
+					String[] restrictionNames = jace.getRestrictionNames();
+					if (restrictionNames != null) {
+						for (String name : restrictionNames) {
+							try {
+								Value value = jace.getRestriction(name);
+								if (value != null) {
+									restrictions.put(name, value);
+								}
+							} catch (ValueFormatException vfe) {
+								//try multi-value restriction
+								Value[] values = jace.getRestrictions(name);
+								if (values != null && values.length > 0) {
+									restrictions.put(name,  values);
 								}
 							}
 						}
@@ -308,8 +286,7 @@ public class PrivilegesInfo {
 	 * @throws RepositoryException if any errors reading the information
 	 */
 	public Map<Principal, AccessRights> getEffectiveAccessRights(Node node) throws RepositoryException {
-		Map<Principal, AccessRights> accessRights = getEffectiveAccessRights(node.getSession(), node.getPath());
-		return accessRights;
+		return getEffectiveAccessRights(node.getSession(), node.getPath());
 	}
 	
 	/**
@@ -322,25 +299,32 @@ public class PrivilegesInfo {
 	 * @throws RepositoryException if any errors reading the information
 	 */
 	public Map<Principal, AccessRights> getEffectiveAccessRights(Session session, String absPath) throws RepositoryException {
-		Map<Principal, AccessRights> accessMap = new LinkedHashMap<Principal, AccessRights>();
 		AccessControlEntry[] entries = getEffectiveAccessControlEntries(session, absPath);
+		return mergePrivilegesFromEntries(entries);
+	}
+
+	/**
+	 * Loop through each of the entries to merge the granted and denied privileges into
+	 * the map
+	 * 
+	 * @param entries the entries to process
+	 * @throws RepositoryException if any errors reading the information
+	 */
+	private Map<Principal, AccessRights> mergePrivilegesFromEntries(AccessControlEntry[] entries)
+			throws RepositoryException {
+		Map<Principal, AccessRights> accessMap = new LinkedHashMap<>();
 		if (entries != null) {
 			for (AccessControlEntry ace : entries) {
 				Principal principal = ace.getPrincipal();
-				AccessRights accessPrivleges = accessMap.get(principal);
-				if (accessPrivleges == null) {
-					accessPrivleges = new AccessRights();
-					accessMap.put(principal, accessPrivleges);
-				}
+				AccessRights accessPrivileges = accessMap.computeIfAbsent(principal, k -> new AccessRights());
 				boolean allow = AccessControlUtil.isAllow(ace);
 				if (allow) {
-					accessPrivleges.getGranted().addAll(Arrays.asList(ace.getPrivileges()));
+					accessPrivileges.getGranted().addAll(Arrays.asList(ace.getPrivileges()));
 				} else {
-					accessPrivleges.getDenied().addAll(Arrays.asList(ace.getPrivileges()));
+					accessPrivileges.getDenied().addAll(Arrays.asList(ace.getPrivileges()));
 				}
 			}
 		}
-		
 		return accessMap;
 	}
 	
@@ -348,13 +332,11 @@ public class PrivilegesInfo {
 		AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(session);
 		AccessControlPolicy[] policies = accessControlManager.getEffectivePolicies(absPath);
 		
-        List<AccessControlEntry> allEntries = new ArrayList<AccessControlEntry>(); 
+        List<AccessControlEntry> allEntries = new ArrayList<>();
         for (AccessControlPolicy accessControlPolicy : policies) {
             if (accessControlPolicy instanceof AccessControlList) {
                 AccessControlEntry[] accessControlEntries = ((AccessControlList)accessControlPolicy).getAccessControlEntries();
-                for (AccessControlEntry accessControlEntry : accessControlEntries) {
-					allEntries.add(accessControlEntry);
-				}
+                allEntries.addAll(Arrays.asList(accessControlEntries));
             }
         }
         return allEntries.toArray(new AccessControlEntry[allEntries.size()]);
@@ -515,10 +497,9 @@ public class PrivilegesInfo {
 				//strip the last segment
 				parentPath = absPath.substring(0, lastSlash);
 			}
-			boolean canDelete = accessControlManager.hasPrivileges(absPath, new Privilege[] {
+			return accessControlManager.hasPrivileges(absPath, new Privilege[] {
 							accessControlManager.privilegeFromName(Privilege.JCR_REMOVE_NODE)
 						}) && canDeleteChildren(session, parentPath);
-			return canDelete;
 		} catch (RepositoryException e) {
 			return false;
 		}

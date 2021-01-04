@@ -50,17 +50,13 @@ public abstract class PrivilegesHelper {
     public static Map<Privilege, Set<Privilege>> buildPrivilegeToAncestorMap(Session jcrSession, String resourcePath)
             throws RepositoryException {
         AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(jcrSession);
-        Map<Privilege, Set<Privilege>> privilegeToAncestorMap = new HashMap<Privilege, Set<Privilege>>();
+        Map<Privilege, Set<Privilege>> privilegeToAncestorMap = new HashMap<>();
         Privilege[] supportedPrivileges = accessControlManager.getSupportedPrivileges(resourcePath);
         for (Privilege privilege : supportedPrivileges) {
             if (privilege.isAggregate()) {
                 Privilege[] ap = privilege.getAggregatePrivileges();
                 for (Privilege privilege2 : ap) {
-                    Set<Privilege> set = privilegeToAncestorMap.get(privilege2);
-                    if (set == null) {
-                        set = new HashSet<Privilege>();
-                        privilegeToAncestorMap.put(privilege2, set);
-                    }
+                	Set<Privilege> set = privilegeToAncestorMap.computeIfAbsent(privilege2, k -> new HashSet<>());
                     set.add(privilege);
                 }
             }
@@ -164,11 +160,9 @@ public abstract class PrivilegesHelper {
             if (privilege3.isAggregate()) {
                 Privilege[] declaredAggregatePrivileges2 = privilege3.getDeclaredAggregatePrivileges();
                 for (Privilege privilege2 : declaredAggregatePrivileges2) {
-                    if (!ignorePrivilege.equals(privilege2)) {
-                        if (privilege2.isAggregate()) {
-                            filterAndMergePrivilegesFromAggregate(privilege2,
-                                    firstSet, secondSet, filterSet, ignorePrivilege);
-                        }
+                    if (!ignorePrivilege.equals(privilege2) && privilege2.isAggregate()) {
+                        filterAndMergePrivilegesFromAggregate(privilege2,
+                                firstSet, secondSet, filterSet, ignorePrivilege);
                     }
                 }
             }

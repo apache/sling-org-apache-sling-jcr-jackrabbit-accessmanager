@@ -17,6 +17,7 @@
 package org.apache.sling.jcr.jackrabbit.accessmanager.post;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import javax.jcr.RepositoryException;
@@ -120,13 +121,11 @@ public class GetEffectiveAclServlet extends AbstractGetAclServlet implements Get
     protected AccessControlEntry[] getAccessControlEntries(Session session, String absPath) throws RepositoryException {
         AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(session);
         AccessControlPolicy[] policies = accessControlManager.getEffectivePolicies(absPath);
-        List<AccessControlEntry> allEntries = new ArrayList<AccessControlEntry>(); 
+        List<AccessControlEntry> allEntries = new ArrayList<>(); 
         for (AccessControlPolicy accessControlPolicy : policies) {
             if (accessControlPolicy instanceof AccessControlList) {
                 AccessControlEntry[] accessControlEntries = ((AccessControlList)accessControlPolicy).getAccessControlEntries();
-                for (AccessControlEntry accessControlEntry : accessControlEntries) {
-					allEntries.add(accessControlEntry);
-				}
+                allEntries.addAll(Arrays.asList(accessControlEntries));
             }
         }
         return allEntries.toArray(new AccessControlEntry[allEntries.size()]);
