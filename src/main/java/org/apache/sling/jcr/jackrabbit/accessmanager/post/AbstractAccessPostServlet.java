@@ -262,11 +262,11 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
                 URI redirectUri = new URI(result);
                 if (redirectUri.getAuthority() != null) {
                     // if it has a host information
-                    log.warn("redirect target ({}) does include host information ({}). This is not allowed for security reasons!", result, redirectUri.getAuthority());
+                    log.warn("redirect target includes host information ({}). This is not allowed for security reasons!", redirectUri.getAuthority());
                     return null;
                 }
             } catch (URISyntaxException e) {
-                log.warn("given redirect target ({}) is not a valid uri: {}", result, e);
+                log.warn("given redirect target is not a valid uri: {}", e.getLocalizedMessage());
                 return null;
             }
 

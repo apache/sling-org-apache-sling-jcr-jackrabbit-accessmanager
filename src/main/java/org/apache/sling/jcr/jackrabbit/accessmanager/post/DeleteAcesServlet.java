@@ -166,6 +166,7 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
 
 			// validate that the submitted names are valid
 			Set<String> notFound = null;
+			Set<Principal> found = new HashSet<>();
 			PrincipalManager principalManager = AccessControlUtil.getPrincipalManager(jcrSession);
 			for (String pid : pidSet) {
 				Principal principal = principalManager.getPrincipal(pid);
@@ -174,6 +175,8 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
 						notFound = new HashSet<>();
 					}
 					notFound.add(pid);
+				} else {
+					found.add(principal);
 				}
 			}
 			if (notFound != null && !notFound.isEmpty()) {
@@ -187,8 +190,8 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
 				// if there is no AccessControlList, then there is nothing to be deleted
 				if (updatedAcl == null) {
 					// log the warning about principals where no ACE was found
-					for (String pid : pidSet) {
-						log.warn("No AccessControlEntry was found to be deleted for principal: {}", pid);
+					for (Principal principal : found) {
+						log.warn("No AccessControlEntry was found to be deleted for principal: {}", principal.getName());
 					}
 				} else {
 					//keep track of the existing Aces for the target principal
@@ -201,7 +204,7 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
 					}
 
 					// track which of the submitted principals had an ACE removed
-					Set<String> removedPidSet = new HashSet<>();
+					Set<Principal> removedPrincipalSet = new HashSet<>();
 					
 					//remove the old aces
 					if (!oldAces.isEmpty()) {
@@ -209,18 +212,18 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
 							updatedAcl.removeAccessControlEntry(ace);
 					
 							// remove from the candidate set
-							removedPidSet.add(ace.getPrincipal().getName());
+							removedPrincipalSet.add(ace.getPrincipal());
 						}
 					}
 
 					// log the warning about principals where no ACE was found
-					for (String pid : pidSet) {
-						if (removedPidSet.contains(pid)) {
+					for (Principal principal : found) {
+						if (removedPrincipalSet.contains(principal)) {
 							if (changes != null) {
-								changes.add(Modification.onDeleted(pid));
+								changes.add(Modification.onDeleted(principal.getName()));
 							}
 						} else {
-							log.warn("No AccessControlEntry was found to be deleted for principal: {}", pid);
+							log.warn("No AccessControlEntry was found to be deleted for principal: {}", principal.getName());
 						}
 					}
 
