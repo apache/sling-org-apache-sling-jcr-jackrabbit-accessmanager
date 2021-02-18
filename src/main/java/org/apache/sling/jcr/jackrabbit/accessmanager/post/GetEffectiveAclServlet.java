@@ -104,7 +104,8 @@ property= {
 		"sling.servlet.methods=GET",
 		"sling.servlet.selectors=eacl",
 		"sling.servlet.selectors=tidy.eacl",
-		"sling.servlet.extensions=json"		
+		"sling.servlet.extensions=json",
+		"sling.servlet.prefix:Integer=-1"
 })
 @SuppressWarnings("serial")
 public class GetEffectiveAclServlet extends AbstractGetAclServlet implements GetEffectiveAcl {

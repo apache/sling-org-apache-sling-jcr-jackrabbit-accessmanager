@@ -99,7 +99,8 @@ import org.osgi.service.component.annotations.ReferencePolicyOption;
 property= {
 		"sling.servlet.resourceTypes=sling/servlet/default",
 		"sling.servlet.methods=POST",
-		"sling.servlet.selectors=modifyAce"
+		"sling.servlet.selectors=modifyAce",
+		"sling.servlet.prefix:Integer=-1"
 })
 public class ModifyAceServlet extends AbstractAccessPostServlet implements ModifyAce {
 	private static final long serialVersionUID = -9182485466670280437L;

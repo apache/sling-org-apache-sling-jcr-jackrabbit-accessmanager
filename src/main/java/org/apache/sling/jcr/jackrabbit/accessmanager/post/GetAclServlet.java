@@ -104,7 +104,8 @@ property= {
 		"sling.servlet.methods=GET",
 		"sling.servlet.selectors=acl",
 		"sling.servlet.selectors=tidy.acl",
-		"sling.servlet.extensions=json"		
+		"sling.servlet.extensions=json",
+		"sling.servlet.prefix:Integer=-1"
 })
 public class GetAclServlet extends AbstractGetAclServlet implements GetAcl {
 	private static final long serialVersionUID = 3391376559396223185L;

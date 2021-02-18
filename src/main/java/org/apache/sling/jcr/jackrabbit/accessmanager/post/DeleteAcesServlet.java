@@ -85,7 +85,8 @@ import org.slf4j.LoggerFactory;
     property= {
     		"sling.servlet.resourceTypes=sling/servlet/default",
     		"sling.servlet.methods=POST",
-    		"sling.servlet.selectors=deleteAce"
+    		"sling.servlet.selectors=deleteAce",
+    		"sling.servlet.prefix:Integer=-1"
     })
 public class DeleteAcesServlet extends AbstractAccessPostServlet implements DeleteAces {
 	private static final long serialVersionUID = 3784866802938282971L;
