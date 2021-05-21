@@ -36,6 +36,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
+import org.apache.sling.api.request.header.MediaRangeList;
 import org.apache.sling.api.resource.ResourceNotFoundException;
 import org.apache.sling.api.resource.ResourceUtil;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
@@ -47,7 +48,6 @@ import org.apache.sling.servlets.post.Modification;
 import org.apache.sling.servlets.post.PostResponse;
 import org.apache.sling.servlets.post.PostResponseCreator;
 import org.apache.sling.servlets.post.SlingPostConstants;
-import org.apache.sling.servlets.post.impl.helper.MediaRangeList;
 import org.osgi.framework.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -121,7 +121,7 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
         } catch (ResourceNotFoundException rnfe) {
             response.setStatus(HttpServletResponse.SC_NOT_FOUND,
                 rnfe.getMessage());
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             log.debug(String.format("Exception while handling POST %s with %s",
                     request.getResource().getPath(), getClass().getName()), throwable);
             response.setError(throwable);

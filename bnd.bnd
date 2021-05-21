@@ -1,5 +1,3 @@
--includeresource:\
-  @org.apache.sling.servlets.post-*.jar!/org/apache/sling/servlets/post/impl/helper/MediaRangeList*
 
 -removeheaders:\
   Include-Resource,\
