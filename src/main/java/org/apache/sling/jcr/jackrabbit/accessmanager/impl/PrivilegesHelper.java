@@ -56,7 +56,7 @@ public abstract class PrivilegesHelper {
             if (privilege.isAggregate()) {
                 Privilege[] ap = privilege.getAggregatePrivileges();
                 for (Privilege privilege2 : ap) {
-                	Set<Privilege> set = privilegeToAncestorMap.computeIfAbsent(privilege2, k -> new HashSet<>());
+                    Set<Privilege> set = privilegeToAncestorMap.computeIfAbsent(privilege2, k -> new HashSet<>());
                     set.add(privilege);
                 }
             }

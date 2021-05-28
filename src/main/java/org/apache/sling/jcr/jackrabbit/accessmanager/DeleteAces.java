@@ -30,17 +30,17 @@ import javax.jcr.Session;
  */
 public interface DeleteAces {
 
-	/**
-	 * Deletes one or more ACEs from the access control list of a resource.
-	 * 
-	 * @param jcrSession the JCR session of the user updating the user
-	 * @param resourcePath The path of the resource to update the ACL for (required)
-	 * @param principalNamesToDelete An array of ace principal names to delete.. (required)
-	 * @throws RepositoryException if any errors applying the changes 
-	 */
-	void deleteAces(Session jcrSession,
-							String resourcePath,
-							String [] principalNamesToDelete
-				) throws RepositoryException;
-	
+    /**
+     * Deletes one or more ACEs from the access control list of a resource.
+     * 
+     * @param jcrSession the JCR session of the user updating the user
+     * @param resourcePath The path of the resource to update the ACL for (required)
+     * @param principalNamesToDelete An array of ace principal names to delete.. (required)
+     * @throws RepositoryException if any errors applying the changes 
+     */
+    void deleteAces(Session jcrSession,
+                            String resourcePath,
+                            String [] principalNamesToDelete
+                ) throws RepositoryException;
+
 }

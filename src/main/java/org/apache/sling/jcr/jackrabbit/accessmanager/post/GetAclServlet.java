@@ -100,36 +100,36 @@ import org.osgi.service.component.annotations.Component;
 
 @Component(service = {Servlet.class, GetAcl.class},
 property= {
-		"sling.servlet.resourceTypes=sling/servlet/default",
-		"sling.servlet.methods=GET",
-		"sling.servlet.selectors=acl",
-		"sling.servlet.selectors=tidy.acl",
-		"sling.servlet.extensions=json",
-		"sling.servlet.prefix:Integer=-1"
+        "sling.servlet.resourceTypes=sling/servlet/default",
+        "sling.servlet.methods=GET",
+        "sling.servlet.selectors=acl",
+        "sling.servlet.selectors=tidy.acl",
+        "sling.servlet.extensions=json",
+        "sling.servlet.prefix:Integer=-1"
 })
 public class GetAclServlet extends AbstractGetAclServlet implements GetAcl {
-	private static final long serialVersionUID = 3391376559396223185L;
+    private static final long serialVersionUID = 3391376559396223185L;
 
-	/* (non-Javadoc)
-	 * @see org.apache.sling.jcr.jackrabbit.accessmanager.GetAcl#getAcl(javax.jcr.Session, java.lang.String)
-	 */
-	public JsonObject getAcl(Session jcrSession, String resourcePath)
-			throws RepositoryException {
-		return internalGetAcl(jcrSession, resourcePath);
-	}
+    /* (non-Javadoc)
+     * @see org.apache.sling.jcr.jackrabbit.accessmanager.GetAcl#getAcl(javax.jcr.Session, java.lang.String)
+     */
+    public JsonObject getAcl(Session jcrSession, String resourcePath)
+            throws RepositoryException {
+        return internalGetAcl(jcrSession, resourcePath);
+    }
 
-	@Override
-	protected AccessControlEntry[] getAccessControlEntries(Session session, String absPath) throws RepositoryException {
-		AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(session);
-		AccessControlPolicy[] policies = accessControlManager.getPolicies(absPath);
+    @Override
+    protected AccessControlEntry[] getAccessControlEntries(Session session, String absPath) throws RepositoryException {
+        AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(session);
+        AccessControlPolicy[] policies = accessControlManager.getPolicies(absPath);
         List<AccessControlEntry> allEntries = new ArrayList<>(); 
-		for (AccessControlPolicy accessControlPolicy : policies) {
-			if (accessControlPolicy instanceof AccessControlList) {
-				AccessControlEntry[] accessControlEntries = ((AccessControlList)accessControlPolicy).getAccessControlEntries();
-				allEntries.addAll(Arrays.asList(accessControlEntries));
-			}
-		}
+        for (AccessControlPolicy accessControlPolicy : policies) {
+            if (accessControlPolicy instanceof AccessControlList) {
+                AccessControlEntry[] accessControlEntries = ((AccessControlList)accessControlPolicy).getAccessControlEntries();
+                allEntries.addAll(Arrays.asList(accessControlEntries));
+            }
+        }
         return allEntries.toArray(new AccessControlEntry[allEntries.size()]);
-	}
+    }
 
 }

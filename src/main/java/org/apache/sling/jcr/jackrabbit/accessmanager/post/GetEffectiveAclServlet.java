@@ -100,25 +100,25 @@ import org.osgi.service.component.annotations.Component;
 
 @Component(service = {Servlet.class, GetEffectiveAcl.class},
 property= {
-		"sling.servlet.resourceTypes=sling/servlet/default",
-		"sling.servlet.methods=GET",
-		"sling.servlet.selectors=eacl",
-		"sling.servlet.selectors=tidy.eacl",
-		"sling.servlet.extensions=json",
-		"sling.servlet.prefix:Integer=-1"
+        "sling.servlet.resourceTypes=sling/servlet/default",
+        "sling.servlet.methods=GET",
+        "sling.servlet.selectors=eacl",
+        "sling.servlet.selectors=tidy.eacl",
+        "sling.servlet.extensions=json",
+        "sling.servlet.prefix:Integer=-1"
 })
 @SuppressWarnings("serial")
 public class GetEffectiveAclServlet extends AbstractGetAclServlet implements GetEffectiveAcl {
 
     /* (non-Javadoc)
-	 * @see org.apache.sling.jcr.jackrabbit.accessmanager.GetEffectiveAcl#getEffectiveAcl(javax.jcr.Session, java.lang.String)
-	 */
-	public JsonObject getEffectiveAcl(Session jcrSession, String resourcePath)
-			throws RepositoryException {
-		return internalGetAcl(jcrSession, resourcePath);
-	}
+     * @see org.apache.sling.jcr.jackrabbit.accessmanager.GetEffectiveAcl#getEffectiveAcl(javax.jcr.Session, java.lang.String)
+     */
+    public JsonObject getEffectiveAcl(Session jcrSession, String resourcePath)
+            throws RepositoryException {
+        return internalGetAcl(jcrSession, resourcePath);
+    }
 
-	@Override
+    @Override
     protected AccessControlEntry[] getAccessControlEntries(Session session, String absPath) throws RepositoryException {
         AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(session);
         AccessControlPolicy[] policies = accessControlManager.getEffectivePolicies(absPath);

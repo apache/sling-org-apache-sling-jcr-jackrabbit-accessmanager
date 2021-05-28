@@ -97,242 +97,241 @@ import org.osgi.service.component.annotations.ReferencePolicyOption;
 
 @Component(service = {Servlet.class, ModifyAce.class},
 property= {
-		"sling.servlet.resourceTypes=sling/servlet/default",
-		"sling.servlet.methods=POST",
-		"sling.servlet.selectors=modifyAce",
-		"sling.servlet.prefix:Integer=-1"
+        "sling.servlet.resourceTypes=sling/servlet/default",
+        "sling.servlet.methods=POST",
+        "sling.servlet.selectors=modifyAce",
+        "sling.servlet.prefix:Integer=-1"
 })
 public class ModifyAceServlet extends AbstractAccessPostServlet implements ModifyAce {
-	private static final long serialVersionUID = -9182485466670280437L;
+    private static final long serialVersionUID = -9182485466670280437L;
 
-	private transient RestrictionProvider restrictionProvider = null;
+    private transient RestrictionProvider restrictionProvider = null;
 
-	// NOTE: the @Reference annotation is not inherited, so subclasses will need to override the #bindRestrictionProvider 
-	// and #unbindRestrictionProvider methods to provide the @Reference annotation.     
-	//
+    // NOTE: the @Reference annotation is not inherited, so subclasses will need to override the #bindRestrictionProvider 
+    // and #unbindRestrictionProvider methods to provide the @Reference annotation.     
+    //
     @Reference(cardinality=ReferenceCardinality.OPTIONAL, policy = ReferencePolicy.DYNAMIC, policyOption=ReferencePolicyOption.GREEDY)
     protected void bindRestrictionProvider(RestrictionProvider rp) {
-    	this.restrictionProvider = rp;
+        this.restrictionProvider = rp;
     }
     protected void unbindRestrictionProvider(RestrictionProvider rp) { //NOSONAR
-    	this.restrictionProvider = null;
+        this.restrictionProvider = null;
     }
-    
+
     /**
      * Overridden since the @Reference annotation is not inherited from the super method
-	 */
-	@Override
+     */
+    @Override
     @Reference(service = PostResponseCreator.class,
-	    cardinality = ReferenceCardinality.MULTIPLE,
-	    policy = ReferencePolicy.DYNAMIC)
-	protected void bindPostResponseCreator(PostResponseCreator creator, Map<String, Object> properties) {
-		super.bindPostResponseCreator(creator, properties);
-	}
-	
-	/* (non-Javadoc)
-	 * @see org.apache.sling.jackrabbit.usermanager.impl.post.AbstractPostServlet#unbindPostResponseCreator(org.apache.sling.servlets.post.PostResponseCreator, java.util.Map)
-	 */
-	@Override
-	protected void unbindPostResponseCreator(PostResponseCreator creator, Map<String, Object> properties) { //NOSONAR
-		super.unbindPostResponseCreator(creator, properties);
-	}
+        cardinality = ReferenceCardinality.MULTIPLE,
+        policy = ReferencePolicy.DYNAMIC)
+    protected void bindPostResponseCreator(PostResponseCreator creator, Map<String, Object> properties) {
+        super.bindPostResponseCreator(creator, properties);
+    }
+
+    /* (non-Javadoc)
+     * @see org.apache.sling.jackrabbit.usermanager.impl.post.AbstractPostServlet#unbindPostResponseCreator(org.apache.sling.servlets.post.PostResponseCreator, java.util.Map)
+     */
+    @Override
+    protected void unbindPostResponseCreator(PostResponseCreator creator, Map<String, Object> properties) { //NOSONAR
+        super.unbindPostResponseCreator(creator, properties);
+    }
+
+    /* (non-Javadoc)
+     * @see org.apache.sling.jackrabbit.accessmanager.post.AbstractAccessPostServlet#handleOperation(org.apache.sling.api.SlingHttpServletRequest, org.apache.sling.servlets.post.PostResponse, java.util.List)
+     */
+    @Override
+    protected void handleOperation(SlingHttpServletRequest request,
+            PostResponse response, List<Modification> changes)
+            throws RepositoryException {
+        Session session = request.getResourceResolver().adaptTo(Session.class);
+        String resourcePath = request.getResource().getPath();
+        String principalId = request.getParameter("principalId");
+        Map<String, String> privileges = new HashMap<>();
+        Map<String, Value> restrictions = new HashMap<>();
+        Map<String, Value[]> mvRestrictions = new HashMap<>();
+        Set<String> removeRestrictionNames = new HashSet<>();
+
+        //lazy initialized map for quick lookup when processing POSTed restrictions
+        Map<String, RestrictionDefinition> supportedRestrictionsMap = null;
+        ValueFactory factory = session.getValueFactory();
+
+        Enumeration<?> parameterNames = request.getParameterNames();
+        while (parameterNames.hasMoreElements()) {
+            Object nextElement = parameterNames.nextElement();
+            if (nextElement instanceof String) {
+                String paramName = (String)nextElement;
+                if (paramName.startsWith("privilege@")) {
+                    String privilegeName = paramName.substring(10);
+                    String parameterValue = request.getParameter(paramName);
+                    privileges.put(privilegeName, parameterValue);
+                } else if (paramName.startsWith("restriction@")) {
+                    if (restrictionProvider == null) {
+                        throw new IllegalArgumentException("No restriction provider is available so unable to process POSTed restriction values");
+                    }
+                    if (supportedRestrictionsMap == null) {
+                        supportedRestrictionsMap = new HashMap<>();
+
+                        //populate the map for quick lookup below
+                        Set<RestrictionDefinition> supportedRestrictions = restrictionProvider.getSupportedRestrictions(resourcePath);
+                        for (RestrictionDefinition restrictionDefinition : supportedRestrictions) {
+                            supportedRestrictionsMap.put(restrictionDefinition.getName(), restrictionDefinition);
+                        }
+                    }
+
+                    if (paramName.endsWith("@Delete")) {
+                        String restrictionName = paramName.substring(12, paramName.length() - 7);
+                        removeRestrictionNames.add(restrictionName);
+                    } else {
+                        String restrictionName = paramName.substring(12);
+                        String[] parameterValues = request.getParameterValues(paramName);
+                        if (parameterValues != null) {
+                            RestrictionDefinition rd = supportedRestrictionsMap.get(restrictionName);
+                            if (rd == null) {
+                                //illegal restriction name?
+                                throw new IllegalArgumentException("Invalid or not supported restriction name was supplied");
+                            }
+
+                            boolean multival = rd.getRequiredType().isArray();
+                            int restrictionType = rd.getRequiredType().tag();
+
+                            if (multival) {
+                                Value [] v = new Value[parameterValues.length];
+                                for (int j = 0; j < parameterValues.length; j++) {
+                                    String string = parameterValues[j];
+                                    v[j] = factory.createValue(string, restrictionType);
+                                }
+
+                                mvRestrictions.put(restrictionName, v);
+                            } else if (parameterValues.length > 0) {
+                                Value v = factory.createValue(parameterValues[0], restrictionType);
+                                restrictions.put(restrictionName, v);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        String order = request.getParameter("order");
+        modifyAce(session, resourcePath, principalId, privileges, order, restrictions, mvRestrictions, 
+                removeRestrictionNames, false, changes);
+    }
+
+    /* (non-Javadoc)
+     * @see org.apache.sling.jcr.jackrabbit.accessmanager.ModifyAce#modifyAce(javax.jcr.Session, java.lang.String, java.lang.String, java.util.Map, java.lang.String, boolean)
+     */
+    @Override
+    public void modifyAce(Session jcrSession, String resourcePath, String principalId, Map<String, String> privileges,
+            String order, boolean autoSave) throws RepositoryException {
+        modifyAce(jcrSession, resourcePath, principalId, privileges, order, 
+                null, null, null, autoSave);
+    }
+
+    /* (non-Javadoc)
+     * @see org.apache.sling.jcr.jackrabbit.accessmanager.ModifyAce#modifyAce(javax.jcr.Session, java.lang.String, java.lang.String, java.util.Map, java.lang.String)
+     */
+    public void modifyAce(Session jcrSession, String resourcePath,
+            String principalId, Map<String, String> privileges, String order)
+            throws RepositoryException {
+        modifyAce(jcrSession, resourcePath, principalId, privileges, order, true);
+    }
     
-	
-	/* (non-Javadoc)
-	 * @see org.apache.sling.jackrabbit.accessmanager.post.AbstractAccessPostServlet#handleOperation(org.apache.sling.api.SlingHttpServletRequest, org.apache.sling.servlets.post.PostResponse, java.util.List)
-	 */
-	@Override
-	protected void handleOperation(SlingHttpServletRequest request,
-			PostResponse response, List<Modification> changes)
-			throws RepositoryException {
-		Session session = request.getResourceResolver().adaptTo(Session.class);
-    	String resourcePath = request.getResource().getPath();
-		String principalId = request.getParameter("principalId");
-		Map<String, String> privileges = new HashMap<>();
-		Map<String, Value> restrictions = new HashMap<>();
-		Map<String, Value[]> mvRestrictions = new HashMap<>();
-		Set<String> removeRestrictionNames = new HashSet<>();
+    /* (non-Javadoc)
+     * @see org.apache.sling.jcr.jackrabbit.accessmanager.ModifyAce#modifyAce(javax.jcr.Session, java.lang.String, java.lang.String, java.util.Map, java.lang.String, java.util.Map, java.util.Map, java.util.Set)
+     */
+    @Override
+    public void modifyAce(Session jcrSession, String resourcePath, String principalId, Map<String, String> privileges,
+            String order, Map<String, Value> restrictions, Map<String, Value[]> mvRestrictions,
+            Set<String> removeRestrictionNames) throws RepositoryException {
+        modifyAce(jcrSession, resourcePath, principalId, privileges, order, 
+                restrictions, mvRestrictions, removeRestrictionNames, true);
+    }
 
-		//lazy initialized map for quick lookup when processing POSTed restrictions
-		Map<String, RestrictionDefinition> supportedRestrictionsMap = null;
-		ValueFactory factory = session.getValueFactory();
+    /* (non-Javadoc)
+     * @see org.apache.sling.jcr.jackrabbit.accessmanager.ModifyAce#modifyAce(javax.jcr.Session, java.lang.String, java.lang.String, java.util.Map, java.lang.String, java.util.Map, java.util.Map, java.util.Set, boolean)
+     */
+    @Override
+    public void modifyAce(Session jcrSession, String resourcePath, String principalId, Map<String, String> privileges,
+            String order, Map<String, Value> restrictions, Map<String, Value[]> mvRestrictions,
+            Set<String> removeRestrictionNames, boolean autoSave) throws RepositoryException {
+        modifyAce(jcrSession, resourcePath, principalId, privileges, order, 
+                restrictions, mvRestrictions, removeRestrictionNames, autoSave, null);
+    }
 
-		Enumeration<?> parameterNames = request.getParameterNames();
-		while (parameterNames.hasMoreElements()) {
-			Object nextElement = parameterNames.nextElement();
-			if (nextElement instanceof String) {
-				String paramName = (String)nextElement;
-				if (paramName.startsWith("privilege@")) {
-					String privilegeName = paramName.substring(10);
-					String parameterValue = request.getParameter(paramName);
-					privileges.put(privilegeName, parameterValue);
-				} else if (paramName.startsWith("restriction@")) {
-					if (restrictionProvider == null) {
-						throw new IllegalArgumentException("No restriction provider is available so unable to process POSTed restriction values");
-					}
-					if (supportedRestrictionsMap == null) {
-						supportedRestrictionsMap = new HashMap<>();
+    protected void modifyAce(Session jcrSession, String resourcePath, String principalId, Map<String, String> privileges,
+            String order, Map<String, Value> restrictions, Map<String, Value[]> mvRestrictions,
+            Set<String> removeRestrictionNames, boolean autoSave, List<Modification> changes) throws RepositoryException {
+        if (jcrSession == null) {
+            throw new RepositoryException("JCR Session not found");
+        }
 
-						//populate the map for quick lookup below
-						Set<RestrictionDefinition> supportedRestrictions = restrictionProvider.getSupportedRestrictions(resourcePath);
-						for (RestrictionDefinition restrictionDefinition : supportedRestrictions) {
-							supportedRestrictionsMap.put(restrictionDefinition.getName(), restrictionDefinition);
-						}
-					}
-					
-					if (paramName.endsWith("@Delete")) {
-						String restrictionName = paramName.substring(12, paramName.length() - 7);
-						removeRestrictionNames.add(restrictionName);
-					} else {
-						String restrictionName = paramName.substring(12);
-						String[] parameterValues = request.getParameterValues(paramName);
-						if (parameterValues != null) {
-							RestrictionDefinition rd = supportedRestrictionsMap.get(restrictionName);
-							if (rd == null) {
-								//illegal restriction name?
-								throw new IllegalArgumentException("Invalid or not supported restriction name was supplied");
-							}
-							
-							boolean multival = rd.getRequiredType().isArray();
-							int restrictionType = rd.getRequiredType().tag();
-							
-							if (multival) {
-								Value [] v = new Value[parameterValues.length];
-								for (int j = 0; j < parameterValues.length; j++) {
-									String string = parameterValues[j];
-									v[j] = factory.createValue(string, restrictionType);
-								}
+        if (principalId == null) {
+            throw new RepositoryException("principalId was not submitted.");
+        }
 
-								mvRestrictions.put(restrictionName, v);
-							} else if (parameterValues.length > 0) {
-								Value v = factory.createValue(parameterValues[0], restrictionType);
-								restrictions.put(restrictionName, v);
-							}
-						}
-					}
-				}
-			}
-		}
-		String order = request.getParameter("order");
-    	modifyAce(session, resourcePath, principalId, privileges, order, restrictions, mvRestrictions, 
-    			removeRestrictionNames, false, changes);
-	}
-	
+        // validate that the submitted name is valid
+        PrincipalManager principalManager = AccessControlUtil.getPrincipalManager(jcrSession);
+        Principal principal = principalManager.getPrincipal(principalId);
+        if (principal == null) {
+            throw new RepositoryException("Invalid principalId was submitted.");
+        }
 
-	/* (non-Javadoc)
-	 * @see org.apache.sling.jcr.jackrabbit.accessmanager.ModifyAce#modifyAce(javax.jcr.Session, java.lang.String, java.lang.String, java.util.Map, java.lang.String, boolean)
-	 */
-	@Override
-	public void modifyAce(Session jcrSession, String resourcePath, String principalId, Map<String, String> privileges,
-			String order, boolean autoSave) throws RepositoryException {
-		modifyAce(jcrSession, resourcePath, principalId, privileges, order, 
-				null, null, null, autoSave);
-	}
+        if (resourcePath == null) {
+            throw new ResourceNotFoundException("Resource path was not supplied.");
+        }
 
-	/* (non-Javadoc)
-	 * @see org.apache.sling.jcr.jackrabbit.accessmanager.ModifyAce#modifyAce(javax.jcr.Session, java.lang.String, java.lang.String, java.util.Map, java.lang.String)
-	 */
-	public void modifyAce(Session jcrSession, String resourcePath,
-			String principalId, Map<String, String> privileges, String order)
-			throws RepositoryException {
-		modifyAce(jcrSession, resourcePath, principalId, privileges, order, true);
-	}
-	/* (non-Javadoc)
-	 * @see org.apache.sling.jcr.jackrabbit.accessmanager.ModifyAce#modifyAce(javax.jcr.Session, java.lang.String, java.lang.String, java.util.Map, java.lang.String, java.util.Map, java.util.Map, java.util.Set)
-	 */
-	@Override
-	public void modifyAce(Session jcrSession, String resourcePath, String principalId, Map<String, String> privileges,
-			String order, Map<String, Value> restrictions, Map<String, Value[]> mvRestrictions,
-			Set<String> removeRestrictionNames) throws RepositoryException {
-		modifyAce(jcrSession, resourcePath, principalId, privileges, order, 
-				restrictions, mvRestrictions, removeRestrictionNames, true);
-	}	
+        Item item = jcrSession.getItem(resourcePath);
+        if (item != null) {
+            resourcePath = item.getPath();
+        } else {
+            throw new ResourceNotFoundException("Resource is not a JCR Node");
+        }
 
-	/* (non-Javadoc)
-	 * @see org.apache.sling.jcr.jackrabbit.accessmanager.ModifyAce#modifyAce(javax.jcr.Session, java.lang.String, java.lang.String, java.util.Map, java.lang.String, java.util.Map, java.util.Map, java.util.Set, boolean)
-	 */
-	@Override
-	public void modifyAce(Session jcrSession, String resourcePath, String principalId, Map<String, String> privileges,
-			String order, Map<String, Value> restrictions, Map<String, Value[]> mvRestrictions,
-			Set<String> removeRestrictionNames, boolean autoSave) throws RepositoryException {
-		modifyAce(jcrSession, resourcePath, principalId, privileges, order, 
-				restrictions, mvRestrictions, removeRestrictionNames, autoSave, null);
-	}
-	
-	protected void modifyAce(Session jcrSession, String resourcePath, String principalId, Map<String, String> privileges,
-			String order, Map<String, Value> restrictions, Map<String, Value[]> mvRestrictions,
-			Set<String> removeRestrictionNames, boolean autoSave, List<Modification> changes) throws RepositoryException {
-		if (jcrSession == null) {
-			throw new RepositoryException("JCR Session not found");
-		}
+        // Collect the modified privileges from the request.
+        Set<String> grantedPrivilegeNames = new HashSet<>();
+        Set<String> deniedPrivilegeNames = new HashSet<>();
+        Set<String> removedPrivilegeNames = new HashSet<>();
+        if (privileges != null) {
+            Set<Entry<String, String>> entrySet = privileges.entrySet();
+            for (Entry<String, String> entry : entrySet) {
+                String privilegeName = entry.getKey();
+                if (privilegeName.startsWith("privilege@")) {
+                    privilegeName = privilegeName.substring(10);
+                }
+                String parameterValue = entry.getValue();
+                if (parameterValue != null && parameterValue.length() > 0) {
+                    if ("granted".equals(parameterValue)) {
+                        grantedPrivilegeNames.add(privilegeName);
+                    } else if ("denied".equals(parameterValue)) {
+                        deniedPrivilegeNames.add(privilegeName);
+                    } else if ("none".equals(parameterValue)){
+                        removedPrivilegeNames.add(privilegeName);
+                    }
+                }
+            }
+        }
 
-		if (principalId == null) {
-			throw new RepositoryException("principalId was not submitted.");
-		}
-		
-		// validate that the submitted name is valid
-		PrincipalManager principalManager = AccessControlUtil.getPrincipalManager(jcrSession);
-		Principal principal = principalManager.getPrincipal(principalId);
-		if (principal == null) {
-			throw new RepositoryException("Invalid principalId was submitted.");
-		}
-		
-    	if (resourcePath == null) {
-			throw new ResourceNotFoundException("Resource path was not supplied.");
-    	}
+        // Make the actual changes.
+        try {
+            AccessControlUtil.replaceAccessControlEntry(jcrSession, resourcePath, principal,
+                    grantedPrivilegeNames.toArray(new String[grantedPrivilegeNames.size()]),
+                    deniedPrivilegeNames.toArray(new String[deniedPrivilegeNames.size()]),
+                    removedPrivilegeNames.toArray(new String[removedPrivilegeNames.size()]),
+                    order,
+                    restrictions,
+                    mvRestrictions,
+                    removeRestrictionNames);
 
-		Item item = jcrSession.getItem(resourcePath);
-		if (item != null) {
-			resourcePath = item.getPath();
-		} else {
-			throw new ResourceNotFoundException("Resource is not a JCR Node");
-		}
-		
-		// Collect the modified privileges from the request.
-		Set<String> grantedPrivilegeNames = new HashSet<>();
-		Set<String> deniedPrivilegeNames = new HashSet<>();
-		Set<String> removedPrivilegeNames = new HashSet<>();
-		if (privileges != null) {
-			Set<Entry<String, String>> entrySet = privileges.entrySet();
-			for (Entry<String, String> entry : entrySet) {
-				String privilegeName = entry.getKey();
-				if (privilegeName.startsWith("privilege@")) {
-					privilegeName = privilegeName.substring(10);
-				}
-				String parameterValue = entry.getValue();
-				if (parameterValue != null && parameterValue.length() > 0) {
-					if ("granted".equals(parameterValue)) {
-						grantedPrivilegeNames.add(privilegeName);
-					} else if ("denied".equals(parameterValue)) {
-						deniedPrivilegeNames.add(privilegeName);
-					} else if ("none".equals(parameterValue)){
-						removedPrivilegeNames.add(privilegeName);
-					}
-				}
-			}
-		}
+            if (changes != null) {
+                changes.add(Modification.onModified(principal.getName()));
+            }
 
-		// Make the actual changes.
-		try {
-			AccessControlUtil.replaceAccessControlEntry(jcrSession, resourcePath, principal,
-					grantedPrivilegeNames.toArray(new String[grantedPrivilegeNames.size()]),
-					deniedPrivilegeNames.toArray(new String[deniedPrivilegeNames.size()]),
-					removedPrivilegeNames.toArray(new String[removedPrivilegeNames.size()]),
-					order,
-					restrictions,
-					mvRestrictions,
-					removeRestrictionNames);
-			
-			if (changes != null) {
-				changes.add(Modification.onModified(principal.getName()));
-			}
-			
-			if (autoSave && jcrSession.hasPendingChanges()) {
-				jcrSession.save();
-			}
-		} catch (RepositoryException re) {
-			throw new RepositoryException("Failed to create ace.", re);
-		}
-	}
-	
+            if (autoSave && jcrSession.hasPendingChanges()) {
+                jcrSession.save();
+            }
+        } catch (RepositoryException re) {
+            throw new RepositoryException("Failed to create ace.", re);
+        }
+    }
+
 }

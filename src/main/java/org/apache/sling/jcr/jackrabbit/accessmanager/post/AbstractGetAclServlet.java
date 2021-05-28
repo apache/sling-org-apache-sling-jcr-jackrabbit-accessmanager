@@ -56,8 +56,8 @@ import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrivilegesHelper;
 public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
 
     protected static final String KEY_ORDER = "order";
-	protected static final String KEY_DENIED = "denied";
-	protected static final String KEY_GRANTED = "granted";
+    protected static final String KEY_DENIED = "denied";
+    protected static final String KEY_GRANTED = "granted";
 
     /* (non-Javadoc)
      * @see org.apache.sling.api.servlets.SlingSafeMethodsServlet#doGet(org.apache.sling.api.SlingHttpServletRequest, org.apache.sling.api.SlingHttpServletResponse)
@@ -67,57 +67,57 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
             SlingHttpServletResponse response) throws ServletException,
             IOException {
 
-		try {
-			Session session = request.getResourceResolver().adaptTo(Session.class);
-	    	String resourcePath = request.getResource().getPath();
+        try {
+            Session session = request.getResourceResolver().adaptTo(Session.class);
+            String resourcePath = request.getResource().getPath();
 
-	    	JsonObject acl = internalGetAcl(session, resourcePath);
-	        response.setContentType("application/json");
-	        response.setCharacterEncoding("UTF-8");
+            JsonObject acl = internalGetAcl(session, resourcePath);
+            response.setContentType("application/json");
+            response.setCharacterEncoding("UTF-8");
 
-	        boolean isTidy = false;
-	        final String[] selectors = request.getRequestPathInfo().getSelectors();
-	        if (selectors.length > 0) {
-	        	for (final String level : selectors) {
-		            if("tidy".equals(level)) {
-		            	isTidy = true;
-		            	break;
-		            }
-				}
-	        }
+            boolean isTidy = false;
+            final String[] selectors = request.getRequestPathInfo().getSelectors();
+            if (selectors.length > 0) {
+                for (final String level : selectors) {
+                    if("tidy".equals(level)) {
+                        isTidy = true;
+                        break;
+                    }
+                }
+            }
 
-	        Map<String, Object> options = new HashMap<>();
+            Map<String, Object> options = new HashMap<>();
             options.put(JsonGenerator.PRETTY_PRINTING, isTidy);
-	        try (JsonGenerator generator = Json.createGeneratorFactory(options).createGenerator(response.getWriter())) {
-				generator.write(acl).flush();
-	        }
+            try (JsonGenerator generator = Json.createGeneratorFactory(options).createGenerator(response.getWriter())) {
+                generator.write(acl).flush();
+            }
         } catch (AccessDeniedException ade) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
         } catch (ResourceNotFoundException rnfe) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND, rnfe.getMessage());
         } catch (Exception throwable) {
             throw new ServletException(String.format("Exception while handling GET %s with %s",
-                    						request.getResource().getPath(), getClass().getName()),
-            							throwable);
+                                            request.getResource().getPath(), getClass().getName()),
+                                        throwable);
         }
     }
 
     @SuppressWarnings("unchecked")
-	protected JsonObject internalGetAcl(Session jcrSession, String resourcePath) throws RepositoryException {
+    protected JsonObject internalGetAcl(Session jcrSession, String resourcePath) throws RepositoryException {
 
         if (jcrSession == null) {
             throw new RepositoryException("JCR Session not found");
         }
 
-		Item item = jcrSession.getItem(resourcePath);
-		if (item != null) {
-			resourcePath = item.getPath();
-		} else {
-			throw new ResourceNotFoundException("Resource is not a JCR Node");
-		}
+        Item item = jcrSession.getItem(resourcePath);
+        if (item != null) {
+            resourcePath = item.getPath();
+        } else {
+            throw new ResourceNotFoundException("Resource is not a JCR Node");
+        }
 
-		// Calculate a map of privileges to all the aggregate privileges it is contained in.
-		// Use for fast lookup during the mergePrivilegeSets calls below.
+        // Calculate a map of privileges to all the aggregate privileges it is contained in.
+        // Use for fast lookup during the mergePrivilegeSets calls below.
         Map<Privilege, Set<Privilege>> privilegeToAncestorMap = PrivilegesHelper.buildPrivilegeToAncestorMap(jcrSession, resourcePath);
 
         AccessControlEntry[] declaredAccessControlEntries = getAccessControlEntries(jcrSession, resourcePath);
@@ -136,32 +136,32 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
         }
         //evaluate these in reverse order so the most entries with highest specificity are last
         for (int i = declaredAccessControlEntries.length - 1; i >= 0; i--) {
-			AccessControlEntry ace = declaredAccessControlEntries[i];
-			Principal principal = ace.getPrincipal();
+            AccessControlEntry ace = declaredAccessControlEntries[i];
+            Principal principal = ace.getPrincipal();
 
-			if (ace instanceof JackrabbitAccessControlEntry) {
-				JackrabbitAccessControlEntry jace = (JackrabbitAccessControlEntry)ace;
-				String[] restrictionNames = jace.getRestrictionNames();
-				if (restrictionNames != null) {
-					Map<String, Object> restrictions = restrictionMap.get(principal.getName());
-					if (restrictions == null) {
-						restrictions = new HashMap<>();
-						restrictionMap.put(principal.getName(), restrictions);
-					}
-					for (String rname : restrictionNames) {
-						try {
-							//try as a single-value restriction
-							Value value = jace.getRestriction(rname);
-							restrictions.put(rname, value);
-						} catch (ValueFormatException vfe) {
-							//try as a multi-value restriction
-							Value[] values = jace.getRestrictions(rname);
-							restrictions.put(rname, values);
-						}
-					}
-				}
-			}
-			
+            if (ace instanceof JackrabbitAccessControlEntry) {
+                JackrabbitAccessControlEntry jace = (JackrabbitAccessControlEntry)ace;
+                String[] restrictionNames = jace.getRestrictionNames();
+                if (restrictionNames != null) {
+                    Map<String, Object> restrictions = restrictionMap.get(principal.getName());
+                    if (restrictions == null) {
+                        restrictions = new HashMap<>();
+                        restrictionMap.put(principal.getName(), restrictions);
+                    }
+                    for (String rname : restrictionNames) {
+                        try {
+                            //try as a single-value restriction
+                            Value value = jace.getRestriction(rname);
+                            restrictions.put(rname, value);
+                        } catch (ValueFormatException vfe) {
+                            //try as a multi-value restriction
+                            Value[] values = jace.getRestrictions(rname);
+                            restrictions.put(rname, values);
+                        }
+                    }
+                }
+            }
+
             Map<String, Object> map = aclMap.get(principal.getName());
 
             Set<Privilege> grantedSet = (Set<Privilege>) map.get(KEY_GRANTED);
@@ -179,16 +179,16 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
             if (allow) {
                 Privilege[] privileges = ace.getPrivileges();
                 for (Privilege privilege : privileges) {
-                	PrivilegesHelper.mergePrivilegeSets(privilege,
-                			privilegeToAncestorMap,
-							grantedSet, deniedSet);
+                    PrivilegesHelper.mergePrivilegeSets(privilege,
+                            privilegeToAncestorMap,
+                            grantedSet, deniedSet);
                 }
             } else {
                 Privilege[] privileges = ace.getPrivileges();
                 for (Privilege privilege : privileges) {
                     PrivilegesHelper.mergePrivilegeSets(privilege,
-                			privilegeToAncestorMap,
-							deniedSet, grantedSet);
+                            privilegeToAncestorMap,
+                            deniedSet, grantedSet);
                 }
             }
         }
@@ -225,25 +225,25 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
 
             Map<String, Object> restrictions = restrictionMap.get(principalName);
             if (restrictions != null && !restrictions.isEmpty()) {
-            	Set<Entry<String, Object>> entrySet2 = restrictions.entrySet();
-            	JsonObjectBuilder jsonRestrictions = Json.createObjectBuilder();
-            	for (Entry<String, Object> entry2 : entrySet2) {
-    				Object rvalue = entry2.getValue();
-    				if (rvalue != null) {
-    					if (rvalue.getClass().isArray()) {
-    		                JsonArrayBuilder arrayBuilder = Json.createArrayBuilder();
-    		                int length = Array.getLength(rvalue);
-    		                for (int i= 0; i  < length; i++) {
-    		                	Object object = Array.get(rvalue, i);
-    		                	addTo(arrayBuilder, object);
-    		                }
-    		                jsonRestrictions.add(entry2.getKey(), arrayBuilder);
-    					} else {
-    						addTo(jsonRestrictions, entry2.getKey(), rvalue);
-    					}
-    				}
-    			}
-            	aceObject.add("restrictions", jsonRestrictions);
+                Set<Entry<String, Object>> entrySet2 = restrictions.entrySet();
+                JsonObjectBuilder jsonRestrictions = Json.createObjectBuilder();
+                for (Entry<String, Object> entry2 : entrySet2) {
+                    Object rvalue = entry2.getValue();
+                    if (rvalue != null) {
+                        if (rvalue.getClass().isArray()) {
+                            JsonArrayBuilder arrayBuilder = Json.createArrayBuilder();
+                            int length = Array.getLength(rvalue);
+                            for (int i= 0; i  < length; i++) {
+                                Object object = Array.get(rvalue, i);
+                                addTo(arrayBuilder, object);
+                            }
+                            jsonRestrictions.add(entry2.getKey(), arrayBuilder);
+                        } else {
+                            addTo(jsonRestrictions, entry2.getKey(), rvalue);
+                        }
+                    }
+                }
+                aceObject.add("restrictions", jsonRestrictions);
             }
             
             aclList.add(aceObject.build());
