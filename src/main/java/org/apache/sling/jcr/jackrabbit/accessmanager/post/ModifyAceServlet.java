@@ -105,7 +105,7 @@ property= {
 public class ModifyAceServlet extends AbstractAccessPostServlet implements ModifyAce {
 	private static final long serialVersionUID = -9182485466670280437L;
 
-	private RestrictionProvider restrictionProvider = null;
+	private transient RestrictionProvider restrictionProvider = null;
 
 	// NOTE: the @Reference annotation is not inherited, so subclasses will need to override the #bindRestrictionProvider 
 	// and #unbindRestrictionProvider methods to provide the @Reference annotation.     

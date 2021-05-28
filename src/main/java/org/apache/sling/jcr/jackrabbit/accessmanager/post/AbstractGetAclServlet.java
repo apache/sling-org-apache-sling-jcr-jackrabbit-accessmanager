@@ -51,8 +51,6 @@ import org.apache.sling.api.resource.ResourceNotFoundException;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrivilegesHelper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("serial")
 public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
@@ -60,11 +58,6 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
     protected static final String KEY_ORDER = "order";
 	protected static final String KEY_DENIED = "denied";
 	protected static final String KEY_GRANTED = "granted";
-
-	/**
-     * default log
-     */
-    private final transient Logger log = LoggerFactory.getLogger(getClass());
 
     /* (non-Javadoc)
      * @see org.apache.sling.api.servlets.SlingSafeMethodsServlet#doGet(org.apache.sling.api.SlingHttpServletRequest, org.apache.sling.api.SlingHttpServletResponse)
@@ -102,10 +95,10 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
         } catch (ResourceNotFoundException rnfe) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND, rnfe.getMessage());
-        } catch (Throwable throwable) {
-            log.debug(String.format("Exception while handling GET %s with %s",
-                request.getResource().getPath(), getClass().getName()), throwable);
-            throw new ServletException(throwable);
+        } catch (Exception throwable) {
+            throw new ServletException(String.format("Exception while handling GET %s with %s",
+                    						request.getResource().getPath(), getClass().getName()),
+            							throwable);
         }
     }
 
