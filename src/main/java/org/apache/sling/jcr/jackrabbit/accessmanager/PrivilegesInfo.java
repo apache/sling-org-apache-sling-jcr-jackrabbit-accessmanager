@@ -198,27 +198,41 @@ public class PrivilegesInfo {
      * @throws RepositoryException if any errors reading the information
      */
     public AccessRights getDeclaredAccessRightsForPrincipal(Session session, String absPath, String principalId) throws RepositoryException {
-        AccessRights rights = new AccessRights();
+        AccessRights rights = null;
         if (principalId != null && principalId.length() > 0) {
             AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(session);
             AccessControlPolicy[] policies = accessControlManager.getPolicies(absPath);
-            for (AccessControlPolicy accessControlPolicy : policies) {
-                if (accessControlPolicy instanceof AccessControlList) {
-                    AccessControlEntry[] accessControlEntries = ((AccessControlList)accessControlPolicy).getAccessControlEntries();
-                    for (AccessControlEntry ace : accessControlEntries) {
-                        if (principalId.equals(ace.getPrincipal().getName())) {
-                            boolean isAllow = AccessControlUtil.isAllow(ace);
-                            if (isAllow) {
-                                rights.getGranted().addAll(Arrays.asList(ace.getPrivileges()));
-                            } else {
-                                rights.getDenied().addAll(Arrays.asList(ace.getPrivileges()));
-                            }
+            rights = toAccessRights(principalId, policies);
+        }
+
+        return rights;
+    }
+
+    /**
+     * Populate and return an AccessRights object by iterating through each of the policies
+     * 
+     * @param principalId the user or group the get the rights for
+     * @param policies the access control policies to consider
+     * @throws RepositoryException
+     */
+    private AccessRights toAccessRights(String principalId, AccessControlPolicy[] policies)
+            throws RepositoryException {
+        AccessRights rights = new AccessRights();
+        for (AccessControlPolicy accessControlPolicy : policies) {
+            if (accessControlPolicy instanceof AccessControlList) {
+                AccessControlEntry[] accessControlEntries = ((AccessControlList)accessControlPolicy).getAccessControlEntries();
+                for (AccessControlEntry ace : accessControlEntries) {
+                    if (principalId.equals(ace.getPrincipal().getName())) {
+                        boolean isAllow = AccessControlUtil.isAllow(ace);
+                        if (isAllow) {
+                            rights.getGranted().addAll(Arrays.asList(ace.getPrivileges()));
+                        } else {
+                            rights.getDenied().addAll(Arrays.asList(ace.getPrivileges()));
                         }
                     }
                 }
             }
         }
-
         return rights;
     }
 
@@ -363,25 +377,11 @@ public class PrivilegesInfo {
      * @throws RepositoryException if any errors reading the information
      */
     public AccessRights getEffectiveAccessRightsForPrincipal(Session session, String absPath, String principalId) throws RepositoryException {
-        AccessRights rights = new AccessRights();
+        AccessRights rights = null;
         if (principalId != null && principalId.length() > 0) {
             AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(session);
             AccessControlPolicy[] policies = accessControlManager.getEffectivePolicies(absPath);
-            for (AccessControlPolicy accessControlPolicy : policies) {
-                if (accessControlPolicy instanceof AccessControlList) {
-                    AccessControlEntry[] accessControlEntries = ((AccessControlList)accessControlPolicy).getAccessControlEntries();
-                    for (AccessControlEntry ace : accessControlEntries) {
-                        if (principalId.equals(ace.getPrincipal().getName())) {
-                            boolean isAllow = AccessControlUtil.isAllow(ace);
-                            if (isAllow) {
-                                rights.getGranted().addAll(Arrays.asList(ace.getPrivileges()));
-                            } else {
-                                rights.getDenied().addAll(Arrays.asList(ace.getPrivileges()));
-                            }
-                        }
-                    }
-                }
-            }
+            rights = toAccessRights(principalId, policies);
         }
 
         return rights;

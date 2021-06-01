@@ -270,8 +270,6 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
                 return null;
             }
 
-            log.debug("redirect requested as [{}] for path [{}]", result, ctx.getPath());
-
             if (ctx.getPath() != null) {
                 // redirect to created/modified Resource
                 int star = result.indexOf('*');
@@ -298,10 +296,6 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
                     // if the redirect has a trailing slash, append modified node
                     // name
                     result = result.concat(ResourceUtil.getName(ctx.getPath()));
-                }
-
-                if (log.isDebugEnabled()) {
-                    log.debug("Will redirect to {}", result);
                 }
             }
         }

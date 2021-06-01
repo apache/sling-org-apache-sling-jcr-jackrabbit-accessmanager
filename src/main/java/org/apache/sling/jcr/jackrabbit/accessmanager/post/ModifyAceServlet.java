@@ -258,7 +258,8 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
                 restrictions, mvRestrictions, removeRestrictionNames, autoSave, null);
     }
 
-    protected void modifyAce(Session jcrSession, String resourcePath, String principalId, Map<String, String> privileges,
+    protected void modifyAce( // NOSONAR
+            Session jcrSession, String resourcePath, String principalId, Map<String, String> privileges,
             String order, Map<String, Value> restrictions, Map<String, Value[]> mvRestrictions,
             Set<String> removeRestrictionNames, boolean autoSave, List<Modification> changes) throws RepositoryException {
         if (jcrSession == null) {

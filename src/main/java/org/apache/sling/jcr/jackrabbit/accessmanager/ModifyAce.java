@@ -128,7 +128,7 @@ public interface ModifyAce {
      * @param removeRestrictionNames Set of existing restriction names to remove (optional)
      * @throws RepositoryException if any errors applying the changes 
      */
-    default void modifyAce(Session jcrSession,
+    default void modifyAce(Session jcrSession, // NOSONAR
                             String resourcePath,
                             String principalId,
                             Map<String, String> privileges,
@@ -168,7 +168,7 @@ public interface ModifyAce {
      * @param autoSave true to automatically save changes to the JCR session, false otherwise
      * @throws RepositoryException if any errors applying the changes 
      */
-    default void modifyAce(Session jcrSession,
+    default void modifyAce(Session jcrSession, // NOSONAR
                             String resourcePath,
                             String principalId,
                             Map<String, String> privileges,
