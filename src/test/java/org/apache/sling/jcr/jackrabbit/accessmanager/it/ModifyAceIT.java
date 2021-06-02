@@ -1399,4 +1399,35 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         assertEquals(testUserId, change.getString("argument"));
     }
 
+    private void testModifyAceRedirect(String redirectTo, int expectedStatus) throws IOException {
+        testUserId = createTestUser();
+
+        testFolderUrl = createTestFolder();
+
+        String postUrl = testFolderUrl + ".modifyAce.html";
+
+        List<NameValuePair> postParams = new ArrayList<>();
+        postParams.add(new BasicNameValuePair("principalId", testUserId));
+        postParams.add(new BasicNameValuePair("privilege@jcr:read", "granted"));
+        postParams.add(new BasicNameValuePair(":redirect", redirectTo));
+
+        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
+        assertAuthenticatedPostStatus(creds, postUrl, expectedStatus, postParams, null);
+    }
+
+    @Test
+    public void testModifyAceValidRedirect() throws IOException, JsonException {
+        testModifyAceRedirect("/*.html", HttpServletResponse.SC_MOVED_TEMPORARILY);
+    }
+
+    @Test
+    public void testModifyAceInvalidRedirectWithAuthority() throws IOException, JsonException {
+        testModifyAceRedirect("https://sling.apache.org", SC_UNPROCESSABLE_ENTITY);
+    }
+
+    @Test
+    public void testModifyAceInvalidRedirectWithInvalidURI() throws IOException, JsonException {
+        testModifyAceRedirect("https://", SC_UNPROCESSABLE_ENTITY);
+    }
+
 }

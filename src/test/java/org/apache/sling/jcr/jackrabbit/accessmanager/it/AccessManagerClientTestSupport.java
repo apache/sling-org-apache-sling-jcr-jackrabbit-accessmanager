@@ -80,6 +80,8 @@ import org.osgi.service.cm.ConfigurationAdmin;
  * servlets
  */
 public abstract class AccessManagerClientTestSupport extends AccessManagerTestSupport {
+    protected static final int SC_UNPROCESSABLE_ENTITY = 422; // http status code for 422 Unprocessable Entity
+
     protected static final String TEST_FOLDER_JSON = "{'jcr:primaryType': 'nt:unstructured'}";
 
     protected static final String CONTENT_TYPE_JSON = "application/json";
