@@ -312,5 +312,32 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
         assertEquals(testUserId, change.getString("argument"));
     }
 
+    private void testRemoveAceRedirect(String redirectTo, int expectedStatus) throws IOException {
+        String folderUrl = createFolderWithAces(false);
+
+        //remove the ace for the testUser principal
+        String postUrl = folderUrl + ".deleteAce.html";
+        List<NameValuePair> postParams = new ArrayList<>();
+        postParams.add(new BasicNameValuePair(":applyTo", testUserId));
+        postParams.add(new BasicNameValuePair(":redirect", redirectTo));
+        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
+        assertAuthenticatedPostStatus(creds, postUrl, expectedStatus, postParams, null);
+    }
+
+    @Test
+    public void testRemoveAceValidRedirect() throws IOException, JsonException {
+        testRemoveAceRedirect("/*.html", HttpServletResponse.SC_MOVED_TEMPORARILY);
+    }
+
+    @Test
+    public void testRemoveAceInvalidRedirectWithAuthority() throws IOException, JsonException {
+        testRemoveAceRedirect("https://sling.apache.org", SC_UNPROCESSABLE_ENTITY);
+    }
+
+    @Test
+    public void testRemoveAceInvalidRedirectWithInvalidURI() throws IOException, JsonException {
+        testRemoveAceRedirect("https://", SC_UNPROCESSABLE_ENTITY);
+    }
+
 }
 
