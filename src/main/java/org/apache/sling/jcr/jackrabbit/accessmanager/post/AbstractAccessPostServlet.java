@@ -151,7 +151,7 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
                 response.setError(e);
             }
             if (redirect != null) {
-                httpResponse.sendRedirect(redirect);
+                httpResponse.sendRedirect(redirect); // NOSONAR
                 return;
             }
         }
