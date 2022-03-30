@@ -97,9 +97,7 @@ public class LocalRestriction {
                 return false;
         } else if (!rd.getName().equals(other.rd.getName()))
             return false;
-        if (!Arrays.equals(values, other.values))
-            return false;
-        return true;
+        return Arrays.equals(values, other.values);
     }
 
 }

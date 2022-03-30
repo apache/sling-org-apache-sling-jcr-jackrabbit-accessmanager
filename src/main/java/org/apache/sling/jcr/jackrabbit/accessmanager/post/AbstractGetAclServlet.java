@@ -65,9 +65,15 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
     protected static final String KEY_PRIVILEGES = "privileges";
     protected static final String KEY_ALLOW = "allow";
     protected static final String KEY_DENY = "deny";
-    @Deprecated // since 3.0.12
+    /**
+     * @deprecated since 3.0.12, To be removed before the exported package version goes to 4.0
+     */
+    @Deprecated
     protected static final String KEY_DENIED = "denied";
-    @Deprecated // since 3.0.12
+    /**
+     * @deprecated since 3.0.12, To be removed before the exported package version goes to 4.0
+     */
+    @Deprecated
     protected static final String KEY_GRANTED = "granted";
 
     private transient RestrictionProvider restrictionProvider;
