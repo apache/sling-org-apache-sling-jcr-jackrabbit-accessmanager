@@ -22,6 +22,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.HashMap;
@@ -124,6 +125,9 @@ public class LocalRestrictionTest {
     public void testGetValue() throws Exception {
         LocalRestriction lr1 = new LocalRestriction(rd("rep:glob"), val("/hello1"));
         assertEquals(val("/hello1"), lr1.getValue());
+
+        LocalRestriction lr2 = new LocalRestriction(rd("rep:glob"), (Value)null);
+        assertNull(lr2.getValue());
     }
 
     /**
@@ -150,6 +154,10 @@ public class LocalRestrictionTest {
     @Test
     public void testEqualsObject() throws Exception {
         LocalRestriction lr1 = new LocalRestriction(rd("rep:glob"), val("/hello1"));
+        assertEquals(lr1, lr1);
+        assertNotEquals(lr1, null);
+        assertNotEquals(lr1, this);
+
         LocalRestriction lr2 = new LocalRestriction(rd("rep:glob"), val("/hello2"));
         assertNotEquals(lr1, lr2);
 

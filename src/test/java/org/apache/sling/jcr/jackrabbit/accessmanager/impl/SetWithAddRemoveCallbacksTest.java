@@ -159,6 +159,7 @@ public class SetWithAddRemoveCallbacksTest {
     /**
      * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.impl.SetWithAddRemoveCallbacks#remove(java.lang.Object)}.
      */
+    @SuppressWarnings("unlikely-arg-type")
     @Test
     public void testRemove() {
         Set<String> set1 = new HashSet<>();
@@ -171,6 +172,11 @@ public class SetWithAddRemoveCallbacksTest {
         assertEquals(0, addRemoveCallback.removedItems.size());
         setWithCallbacks1.remove("hello");
         assertEquals(1, addRemoveCallback.removedItems.size());
+
+        addRemoveCallback.reset();
+        assertEquals(0, addRemoveCallback.removedItems.size());
+        setWithCallbacks1.remove(Boolean.TRUE);
+        assertEquals(0, addRemoveCallback.removedItems.size());
     }
 
     /**
@@ -198,6 +204,11 @@ public class SetWithAddRemoveCallbacksTest {
         assertEquals(0, addRemoveCallback.addedItems.size());
         setWithCallbacks1.addAll(new HashSet<>(Arrays.asList("item1", "item2")));
         assertEquals(2, addRemoveCallback.addedItems.size());
+
+        addRemoveCallback.reset();
+        assertEquals(0, addRemoveCallback.addedItems.size());
+        setWithCallbacks1.addAll(null);
+        assertEquals(0, addRemoveCallback.addedItems.size());
     }
 
     /**
@@ -238,6 +249,11 @@ public class SetWithAddRemoveCallbacksTest {
         setWithCallbacks1.removeAll(new HashSet<>(set1));
         assertEquals(2, addRemoveCallback.removedItems.size());
         assertTrue(setWithCallbacks1.isEmpty());
+
+        addRemoveCallback.reset();
+        assertEquals(0, addRemoveCallback.removedItems.size());
+        setWithCallbacks1.removeAll(null);
+        assertEquals(0, addRemoveCallback.removedItems.size());
     }
 
     /**
