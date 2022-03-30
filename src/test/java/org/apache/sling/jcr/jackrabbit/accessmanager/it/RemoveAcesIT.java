@@ -35,6 +35,7 @@ import org.apache.http.NameValuePair;
 import org.apache.http.auth.Credentials;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.message.BasicNameValuePair;
+import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
 import org.apache.sling.servlets.post.JSONResponse;
 import org.apache.sling.servlets.post.PostResponseCreator;
 import org.junit.After;
@@ -125,13 +126,13 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
         String principalString = aceObject.getString("principal");
         assertEquals(testUserId, principalString);
 
-        JsonArray grantedArray = aceObject.getJsonArray("granted");
-        assertNotNull(grantedArray);
-        assertEquals("jcr:read", grantedArray.getString(0));
-
-        JsonArray deniedArray = aceObject.getJsonArray("denied");
-        assertNotNull(deniedArray);
-        assertEquals("jcr:write", deniedArray.getString(0));
+        JsonObject privilegesObject = aceObject.getJsonObject("privileges");
+        assertNotNull(privilegesObject);
+        assertEquals(2, privilegesObject.size());
+        //allow privileges
+        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ);
+        //deny privileges
+        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_WRITE);
 
         if (addGroupAce) {
             aceObject = jsonObject.getJsonObject(testGroupId);
@@ -140,11 +141,13 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
             principalString = aceObject.getString("principal");
             assertEquals(testGroupId, principalString);
 
-                assertEquals(1, aceObject.getInt("order"));
+            assertEquals(1, aceObject.getInt("order"));
 
-            grantedArray = aceObject.getJsonArray("granted");
-            assertNotNull(grantedArray);
-            assertEquals("jcr:read", grantedArray.getString(0));
+            privilegesObject = aceObject.getJsonObject("privileges");
+            assertNotNull(privilegesObject);
+            assertEquals(1, privilegesObject.size());
+            //allow privileges
+            assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ);
         }
 
         return testFolderUrl;

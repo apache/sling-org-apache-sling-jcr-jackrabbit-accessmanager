@@ -77,6 +77,11 @@ public abstract class PrivilegesHelper {
     public static void mergePrivilegeSets(Privilege privilege,
             Map<Privilege, Set<Privilege>> privilegeToAncestorMap,
             Set<Privilege> add, Set<Privilege> remove) {
+        mergePrivilegeSets(privilege, privilegeToAncestorMap, add, remove, true);
+    }
+    public static void mergePrivilegeSets(Privilege privilege,
+            Map<Privilege, Set<Privilege>> privilegeToAncestorMap,
+            Set<Privilege> add, Set<Privilege> remove, boolean sameAllowAndDenyRestrictions) {
         //1. remove duplicates and invalid privileges from the list
         if (privilege.isAggregate()) {
             Privilege[] aggregatePrivileges = privilege.getAggregatePrivileges();
@@ -97,7 +102,9 @@ public abstract class PrivilegesHelper {
             //remove from the denied set
             remove.removeAll(asList);
         }
-        remove.remove(privilege);
+        if (sameAllowAndDenyRestrictions) {
+            remove.remove(privilege);
+        }
 
         //2. check if the privilege is already contained in another granted privilege
         boolean isAlreadyGranted = false;
@@ -105,6 +112,7 @@ public abstract class PrivilegesHelper {
         if (ancestorSet != null) {
             for (Privilege privilege2 : ancestorSet) {
                 if (add.contains(privilege2)) {
+                    add.remove(privilege);
                     isAlreadyGranted = true;
                     break;
                 }
