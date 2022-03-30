@@ -189,6 +189,8 @@ public class LocalPrivilege {
         if (privilege == null) {
             if (other.privilege != null)
                 return false;
+        } else if (other.privilege == null) {
+            return false;
         } else if (!privilege.getName().equals(other.privilege.getName()))
             return false;
         return true;

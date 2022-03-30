@@ -20,9 +20,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -101,10 +101,23 @@ public class LocalPrivilegeTest {
     public void testHashCode() throws RepositoryException {
         LocalPrivilege lp1 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
         LocalPrivilege lp2 = new LocalPrivilege(priv(PrivilegeConstants.JCR_WRITE));
-        assertNotSame(lp1.hashCode(), lp2.hashCode());
+        assertNotEquals(lp1.hashCode(), lp2.hashCode());
 
         LocalPrivilege lp3 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
         assertEquals(lp1.hashCode(), lp3.hashCode());
+
+        LocalPrivilege lp4 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
+        lp4.setAllow(true);
+        assertNotEquals(lp1.hashCode(), lp4.hashCode());
+        lp4.setDeny(true);
+        assertNotEquals(lp1.hashCode(), lp4.hashCode());
+        lp4.setAllowRestrictions(null);
+        assertNotEquals(lp1.hashCode(), lp4.hashCode());
+        lp4.setDenyRestrictions(null);
+        assertNotEquals(lp1.hashCode(), lp4.hashCode());
+
+        LocalPrivilege lp5 = new LocalPrivilege(null);
+        assertNotEquals(lp1.hashCode(), lp5.hashCode());
     }
 
     /**
@@ -228,6 +241,12 @@ public class LocalPrivilegeTest {
         newAllowRestrictions2.add(new LocalRestriction(rd("nt:itemNames"), vals("item1", "item2")));
         lp2.setAllowRestrictions(newAllowRestrictions2);
         assertTrue(lp1.sameAllowRestrictions(lp2));
+
+        Set<LocalRestriction> newAllowRestrictions3 = new HashSet<>();
+        newAllowRestrictions3.add(new LocalRestriction(rd("rep:glob"), val("/hello")));
+        newAllowRestrictions3.add(new LocalRestriction(rd("nt:itemNames"), vals("item1", "item2_changed")));
+        lp2.setAllowRestrictions(newAllowRestrictions3);
+        assertFalse(lp1.sameAllowRestrictions(lp2));
     }
 
     /**
@@ -250,6 +269,12 @@ public class LocalPrivilegeTest {
         newDenyRestrictions2.add(new LocalRestriction(rd("nt:itemNames"), vals("item1", "item2")));
         lp2.setDenyRestrictions(newDenyRestrictions2);
         assertTrue(lp1.sameDenyRestrictions(lp2));
+
+        Set<LocalRestriction> newDenyRestrictions3 = new HashSet<>();
+        newDenyRestrictions3.add(new LocalRestriction(rd("rep:glob"), val("/hello")));
+        newDenyRestrictions3.add(new LocalRestriction(rd("nt:itemNames"), vals("item1", "item2_changed")));
+        lp2.setDenyRestrictions(newDenyRestrictions3);
+        assertFalse(lp1.sameDenyRestrictions(lp2));
     }
 
     /**
@@ -271,6 +296,12 @@ public class LocalPrivilegeTest {
         newAllowRestrictions1.add(new LocalRestriction(rd("nt:itemNames"), vals("item1", "item2")));
         lp1.setAllowRestrictions(newAllowRestrictions1);
         assertTrue(lp1.sameAllowAndDenyRestrictions());
+
+        Set<LocalRestriction> newAllowRestrictions2 = new HashSet<>();
+        newAllowRestrictions2.add(new LocalRestriction(rd("rep:glob"), val("/hello")));
+        newAllowRestrictions2.add(new LocalRestriction(rd("nt:itemNames"), vals("item1", "item2_changed")));
+        lp1.setAllowRestrictions(newAllowRestrictions2);
+        assertFalse(lp1.sameAllowAndDenyRestrictions());
     }
 
     /**
@@ -286,7 +317,7 @@ public class LocalPrivilegeTest {
      * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.post.LocalPrivilege#equals(java.lang.Object)}.
      */
     @Test
-    public void testEqualsObject() throws RepositoryException {
+    public void testEqualsObject() throws Exception {
         LocalPrivilege lp1 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
         assertEquals(lp1, lp1);
         assertNotEquals(lp1, null);
@@ -297,6 +328,54 @@ public class LocalPrivilegeTest {
 
         LocalPrivilege lp3 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
         assertEquals(lp1, lp3);
+
+        LocalPrivilege lp4 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
+        lp4.setAllow(true);
+        assertNotEquals(lp1, lp4);
+
+        LocalPrivilege lp5 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
+        lp5.setDeny(true);
+        assertNotEquals(lp1, lp5);
+
+        LocalPrivilege lp6 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
+        lp6.setAllowRestrictions(null);
+        assertNotEquals(lp1, lp6);
+
+        LocalPrivilege lp7 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
+        lp7.setDenyRestrictions(null);
+        assertNotEquals(lp1, lp7);
+
+        LocalPrivilege lp8 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
+        lp8.setAllowRestrictions(null);
+        LocalPrivilege lp9 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
+        assertNotEquals(lp8, lp9);
+
+        LocalPrivilege lp10 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
+        lp10.setDenyRestrictions(null);
+        LocalPrivilege lp11 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
+        assertNotEquals(lp10, lp11);
+
+        LocalPrivilege lp12 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
+        lp12.setAllowRestrictions(new HashSet<>(Arrays.asList(new LocalRestriction(rd("rep:glob"), val("/hello")))));
+        LocalPrivilege lp13 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
+        assertNotEquals(lp12, lp13);
+
+        LocalPrivilege lp14 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
+        lp14.setDenyRestrictions(new HashSet<>(Arrays.asList(new LocalRestriction(rd("rep:glob"), val("/hello")))));
+        LocalPrivilege lp15 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
+        assertNotEquals(lp14, lp15);
+
+        LocalPrivilege lp16 = new LocalPrivilege(null);
+        LocalPrivilege lp17 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
+        assertNotEquals(lp16, lp17);
+
+        LocalPrivilege lp18 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
+        LocalPrivilege lp19 = new LocalPrivilege(null);
+        assertNotEquals(lp18, lp19);
+
+        LocalPrivilege lp20 = new LocalPrivilege(null);
+        LocalPrivilege lp21 = new LocalPrivilege(null);
+        assertEquals(lp20, lp21);
     }
 
 }

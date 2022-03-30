@@ -135,8 +135,14 @@ public class LocalRestrictionTest {
      */
     @Test
     public void testGetValues() throws Exception {
-        LocalRestriction lr2 = new LocalRestriction(rd("rep:itemNames"), vals("item1", "item2"));
-        assertArrayEquals(vals("item1", "item2"), lr2.getValues());
+        LocalRestriction lr1 = new LocalRestriction(rd("rep:itemNames"), vals("item1", "item2"));
+        assertArrayEquals(vals("item1", "item2"), lr1.getValues());
+
+        LocalRestriction lr2 = new LocalRestriction(rd("rep:itemNames"), (Value[])null);
+        assertNull(lr2.getValues());
+
+        LocalRestriction lr3 = new LocalRestriction(rd("rep:itemNames"), new Value[0]);
+        assertArrayEquals(new Value[0], lr3.getValues());
     }
 
     /**
@@ -163,6 +169,26 @@ public class LocalRestrictionTest {
 
         LocalRestriction lr3 = new LocalRestriction(rd("rep:glob"), val("/hello1"));
         assertEquals(lr1, lr3);
+
+        LocalRestriction lr4 = new LocalRestriction(null, val("/hello1"));
+        LocalRestriction lr5 = new LocalRestriction(null, val("/hello1"));
+        assertEquals(lr4, lr5);
+
+        LocalRestriction lr6 = new LocalRestriction(null, val("/hello1"));
+        LocalRestriction lr7 = new LocalRestriction(rd("rep:glob"), val("/hello1"));
+        assertNotEquals(lr6, lr7);
+
+        LocalRestriction lr8 = new LocalRestriction(rd("rep:glob"), val("/hello1"));
+        LocalRestriction lr9 = new LocalRestriction(null, val("/hello1"));
+        assertNotEquals(lr8, lr9);
+
+        LocalRestriction lr10 = new LocalRestriction(rd("rep:glob"), val("/hello1"));
+        LocalRestriction lr11 = new LocalRestriction(rd("rep:itemNames"), val("/hello1"));
+        assertNotEquals(lr10, lr11);
+
+        LocalRestriction lr12 = new LocalRestriction(rd("rep:glob"), val("/hello1"));
+        LocalRestriction lr13 = new LocalRestriction(rd("rep:glob"), val("/hello2"));
+        assertNotEquals(lr12, lr13);
     }
 
 }

@@ -67,7 +67,7 @@ public class LocalRestriction {
     public String toString() {
         StringBuilder builder = new StringBuilder();
         builder.append("LocalRestriction [name=");
-        builder.append(rd.getName());
+        builder.append(rd == null ? null : rd.getName());
         builder.append(", value=");
         builder.append(getValues());
         builder.append("]");
@@ -95,6 +95,8 @@ public class LocalRestriction {
         if (rd == null) {
             if (other.rd != null)
                 return false;
+        } else if (other.rd == null) {
+            return false;
         } else if (!rd.getName().equals(other.rd.getName()))
             return false;
         return Arrays.equals(values, other.values);

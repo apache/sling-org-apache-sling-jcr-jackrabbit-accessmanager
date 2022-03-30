@@ -81,9 +81,12 @@ public class SetWithAddRemoveCallbacks<E> implements Set<E> {
 
     @Override
     public boolean remove(Object o) {
-        boolean remove = wrapped.remove(o);
-        if (remove && itemsClass.isInstance(o)) {
-            addRemoveCallback.removed(itemsClass.cast(o));
+        boolean remove = false;
+        if (itemsClass.isInstance(o)) {
+            remove = wrapped.remove(o);
+            if (remove) {
+                addRemoveCallback.removed(itemsClass.cast(o));
+            }
         }
         return remove;
     }
