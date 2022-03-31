@@ -128,6 +128,9 @@ public class LocalRestrictionTest {
 
         LocalRestriction lr2 = new LocalRestriction(rd("rep:glob"), (Value)null);
         assertNull(lr2.getValue());
+
+        LocalRestriction lr3 = new LocalRestriction(rd("rep:itemNames"), vals("item1", "item2"));
+        assertEquals(val("item1"), lr3.getValue());
     }
 
     /**
@@ -152,6 +155,9 @@ public class LocalRestrictionTest {
     public void testToString() throws Exception {
         LocalRestriction lr1 = new LocalRestriction(rd("rep:glob"), val("/hello1"));
         assertNotNull(lr1.toString());
+
+        LocalRestriction lr2 = new LocalRestriction(null, val("/hello1"));
+        assertNotNull(lr2.toString());
     }
 
     /**
