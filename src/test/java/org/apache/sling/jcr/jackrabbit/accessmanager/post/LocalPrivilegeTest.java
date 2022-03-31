@@ -378,14 +378,16 @@ public class LocalPrivilegeTest {
         assertEquals(lp20, lp21);
 
         LocalPrivilege lp22 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
+        lp22.setAllowRestrictions(null);
         LocalPrivilege lp23 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
         lp23.setAllowRestrictions(null);
-        assertNotEquals(lp22, lp23);
+        assertEquals(lp22, lp23);
 
         LocalPrivilege lp24 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
+        lp24.setDenyRestrictions(null);
         LocalPrivilege lp25 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
         lp25.setDenyRestrictions(null);
-        assertNotEquals(lp24, lp25);
+        assertEquals(lp24, lp25);
     }
 
 }

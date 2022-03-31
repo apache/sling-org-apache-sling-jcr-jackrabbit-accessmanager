@@ -131,6 +131,9 @@ public class LocalRestrictionTest {
 
         LocalRestriction lr3 = new LocalRestriction(rd("rep:itemNames"), vals("item1", "item2"));
         assertEquals(val("item1"), lr3.getValue());
+
+        LocalRestriction lr4 = new LocalRestriction(rd("rep:itemNames"), (Value[])new Value[0]);
+        assertNull(lr4.getValue());
     }
 
     /**
