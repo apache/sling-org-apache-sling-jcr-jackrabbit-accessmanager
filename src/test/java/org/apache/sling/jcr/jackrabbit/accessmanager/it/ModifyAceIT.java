@@ -18,6 +18,7 @@ package org.apache.sling.jcr.jackrabbit.accessmanager.it;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -31,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import javax.json.JsonArray;
 import javax.json.JsonException;
@@ -44,6 +46,7 @@ import org.apache.http.NameValuePair;
 import org.apache.http.auth.Credentials;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.message.BasicNameValuePair;
+import org.apache.jackrabbit.oak.spi.security.authorization.accesscontrol.AccessControlConstants;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
 import org.apache.sling.servlets.post.JSONResponse;
 import org.apache.sling.servlets.post.PostResponseCreator;
@@ -66,6 +69,7 @@ import org.osgi.framework.ServiceRegistration;
 public class ModifyAceIT extends AccessManagerClientTestSupport {
 
     private ServiceRegistration<PostResponseCreator> serviceReg;
+    private VerifyAce verifyTrue = jsonValue -> assertEquals(ValueType.TRUE, jsonValue.getValueType());
 
     @Before
     @Override
@@ -127,9 +131,9 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         assertNotNull(privilegesObject);
         assertEquals(2, privilegesObject.size());
         //allow privileges
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ);
         //deny privileges
-        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_WRITE);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE);
     }
 
     /**
@@ -192,9 +196,9 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         assertNotNull(privilegesObject);
         assertEquals(2, privilegesObject.size());
         //allow privileges
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ);
         //deny privileges
-        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_WRITE);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE);
     }
 
     /**
@@ -241,12 +245,12 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         assertNotNull(privilegesObject);
         assertEquals(5, privilegesObject.size());
         //allow privileges
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ_ACCESS_CONTROL);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_ADD_CHILD_NODES);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ_ACCESS_CONTROL);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_ADD_CHILD_NODES);
         //deny privileges
-        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL);
-        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_REMOVE_CHILD_NODES);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_REMOVE_CHILD_NODES);
 
 
 
@@ -280,12 +284,12 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         assertNotNull(privilegesObject2);
         assertEquals(5, privilegesObject2.size());
         //allow privileges
-        assertPrivilege(privilegesObject2, true, true, PrivilegeConstants.JCR_READ);
-        assertPrivilege(privilegesObject2, true, true, PrivilegeConstants.JCR_ADD_CHILD_NODES);
-        assertPrivilege(privilegesObject2, true, true, PrivilegeConstants.JCR_MODIFY_PROPERTIES);
+        assertPrivilege(privilegesObject2, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ);
+        assertPrivilege(privilegesObject2, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_ADD_CHILD_NODES);
+        assertPrivilege(privilegesObject2, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_MODIFY_PROPERTIES);
         //deny privileges
-        assertPrivilege(privilegesObject2, true, false, PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL);
-        assertPrivilege(privilegesObject2, true, false, PrivilegeConstants.JCR_REMOVE_NODE);
+        assertPrivilege(privilegesObject2, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL);
+        assertPrivilege(privilegesObject2, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_REMOVE_NODE);
     }
 
 
@@ -298,74 +302,41 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder();
 
-        String postUrl = testFolderUrl + ".modifyAce.html";
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.DENY)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
 
-        //1. create an initial set of privileges
-        List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:read", "granted"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:write", "denied"));
-
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
-        //fetch the JSON for the acl to verify the settings.
-        String getUrl = testFolderUrl + ".acl.json";
-
-        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json);
-
-        JsonObject jsonObject = parseJson(json);
-        assertEquals(1, jsonObject.size());
-
-        JsonObject aceObject = jsonObject.getJsonObject(testUserId);
-        assertNotNull(aceObject);
-
-        assertEquals(testUserId, aceObject.getString("principal"));
-
-        JsonObject privilegesObject = aceObject.getJsonObject("privileges");
+        JsonObject privilegesObject = getAcePrivleges(testFolderUrl, testUserId);
         assertNotNull(privilegesObject);
         assertEquals(2, privilegesObject.size());
         //allow privileges
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ);
         //deny privileges
-        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_WRITE);
-
+        assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE);
 
 
         //2. post a new set of privileges to merge with the existing privileges
-        List<NameValuePair> postParams2 = new ArrayList<>();
-        postParams2.add(new BasicNameValuePair("principalId", testUserId));
-        //jcr:read is not posted, so it should remain in the granted ACE
-        postParams2.add(new BasicNameValuePair("privilege@jcr:modifyProperties", "granted")); //add a new privilege
-        //jcr:write is not posted, but one of the aggregate privileges is now granted, so the aggregate priviledge should be disagreaged into
-        //  the remaining denied privileges in the denied ACE
+        List<NameValuePair> postParams2 = new AcePostParamsBuilder(testUserId)
+                //jcr:read is not posted, so it should remain in the granted ACE
+                //jcr:write is not posted, but one of the aggregate privileges is now granted, so the aggregate privilege should be disaggregated into
+                //  the remaining denied privileges in the denied ACE
+                .withPrivilege(PrivilegeConstants.JCR_MODIFY_PROPERTIES, PrivilegeValues.ALLOW)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams2);
 
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams2, null);
-
-
-        //fetch the JSON for the acl to verify the settings.
-        String json2 = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json2);
-
-        JsonObject jsonObject2 = parseJson(json2);
-        assertEquals(1, jsonObject2.size());
-
-        JsonObject aceObject2 = jsonObject2.getJsonObject(testUserId);
-        assertNotNull(aceObject2);
-
-        assertEquals(testUserId, aceObject2.getString("principal"));
-
-        JsonObject privilegesObject2 = aceObject2.getJsonObject("privileges");
+        JsonObject privilegesObject2 = getAcePrivleges(testFolderUrl, testUserId);
         assertNotNull(privilegesObject2);
         assertEquals(5, privilegesObject2.size());
         //allow privileges
-        assertPrivilege(privilegesObject2, true, true, PrivilegeConstants.JCR_READ);
-        assertPrivilege(privilegesObject2, true, true, PrivilegeConstants.JCR_MODIFY_PROPERTIES);
+        assertPrivilege(privilegesObject2, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ);
+        assertPrivilege(privilegesObject2, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_MODIFY_PROPERTIES);
         //deny privileges
-        assertPrivilege(privilegesObject2, true, false, PrivilegeConstants.JCR_ADD_CHILD_NODES);
-        assertPrivilege(privilegesObject2, true, false, PrivilegeConstants.JCR_REMOVE_NODE);
-        assertPrivilege(privilegesObject2, true, false, PrivilegeConstants.JCR_REMOVE_CHILD_NODES);
+        assertPrivilege(privilegesObject2, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_ADD_CHILD_NODES);
+        assertPrivilege(privilegesObject2, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_REMOVE_NODE);
+        assertPrivilege(privilegesObject2, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_REMOVE_CHILD_NODES);
     }
 
     /**
@@ -406,9 +377,9 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         assertNotNull(privilegesObject);
         assertEquals(2, privilegesObject.size());
         //allow privileges
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ);
         //deny privileges
-        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_REMOVE_NODE);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_REMOVE_NODE);
 
 
 
@@ -440,9 +411,9 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         assertNotNull(privilegesObject2);
         assertEquals(2, privilegesObject2.size());
         //allow privileges
-        assertPrivilege(privilegesObject2, true, true, PrivilegeConstants.JCR_READ);
+        assertPrivilege(privilegesObject2, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ);
         //deny privileges
-        assertPrivilege(privilegesObject2, true, false, PrivilegeConstants.JCR_WRITE);
+        assertPrivilege(privilegesObject2, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE);
     }
 
 
@@ -483,7 +454,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         assertNotNull(privilegesObject);
         assertEquals(1, privilegesObject.size());
         //allow privileges
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_WRITE);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE);
 
 
         //2. post a new set of privileges to merge with the existing privileges
@@ -514,9 +485,9 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         assertNotNull(privilegesObject2);
         assertEquals(2, privilegesObject2.size());
         //allow privileges
-        assertPrivilege(privilegesObject2, true, true, PrivilegeConstants.JCR_WRITE);
+        assertPrivilege(privilegesObject2, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE);
         //deny privileges
-        assertPrivilege(privilegesObject2, true, false, PrivilegeConstants.JCR_NODE_TYPE_MANAGEMENT);
+        assertPrivilege(privilegesObject2, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_NODE_TYPE_MANAGEMENT);
     }
 
 
@@ -902,12 +873,12 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         assertNotNull(privilegesObject);
         assertEquals(5, privilegesObject.size());
         //allow privileges
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_VERSION_MANAGEMENT);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_WRITE);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_VERSION_MANAGEMENT);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE);
         //deny privileges
-        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_NODE_TYPE_MANAGEMENT);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_NODE_TYPE_MANAGEMENT);
     }
 
     /**
@@ -962,10 +933,10 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         assertNotNull(privilegesObject);
         assertEquals(4, privilegesObject.size());
         //allow privileges
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_VERSION_MANAGEMENT);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.REP_WRITE);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_VERSION_MANAGEMENT);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.REP_WRITE);
     }
 
     /**
@@ -1021,9 +992,9 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
             assertEquals(2, ((JsonArray)repItemNamesValue).size());
         };
         //allow privilege
-        assertPrivilege(groupPrivilegesObject, true, true, PrivilegeConstants.JCR_READ, verifyRestrictions);
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, verifyRestrictions);
         //deny privilege
-        assertPrivilege(groupPrivilegesObject, true, false, PrivilegeConstants.JCR_WRITE, verifyRestrictions);
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, verifyRestrictions);
 
         JsonObject user =  jsonObject.getJsonObject(testUserId);
         assertNotNull(user);
@@ -1037,9 +1008,9 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
             assertEquals(ValueType.TRUE, jsonValue.getValueType());
         };
         //allow privilege
-        assertPrivilege(userPrivilegesObject, true, true, PrivilegeConstants.JCR_READ, verifyRestrictions2);
+        assertPrivilege(userPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, verifyRestrictions2);
         //deny privilege
-        assertPrivilege(userPrivilegesObject, true, false, PrivilegeConstants.JCR_WRITE, verifyRestrictions2);
+        assertPrivilege(userPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, verifyRestrictions2);
     }
 
     /**
@@ -1087,8 +1058,8 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
             assertTrue(repGlobValue instanceof JsonString);
             assertEquals("/hello", ((JsonString)repGlobValue).getString());
         };
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ, verifyRestrictions);
-        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_WRITE, verifyRestrictions);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, verifyRestrictions);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, verifyRestrictions);
 
 
 
@@ -1128,8 +1099,8 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
             assertTrue(repItemNamesValue instanceof JsonArray);
             assertEquals(2, ((JsonArray)repItemNamesValue).size());
         };
-        assertPrivilege(privilegesObject2, true, true, PrivilegeConstants.JCR_READ, verifyRestrictions2);
-        assertPrivilege(privilegesObject2, true, false, PrivilegeConstants.JCR_WRITE, verifyRestrictions2);
+        assertPrivilege(privilegesObject2, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, verifyRestrictions2);
+        assertPrivilege(privilegesObject2, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, verifyRestrictions2);
     }
 
     /**
@@ -1182,8 +1153,8 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
             assertTrue(repItemNamesValue instanceof JsonArray);
             assertEquals(2, ((JsonArray)repItemNamesValue).size());
         };
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ, verifyRestrictions);
-        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_WRITE, verifyRestrictions);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, verifyRestrictions);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, verifyRestrictions);
 
 
         //second remove the restrictions
@@ -1211,8 +1182,8 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
             assertNotNull(jsonValue);
             assertEquals(ValueType.TRUE, jsonValue.getValueType());
         };
-        assertPrivilege(privilegesObject2, true, true, PrivilegeConstants.JCR_READ, verifyRestrictions2);
-        assertPrivilege(privilegesObject2, true, false, PrivilegeConstants.JCR_WRITE, verifyRestrictions2);
+        assertPrivilege(privilegesObject2, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, verifyRestrictions2);
+        assertPrivilege(privilegesObject2, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, verifyRestrictions2);
     }
 
     /**
@@ -1260,8 +1231,8 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
             assertTrue(repGlobValue instanceof JsonString);
             assertEquals("/hello", ((JsonString)repGlobValue).getString());
         };
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ, verifyRestrictions);
-        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_WRITE, verifyRestrictions);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, verifyRestrictions);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, verifyRestrictions);
 
 
         //second remove the restriction and also supply a new value of the same
@@ -1295,8 +1266,8 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
             assertTrue(repGlobValue instanceof JsonString);
             assertEquals("/hello_again", ((JsonString)repGlobValue).getString());
         };
-        assertPrivilege(privilegesObject2, true, true, PrivilegeConstants.JCR_READ, verifyRestrictions2);
-        assertPrivilege(privilegesObject2, true, false, PrivilegeConstants.JCR_WRITE, verifyRestrictions2);
+        assertPrivilege(privilegesObject2, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, verifyRestrictions2);
+        assertPrivilege(privilegesObject2, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, verifyRestrictions2);
     }
 
     /**
@@ -1387,6 +1358,791 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
     @Test
     public void testModifyAceInvalidRedirectWithInvalidURI() throws IOException, JsonException {
         testModifyAceRedirect("https://", SC_UNPROCESSABLE_ENTITY);
+    }
+
+
+    /**
+     * SLING-11243 - Test to verify adding an ACE with privilege restriction
+     */
+    @Test
+    public void testModifyAceAddAllowPrivilegeRestriction() throws IOException, JsonException {
+        testFolderUrl = createTestFolder();
+        testGroupId = createTestGroup();
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+            .withPrivilegeRestriction(PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, AccessControlConstants.REP_GLOB, "/hello")
+            .withPrivilegeRestriction(PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE, AccessControlConstants.REP_ITEM_NAMES, new String[] {"child1", "child2"})
+            .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+        JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(2, groupPrivilegesObject.size());
+
+        //allow privilege
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
+            assertNotNull(repGlobValue);
+            assertTrue(repGlobValue instanceof JsonString);
+            assertEquals("/hello", ((JsonString)repGlobValue).getString());
+
+            JsonValue repItemNamesValue = restrictionsObj.get(AccessControlConstants.REP_ITEM_NAMES);
+            assertNull(repItemNamesValue);
+        });
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE, jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
+            assertNull(repGlobValue);
+
+            JsonValue repItemNamesValue = restrictionsObj.get(AccessControlConstants.REP_ITEM_NAMES);
+            assertNotNull(repItemNamesValue);
+            assertTrue(repItemNamesValue instanceof JsonArray);
+            assertEquals(2, ((JsonArray)repItemNamesValue).size());
+        });
+        //deny privilege
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_READ, false, null);
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, false, null);
+    }
+
+    /**
+     * SLING-11243 - Test to verify adding an ACE with privilege restriction
+     */
+    @Test
+    public void testModifyAceAddDenyPrivilegeRestriction() throws IOException, JsonException {
+        testFolderUrl = createTestFolder();
+        testGroupId = createTestGroup();
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+            .withPrivilegeRestriction(PrivilegeValues.DENY, PrivilegeConstants.JCR_READ, AccessControlConstants.REP_GLOB, "/hello")
+            .withPrivilegeRestriction(PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, AccessControlConstants.REP_ITEM_NAMES, new String[] {"child1", "child2"})
+            .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+        JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(2, groupPrivilegesObject.size());
+
+        //allow privilege
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, false, null);
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE, false, null);
+        //deny privilege
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_READ, jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
+            assertNotNull(repGlobValue);
+            assertTrue(repGlobValue instanceof JsonString);
+            assertEquals("/hello", ((JsonString)repGlobValue).getString());
+
+            JsonValue repItemNamesValue = restrictionsObj.get(AccessControlConstants.REP_ITEM_NAMES);
+            assertNull(repItemNamesValue);
+        });
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
+            assertNull(repGlobValue);
+
+            JsonValue repItemNamesValue = restrictionsObj.get(AccessControlConstants.REP_ITEM_NAMES);
+            assertNotNull(repItemNamesValue);
+            assertTrue(repItemNamesValue instanceof JsonArray);
+            assertEquals(2, ((JsonArray)repItemNamesValue).size());
+        });
+    }
+
+    /**
+     * SLING-11243 - Test to verify adding an ACE with privilege restriction
+     */
+    @Test
+    public void testModifyAceAddAllowAndDenyPrivilegeRestriction() throws IOException, JsonException {
+        testFolderUrl = createTestFolder();
+        testGroupId = createTestGroup();
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+            .withPrivilegeRestriction(PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, AccessControlConstants.REP_GLOB, "/hello")
+            .withPrivilegeRestriction(PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, AccessControlConstants.REP_ITEM_NAMES, new String[] {"child1", "child2"})
+            .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+        JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(2, groupPrivilegesObject.size());
+
+        //allow privilege
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
+            assertNotNull(repGlobValue);
+            assertTrue(repGlobValue instanceof JsonString);
+            assertEquals("/hello", ((JsonString)repGlobValue).getString());
+
+            JsonValue repItemNamesValue = restrictionsObj.get(AccessControlConstants.REP_ITEM_NAMES);
+            assertNull(repItemNamesValue);
+        });
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE, false, null);
+        //deny privilege
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
+            assertNull(repGlobValue);
+
+            JsonValue repItemNamesValue = restrictionsObj.get(AccessControlConstants.REP_ITEM_NAMES);
+            assertNotNull(repItemNamesValue);
+            assertTrue(repItemNamesValue instanceof JsonArray);
+            assertEquals(2, ((JsonArray)repItemNamesValue).size());
+        });
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_READ, false, null);
+    }
+
+    /**
+     * SLING-11243 - Test to verify modifying an ACE to remove a privilege
+     */
+    @Test
+    public void testModifyAceDeleteWriteAllowPrivilege() throws IOException, JsonException {
+        commonModifyAceDeleteWritePrivilege();
+
+        // remove just the allow privilege and leave the deny privilege active
+        List<NameValuePair> postParams2 = new AcePostParamsBuilder(testGroupId)
+                .withDeletePrivilege(PrivilegeConstants.JCR_WRITE, DeleteValues.ALLOW)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams2);
+        JsonObject groupPrivilegesObject2 = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(2, groupPrivilegesObject2.size());
+
+        //allow privilege
+        assertPrivilege(groupPrivilegesObject2, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE, false, null);
+        //deny privilege
+        assertPrivilege(groupPrivilegesObject2, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, true, jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue repItemNamesValue = restrictionsObj.get(AccessControlConstants.REP_ITEM_NAMES);
+            assertNotNull(repItemNamesValue);
+            assertTrue(repItemNamesValue instanceof JsonArray);
+            assertEquals(2, ((JsonArray)repItemNamesValue).size());
+        });
+    }
+
+    /**
+     * SLING-11243 - Test to verify modifying an ACE to remove a privilege
+     */
+    @Test
+    public void testModifyAceDeleteWriteDenyPrivilege() throws IOException, JsonException {
+        commonModifyAceDeleteWritePrivilege();
+
+        // remove just the deny privilege and leave the allow privilege active
+        List<NameValuePair> postParams2 = new AcePostParamsBuilder(testGroupId)
+                .withDeletePrivilege(PrivilegeConstants.JCR_WRITE, DeleteValues.DENY)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams2);
+        JsonObject groupPrivilegesObject2 = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(2, groupPrivilegesObject2.size());
+
+        //allow privilege
+        assertPrivilege(groupPrivilegesObject2, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE, true, jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
+            assertNotNull(repGlobValue);
+            assertTrue(repGlobValue instanceof JsonString);
+            assertEquals("/hello", ((JsonString)repGlobValue).getString());
+        });
+        //deny privilege
+        assertPrivilege(groupPrivilegesObject2, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, false , null);
+    }
+
+    /**
+     * SLING-11243 - Test to verify modifying an ACE to remove a privilege
+     */
+    @Test
+    public void testModifyAceDeleteWriteAllPrivilege() throws IOException, JsonException {
+        commonModifyAceDeleteWritePrivilege();
+
+        // remove both the allow and the deny privilege
+        List<NameValuePair> postParams2 = new AcePostParamsBuilder(testGroupId)
+                .withDeletePrivilege(PrivilegeConstants.JCR_WRITE, DeleteValues.ALL)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams2);
+        JsonObject groupPrivilegesObject2 = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(1, groupPrivilegesObject2.size());
+
+        //allow privilege
+        assertPrivilege(groupPrivilegesObject2, false, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE);
+        //deny privilege
+        assertPrivilege(groupPrivilegesObject2, false, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE);
+    }
+
+    protected void commonModifyAceDeleteWritePrivilege() throws IOException {
+        testFolderUrl = createTestFolder();
+        testGroupId = createTestGroup();
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+            .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+            .withPrivilegeRestriction(PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE, AccessControlConstants.REP_GLOB, "/hello")
+            .withPrivilegeRestriction(PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, AccessControlConstants.REP_ITEM_NAMES, new String[] {"child1", "child2"})
+            .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+        JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(2, groupPrivilegesObject.size());
+
+        //allow privilege
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, true, jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue repItemNamesValue = restrictionsObj.get(AccessControlConstants.REP_ITEM_NAMES);
+            assertNotNull(repItemNamesValue);
+            assertTrue(repItemNamesValue instanceof JsonArray);
+            assertEquals(2, ((JsonArray)repItemNamesValue).size());
+        });
+        //deny privilege
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE, true, jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
+            assertNotNull(repGlobValue);
+            assertTrue(repGlobValue instanceof JsonString);
+            assertEquals("/hello", ((JsonString)repGlobValue).getString());
+        });
+    }
+
+    /**
+     * SLING-11243 - Test to verify an allow and deny restriction with the same value are both submitted.
+     * The allow restriction wins out and the deny restriction is ignored
+     */
+    @Test
+    public void testModifyAceAllowWinsOverDenyWithSameRestrictions() throws IOException, JsonException {
+        testFolderUrl = createTestFolder();
+        testGroupId = createTestGroup();
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+            .withPrivilegeRestriction(PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE, AccessControlConstants.REP_GLOB, "/hello")
+            .withPrivilegeRestriction(PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, AccessControlConstants.REP_GLOB, "/hello")
+            .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+        JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(1, groupPrivilegesObject.size());
+
+        //allow privilege is there
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE, true, jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
+            assertNotNull(repGlobValue);
+            assertTrue(repGlobValue instanceof JsonString);
+            assertEquals("/hello", ((JsonString)repGlobValue).getString());
+        });
+        //deny privilege is not there
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, false, null);
+    }
+
+    /**
+     * SLING-11243 - Test to verify adding an ACE with privilege restriction
+     */
+    @Test
+    public void testModifyAceDeleteAllowPrivilegeRestriction() throws IOException, JsonException {
+        testModifyAceAddAllowAndDenyPrivilegeRestriction();
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+                .withDeletePrivilegeRestriction(PrivilegeConstants.JCR_READ, AccessControlConstants.REP_GLOB, DeleteValues.ALLOW)
+                .withDeletePrivilegeRestriction(PrivilegeConstants.JCR_WRITE, AccessControlConstants.REP_ITEM_NAMES, DeleteValues.ALLOW)
+            .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+        JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(2, groupPrivilegesObject.size());
+
+        //allow privilege
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, true, jsonValue -> assertEquals(ValueType.TRUE, jsonValue.getValueType()));
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE, false, null);
+        //deny privilege
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_READ, false, null);
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, true, jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
+            assertNull(repGlobValue);
+
+            JsonValue repItemNamesValue = restrictionsObj.get(AccessControlConstants.REP_ITEM_NAMES);
+            assertNotNull(repItemNamesValue);
+            assertTrue(repItemNamesValue instanceof JsonArray);
+            assertEquals(2, ((JsonArray)repItemNamesValue).size());
+        });
+    }
+
+    /**
+     * SLING-11243 - Test to verify adding an ACE with privilege restriction
+     */
+    @Test
+    public void testModifyAceDeleteDenyPrivilegeRestriction() throws IOException, JsonException {
+        testModifyAceAddAllowAndDenyPrivilegeRestriction();
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+            .withDeletePrivilegeRestriction(PrivilegeConstants.JCR_READ, AccessControlConstants.REP_GLOB, DeleteValues.DENY)
+            .withDeletePrivilegeRestriction(PrivilegeConstants.JCR_WRITE, AccessControlConstants.REP_ITEM_NAMES, DeleteValues.DENY)
+            .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+        JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(2, groupPrivilegesObject.size());
+
+        //allow privilege
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, true, jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
+            assertNotNull(repGlobValue);
+            assertTrue(repGlobValue instanceof JsonString);
+            assertEquals("/hello", ((JsonString)repGlobValue).getString());
+
+            JsonValue repItemNamesValue = restrictionsObj.get(AccessControlConstants.REP_ITEM_NAMES);
+            assertNull(repItemNamesValue);
+        });
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE, false, null);
+        //deny privilege
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_READ, false, null);
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, true, jsonValue -> assertEquals(ValueType.TRUE, jsonValue.getValueType()));
+    }
+
+    /**
+     * SLING-11243 - Test to verify adding an ACE with privilege restriction
+     */
+    @Test
+    public void testModifyAceDeleteAllowAndDenyPrivilegeRestriction() throws IOException, JsonException {
+        testModifyAceAddAllowAndDenyPrivilegeRestriction();
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+            .withDeletePrivilegeRestriction(PrivilegeConstants.JCR_READ, AccessControlConstants.REP_GLOB, DeleteValues.ALL)
+            .withDeletePrivilegeRestriction(PrivilegeConstants.JCR_WRITE, AccessControlConstants.REP_ITEM_NAMES, DeleteValues.ALL)
+            .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+        JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(2, groupPrivilegesObject.size());
+
+        //allow privilege
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, true, jsonValue -> assertEquals(ValueType.TRUE, jsonValue.getValueType()));
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE, false, null);
+        //deny privilege
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_READ, false, null);
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, true, jsonValue -> assertEquals(ValueType.TRUE, jsonValue.getValueType()));
+    }
+
+    /**
+     * SLING-11243 - Test to verify adding an ACE with privilege restriction
+     */
+    @Test
+    public void testModifyAceAddPrivilegeRestrictionOnAggregateLeaf() throws IOException, JsonException {
+        testFolderUrl = createTestFolder();
+        testGroupId = createTestGroup();
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+                .withPrivilegeRestriction(PrivilegeValues.ALLOW, PrivilegeConstants.REP_READ_PROPERTIES, AccessControlConstants.REP_GLOB, "/hello")
+                .withPrivilegeRestriction(PrivilegeValues.ALLOW, PrivilegeConstants.REP_READ_NODES, AccessControlConstants.REP_GLOB, "/hello2")
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+
+        JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(3, groupPrivilegesObject.size());
+
+        //allow privilege
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, true, jsonValue -> assertEquals(ValueType.TRUE, jsonValue.getValueType()));
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.REP_READ_PROPERTIES, true, jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
+            assertNotNull(repGlobValue);
+            assertTrue(repGlobValue instanceof JsonString);
+            assertEquals("/hello", ((JsonString)repGlobValue).getString());
+        });
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.REP_READ_NODES, true, jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
+            assertNotNull(repGlobValue);
+            assertTrue(repGlobValue instanceof JsonString);
+            assertEquals("/hello2", ((JsonString)repGlobValue).getString());
+        });
+    }
+
+    /**
+     * SLING-11243 - Test to verify adding an ACE with privilege restriction
+     */
+    @Test
+    public void testModifyAceAddSamePrivilegeRestrictionOnAllAggregateLeafs() throws IOException, JsonException {
+        testFolderUrl = createTestFolder();
+        testGroupId = createTestGroup();
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+                .withPrivilegeRestriction(PrivilegeValues.ALLOW, PrivilegeConstants.REP_READ_PROPERTIES, AccessControlConstants.REP_GLOB, "/hello")
+                .withPrivilegeRestriction(PrivilegeValues.ALLOW, PrivilegeConstants.REP_READ_NODES, AccessControlConstants.REP_GLOB, "/hello")
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+
+        JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(1, groupPrivilegesObject.size());
+
+        //allow privilege
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, true, jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
+            assertNotNull(repGlobValue);
+            assertTrue(repGlobValue instanceof JsonString);
+            assertEquals("/hello", ((JsonString)repGlobValue).getString());
+        });
+    }
+
+    protected void addOrUpdateAce(String folderUrl, List<NameValuePair> postParams) throws IOException, JsonException {
+        String postUrl = folderUrl + ".modifyAce.html";
+
+        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
+        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
+    }
+
+    protected JsonObject getAce(String folderUrl, String principalId) throws IOException, JsonException {
+        String getUrl = testFolderUrl + ".acl.json";
+
+        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
+        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
+        assertNotNull(json);
+
+        JsonObject jsonObject = parseJson(json);
+        JsonObject aceObj = jsonObject.getJsonObject(principalId);
+        assertNotNull(aceObj);
+        assertEquals(principalId, aceObj.getString("principal"));
+        return aceObj;
+    }
+    protected JsonObject getAcePrivleges(String folderUrl, String principalId) throws IOException, JsonException {
+        JsonObject ace = getAce(folderUrl, principalId);
+        JsonObject privilegesObject = ace.getJsonObject("privileges");
+        assertNotNull(privilegesObject);
+        return privilegesObject;
+    }
+
+    /**
+     * SLING-11243 - Test to verify adding an ACE with privilege restriction
+     */
+    @Test
+    public void testModifyAceAllowAllDenyReadAccessControl() throws IOException, JsonException {
+        testFolderUrl = createTestFolder();
+        testGroupId = createTestGroup();
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+                .withPrivilege(PrivilegeConstants.JCR_ALL, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_READ_ACCESS_CONTROL, PrivilegeValues.DENY)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+
+        JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(14, groupPrivilegesObject.size());
+
+        //allow privilege
+        assertPrivilege(groupPrivilegesObject, false, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_ALL);
+        Stream.of(PrivilegeConstants.JCR_VERSION_MANAGEMENT,
+                PrivilegeConstants.JCR_LIFECYCLE_MANAGEMENT,
+                PrivilegeConstants.JCR_RETENTION_MANAGEMENT,
+                PrivilegeConstants.REP_INDEX_DEFINITION_MANAGEMENT,
+                PrivilegeConstants.REP_PRIVILEGE_MANAGEMENT,
+                PrivilegeConstants.JCR_WORKSPACE_MANAGEMENT,
+                PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL,
+                PrivilegeConstants.JCR_NAMESPACE_MANAGEMENT,
+                PrivilegeConstants.REP_USER_MANAGEMENT,
+                PrivilegeConstants.REP_WRITE,
+                PrivilegeConstants.JCR_LOCK_MANAGEMENT,
+                PrivilegeConstants.JCR_NODE_TYPE_DEFINITION_MANAGEMENT,
+                PrivilegeConstants.JCR_READ
+                )
+            .forEach(p -> assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, p, true, verifyTrue));
+
+        //deny privilege
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_READ_ACCESS_CONTROL, true, verifyTrue);
+    }
+
+    /**
+     * SLING-11243 - Test to verify adding an ACE with privilege restriction
+     */
+    @Test
+    public void testModifyAceDenyAllAllowReadAccessControl() throws IOException, JsonException {
+        testFolderUrl = createTestFolder();
+        testGroupId = createTestGroup();
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+                .withPrivilege(PrivilegeConstants.JCR_ALL, PrivilegeValues.DENY)
+                .withPrivilege(PrivilegeConstants.JCR_READ_ACCESS_CONTROL, PrivilegeValues.ALLOW)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+
+        JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(14, groupPrivilegesObject.size());
+
+        //allow privilege
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ_ACCESS_CONTROL, true, verifyTrue);
+
+        //deny privilege
+        assertPrivilege(groupPrivilegesObject, false, PrivilegeValues.DENY, PrivilegeConstants.JCR_ALL);
+        Stream.of(PrivilegeConstants.JCR_VERSION_MANAGEMENT,
+                PrivilegeConstants.JCR_LIFECYCLE_MANAGEMENT,
+                PrivilegeConstants.JCR_RETENTION_MANAGEMENT,
+                PrivilegeConstants.REP_INDEX_DEFINITION_MANAGEMENT,
+                PrivilegeConstants.REP_PRIVILEGE_MANAGEMENT,
+                PrivilegeConstants.JCR_WORKSPACE_MANAGEMENT,
+                PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL,
+                PrivilegeConstants.JCR_NAMESPACE_MANAGEMENT,
+                PrivilegeConstants.REP_USER_MANAGEMENT,
+                PrivilegeConstants.REP_WRITE,
+                PrivilegeConstants.JCR_LOCK_MANAGEMENT,
+                PrivilegeConstants.JCR_NODE_TYPE_DEFINITION_MANAGEMENT,
+                PrivilegeConstants.JCR_READ
+                )
+            .forEach(p -> assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, p, true, verifyTrue));
+    }
+
+    /**
+     * SLING-11243 - Test to verify adding an ACE with privilege restriction
+     */
+    @Test
+    public void testModifyAceDenyAllAllowReadProperties() throws IOException, JsonException {
+        testFolderUrl = createTestFolder();
+        testGroupId = createTestGroup();
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+                .withPrivilege(PrivilegeConstants.JCR_ALL, PrivilegeValues.DENY)
+                .withPrivilege(PrivilegeConstants.REP_READ_PROPERTIES, PrivilegeValues.ALLOW)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+
+        JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(15, groupPrivilegesObject.size());
+
+        //allow privilege
+        assertPrivilege(groupPrivilegesObject, false, PrivilegeValues.DENY, PrivilegeConstants.JCR_ALL);
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.REP_READ_PROPERTIES, true, verifyTrue);
+
+        //deny privilege
+        assertPrivilege(groupPrivilegesObject, false, PrivilegeValues.DENY, PrivilegeConstants.JCR_ALL);
+        Stream.of(PrivilegeConstants.JCR_VERSION_MANAGEMENT,
+                PrivilegeConstants.JCR_READ_ACCESS_CONTROL,
+                PrivilegeConstants.JCR_LIFECYCLE_MANAGEMENT,
+                PrivilegeConstants.JCR_RETENTION_MANAGEMENT,
+                PrivilegeConstants.REP_INDEX_DEFINITION_MANAGEMENT,
+                PrivilegeConstants.REP_PRIVILEGE_MANAGEMENT,
+                PrivilegeConstants.JCR_WORKSPACE_MANAGEMENT,
+                PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL,
+                PrivilegeConstants.JCR_NAMESPACE_MANAGEMENT,
+                PrivilegeConstants.REP_USER_MANAGEMENT,
+                PrivilegeConstants.REP_WRITE,
+                PrivilegeConstants.JCR_LOCK_MANAGEMENT,
+                PrivilegeConstants.JCR_NODE_TYPE_DEFINITION_MANAGEMENT,
+                PrivilegeConstants.REP_READ_NODES
+                )
+            .forEach(p -> assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, p, true, verifyTrue));
+    }
+
+    /**
+     * SLING-11243 - Test to verify adding an ACE with privilege restriction
+     */
+    @Test
+    public void testModifyAceDenyAllGrantLeafsOfRepWrite() throws IOException, JsonException {
+        testFolderUrl = createTestFolder();
+        testGroupId = createTestGroup();
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+                .withPrivilege(PrivilegeConstants.JCR_ALL, PrivilegeValues.DENY)
+                .withPrivilege(PrivilegeConstants.JCR_REMOVE_CHILD_NODES, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_REMOVE_NODE, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_ADD_CHILD_NODES, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_NODE_TYPE_MANAGEMENT, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.REP_ADD_PROPERTIES, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.REP_REMOVE_PROPERTIES, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.REP_ALTER_PROPERTIES, PrivilegeValues.ALLOW)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+
+        JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(14, groupPrivilegesObject.size());
+
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.REP_WRITE, true, verifyTrue);
+
+        //deny privilege
+        Stream.of(PrivilegeConstants.REP_INDEX_DEFINITION_MANAGEMENT,
+                PrivilegeConstants.REP_PRIVILEGE_MANAGEMENT,
+                PrivilegeConstants.JCR_WORKSPACE_MANAGEMENT,
+                PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL,
+                PrivilegeConstants.JCR_NAMESPACE_MANAGEMENT,
+                PrivilegeConstants.JCR_VERSION_MANAGEMENT,
+                PrivilegeConstants.JCR_READ_ACCESS_CONTROL,
+                PrivilegeConstants.JCR_NODE_TYPE_DEFINITION_MANAGEMENT,
+                PrivilegeConstants.JCR_LIFECYCLE_MANAGEMENT,
+                PrivilegeConstants.JCR_RETENTION_MANAGEMENT,
+                PrivilegeConstants.JCR_LOCK_MANAGEMENT,
+                PrivilegeConstants.REP_USER_MANAGEMENT,
+                PrivilegeConstants.JCR_READ)
+            .forEach(p -> assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, p, true, verifyTrue));
+    }
+
+    /**
+     * SLING-11243 - Test to verify adding an ACE with privilege restriction
+     */
+    @Test
+    public void testModifyAceDenyAllGrantModifyPropertiesAndOtherLeafsOfRepWrite() throws IOException, JsonException {
+        testFolderUrl = createTestFolder();
+        testGroupId = createTestGroup();
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+                .withPrivilege(PrivilegeConstants.JCR_ALL, PrivilegeValues.DENY)
+                .withPrivilege(PrivilegeConstants.JCR_REMOVE_CHILD_NODES, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_REMOVE_NODE, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_ADD_CHILD_NODES, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_NODE_TYPE_MANAGEMENT, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_MODIFY_PROPERTIES, PrivilegeValues.ALLOW)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+
+        JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(14, groupPrivilegesObject.size());
+
+        //allow privilege
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.REP_WRITE, true, verifyTrue);
+
+        //deny privilege
+        Stream.of(PrivilegeConstants.REP_INDEX_DEFINITION_MANAGEMENT,
+                PrivilegeConstants.REP_PRIVILEGE_MANAGEMENT,
+                PrivilegeConstants.JCR_WORKSPACE_MANAGEMENT,
+                PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL,
+                PrivilegeConstants.JCR_NAMESPACE_MANAGEMENT,
+                PrivilegeConstants.JCR_VERSION_MANAGEMENT,
+                PrivilegeConstants.JCR_READ_ACCESS_CONTROL,
+                PrivilegeConstants.JCR_NODE_TYPE_DEFINITION_MANAGEMENT,
+                PrivilegeConstants.JCR_LIFECYCLE_MANAGEMENT,
+                PrivilegeConstants.JCR_RETENTION_MANAGEMENT,
+                PrivilegeConstants.JCR_LOCK_MANAGEMENT,
+                PrivilegeConstants.REP_USER_MANAGEMENT,
+                PrivilegeConstants.JCR_READ)
+            .forEach(p -> assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, p, true, verifyTrue));
+    }
+
+    /**
+     * SLING-11243 - Test to verify adding an ACE with privilege restriction
+     */
+    @Test
+    public void testModifyAceDenyAllGrantJcrWriteAndOtherLeafsOfRepWrite() throws IOException, JsonException {
+        testFolderUrl = createTestFolder();
+        testGroupId = createTestGroup();
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+                .withPrivilege(PrivilegeConstants.JCR_ALL, PrivilegeValues.DENY)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_NODE_TYPE_MANAGEMENT, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_MODIFY_PROPERTIES, PrivilegeValues.ALLOW)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+
+        JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(14, groupPrivilegesObject.size());
+
+        //allow privilege
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.REP_WRITE, true, verifyTrue);
+
+        //deny privilege
+        Stream.of(PrivilegeConstants.REP_INDEX_DEFINITION_MANAGEMENT,
+                PrivilegeConstants.REP_PRIVILEGE_MANAGEMENT,
+                PrivilegeConstants.JCR_WORKSPACE_MANAGEMENT,
+                PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL,
+                PrivilegeConstants.JCR_NAMESPACE_MANAGEMENT,
+                PrivilegeConstants.JCR_VERSION_MANAGEMENT,
+                PrivilegeConstants.JCR_READ_ACCESS_CONTROL,
+                PrivilegeConstants.JCR_NODE_TYPE_DEFINITION_MANAGEMENT,
+                PrivilegeConstants.JCR_LIFECYCLE_MANAGEMENT,
+                PrivilegeConstants.JCR_RETENTION_MANAGEMENT,
+                PrivilegeConstants.JCR_LOCK_MANAGEMENT,
+                PrivilegeConstants.REP_USER_MANAGEMENT,
+                PrivilegeConstants.JCR_READ)
+            .forEach(p -> assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, p, true, verifyTrue));
+    }
+
+    /**
+     * SLING-11243 - Test to verify adding an ACE with privilege restriction
+     */
+    @Test
+    public void testModifyAceAllowAllDenyJcrWriteAndOtherLeafsOfRepWrite() throws IOException, JsonException {
+        testFolderUrl = createTestFolder();
+        testGroupId = createTestGroup();
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+                .withPrivilege(PrivilegeConstants.JCR_ALL, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.DENY)
+                .withPrivilege(PrivilegeConstants.JCR_NODE_TYPE_MANAGEMENT, PrivilegeValues.DENY)
+                .withPrivilege(PrivilegeConstants.JCR_MODIFY_PROPERTIES, PrivilegeValues.DENY)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+
+        JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(14, groupPrivilegesObject.size());
+
+        //allow privilege
+        Stream.of(PrivilegeConstants.REP_INDEX_DEFINITION_MANAGEMENT,
+                PrivilegeConstants.REP_PRIVILEGE_MANAGEMENT,
+                PrivilegeConstants.JCR_WORKSPACE_MANAGEMENT,
+                PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL,
+                PrivilegeConstants.JCR_NAMESPACE_MANAGEMENT,
+                PrivilegeConstants.JCR_VERSION_MANAGEMENT,
+                PrivilegeConstants.JCR_READ_ACCESS_CONTROL,
+                PrivilegeConstants.JCR_NODE_TYPE_DEFINITION_MANAGEMENT,
+                PrivilegeConstants.JCR_LIFECYCLE_MANAGEMENT,
+                PrivilegeConstants.JCR_RETENTION_MANAGEMENT,
+                PrivilegeConstants.JCR_LOCK_MANAGEMENT,
+                PrivilegeConstants.REP_USER_MANAGEMENT,
+                PrivilegeConstants.JCR_READ)
+            .forEach(p -> assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, p, true, verifyTrue));
+
+        //deny privilege
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.REP_WRITE, true, verifyTrue);
     }
 
 }

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.sling.jcr.jackrabbit.accessmanager.post;
+package org.apache.sling.jcr.jackrabbit.accessmanager;
 
 import java.util.Collections;
 import java.util.Set;
@@ -66,11 +66,11 @@ public class LocalPrivilege {
     }
 
     public Set<LocalRestriction> getAllowRestrictions() {
-        return allowRestrictions;
+        return Collections.unmodifiableSet(allowRestrictions);
     }
 
     public Set<LocalRestriction> getDenyRestrictions() {
-        return denyRestrictions;
+        return Collections.unmodifiableSet(denyRestrictions);
     }
 
     public void setAllowRestrictions(Set<LocalRestriction> restrictions) {
@@ -87,9 +87,8 @@ public class LocalPrivilege {
      * @param lp the other LocalPrivilege to compare to
      * @return true or false
      */
-    public boolean sameAllowRestrictions(LocalPrivilege lp) {
+    public boolean sameAllowRestrictions(Set<LocalRestriction> otherAllowRestrictions) {
         boolean same = false;
-        Set<LocalRestriction> otherAllowRestrictions = lp.getAllowRestrictions();
         // total (multivalue and simple)  number of restrictions should be same
         if (allowRestrictions.size() == otherAllowRestrictions.size() &&
                 allowRestrictions.containsAll(otherAllowRestrictions)) {
@@ -106,9 +105,8 @@ public class LocalPrivilege {
      * @param lp the other LocalPrivilege to compare to
      * @return true or false
      */
-    public boolean sameDenyRestrictions(LocalPrivilege lp) {
+    public boolean sameDenyRestrictions(Set<LocalRestriction> otherDenyRestrictions) {
         boolean same = false;
-        Set<LocalRestriction> otherDenyRestrictions = lp.getDenyRestrictions();
         // total (multivalue and simple)  number of restrictions should be same
         if (denyRestrictions.size() == otherDenyRestrictions.size() &&
                 denyRestrictions.containsAll(otherDenyRestrictions)) {

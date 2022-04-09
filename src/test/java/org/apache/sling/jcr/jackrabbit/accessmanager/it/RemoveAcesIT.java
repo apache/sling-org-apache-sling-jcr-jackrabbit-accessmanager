@@ -130,9 +130,9 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
         assertNotNull(privilegesObject);
         assertEquals(2, privilegesObject.size());
         //allow privileges
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ);
         //deny privileges
-        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_WRITE);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE);
 
         if (addGroupAce) {
             aceObject = jsonObject.getJsonObject(testGroupId);
@@ -147,7 +147,7 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
             assertNotNull(privilegesObject);
             assertEquals(1, privilegesObject.size());
             //allow privileges
-            assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ);
+            assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ);
         }
 
         return testFolderUrl;

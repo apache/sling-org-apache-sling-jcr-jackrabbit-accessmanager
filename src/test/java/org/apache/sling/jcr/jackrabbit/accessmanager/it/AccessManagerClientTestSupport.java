@@ -22,6 +22,7 @@ import static org.apache.sling.testing.paxexam.SlingOptions.slingCommonsCompiler
 import static org.apache.sling.testing.paxexam.SlingOptions.slingJcrJackrabbitSecurity;
 import static org.apache.sling.testing.paxexam.SlingOptions.slingScriptingJavascript;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -266,32 +267,38 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         }
     }
 
-    protected void assertPrivilege(JsonObject privilegesObject, boolean expected, boolean allow, String privilegeName) {
-        assertPrivilege(privilegesObject, expected, allow, privilegeName, null);
+    protected void assertPrivilege(JsonObject privilegesObject, boolean expectedPrivilege, PrivilegeValues privilegeState, String privilegeName) {
+        assertPrivilege(privilegesObject, expectedPrivilege, privilegeState, privilegeName, null);
     }
-    protected void assertPrivilege(JsonObject privilegesObject, boolean expected, boolean allow, String privilegeName,
+    protected void assertPrivilege(JsonObject privilegesObject, boolean expectedPrivilege, PrivilegeValues privilegeState, String privilegeName,
+            VerifyAce verifyAce) {
+        assertPrivilege(privilegesObject, expectedPrivilege, privilegeState, privilegeName, true, null);
+    }
+    protected void assertPrivilege(JsonObject privilegesObject, boolean expectedPrivilege, PrivilegeValues privilegeState, String privilegeName,
+            boolean expectedForAllow,
             VerifyAce verifyAce) {
         assertNotNull(privilegesObject);
-        if (expected != privilegesObject.containsKey(privilegeName)) {
+        if (expectedPrivilege != privilegesObject.containsKey(privilegeName)) {
             fail("Expected privilege " + privilegeName + " to be "
-                    + (expected ? "included" : "NOT INCLUDED")
+                    + (expectedPrivilege ? "included" : "NOT INCLUDED")
                     + " in supplied object)");
         }
         JsonObject privilegeObj = privilegesObject.getJsonObject(privilegeName);
-        if (!expected) {
+        if (!expectedPrivilege) {
             assertNull(privilegeObj);
         } else {
             assertNotNull(privilegeObj);
-            String key;
-            if (allow) {
-                key = "allow";
+            String key = privilegeState.toString();;
+            if (expectedForAllow) {
+                assertTrue("Expected privilege " + privilegeName + " to have key '" + key,
+                        privilegeObj.containsKey(key));
+                JsonValue jsonValue = privilegeObj.get(key);
+                if (verifyAce != null) {
+                    verifyAce.verify(jsonValue);
+                }
             } else {
-                key = "deny";
-            }
-            assertTrue(privilegeObj.containsKey(key));
-            JsonValue jsonValue = privilegeObj.get(key);
-            if (verifyAce != null) {
-                verifyAce.verify(jsonValue);
+                assertFalse("Did not expect privilege " + privilegeName + " to have key '" + key,
+                        privilegeObj.containsKey(key));
             }
         }
     }
@@ -482,6 +489,115 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
 
     protected static interface VerifyAce {
         public void verify(JsonValue jsonValue);
+    }
+
+    protected enum PrivilegeValues {
+        ALLOW("allow"),
+        DENY("deny");
+
+        private String paramValue;
+
+        private PrivilegeValues(String paramValue) {
+            this.paramValue = paramValue;
+        }
+
+        @Override
+        public String toString() {
+            return paramValue;
+        }
+    }
+
+    protected enum DeleteValues {
+        ALL("all"),
+        ALLOW("allow"),
+        DENY("deny");
+
+        private String paramValue;
+
+        private DeleteValues(String paramValue) {
+            this.paramValue = paramValue;
+        }
+
+        @Override
+        public String toString() {
+            return paramValue;
+        }
+    }
+
+    protected static class AcePostParamsBuilder {
+        List<NameValuePair> list = new ArrayList<>();
+
+        public AcePostParamsBuilder(String principalId) {
+            with("principalId", principalId);
+        }
+
+        public AcePostParamsBuilder withPrivilege(String privilegeName, PrivilegeValues value) {
+            return with("privilege@" + privilegeName, value.toString());
+        }
+
+        public AcePostParamsBuilder withDeletePrivilege(String privilegeName, DeleteValues value) {
+            return with(String.format("privilege@%s@Delete", privilegeName), value.toString());
+        }
+
+        public AcePostParamsBuilder withRestriction(String restrictionName, String restrictionValue) {
+            return with(String.format("restriction@%s", restrictionName), restrictionValue);
+        }
+        public AcePostParamsBuilder withRestriction(String restrictionName, String[] restrictionValues) {
+            return with(String.format("restriction@%s", restrictionName), restrictionValues);
+        }
+
+        public AcePostParamsBuilder withDeleteRestriction(String restrictionName, DeleteValues value) {
+            return with(String.format("restriction@%s@Delete", restrictionName), "true");
+        }
+
+        public AcePostParamsBuilder withPrivilegeRestriction(PrivilegeValues value, String privilegeName, String restrictionName, String restrictionValue) {
+            switch (value) {
+            case ALLOW:
+                with(String.format("restriction@%s@%s@Allow", privilegeName, restrictionName), restrictionValue);
+                break;
+            case DENY:
+                with(String.format("restriction@%s@%s@Deny", privilegeName, restrictionName), restrictionValue);
+                break;
+            default:
+                break;
+            }
+            return this;
+        }
+        public AcePostParamsBuilder withPrivilegeRestriction(PrivilegeValues value, String privilegeName, String restrictionName, String[] restrictionValues) {
+            for (String restrictionValue : restrictionValues) {
+                withPrivilegeRestriction(value, privilegeName, restrictionName, restrictionValue);
+            }
+            return this;
+        }
+
+        public AcePostParamsBuilder withDeletePrivilegeRestriction(String privilegeName, String restrictionName, DeleteValues value) {
+            return with(String.format("restriction@%s@%s@Delete", privilegeName, restrictionName), value.toString());
+        }
+
+        public AcePostParamsBuilder withOrder(String order) {
+            return with("order", order);
+        }
+
+        public AcePostParamsBuilder withRedirect(String redirectTo) {
+            return with(":redirect", redirectTo);
+        }
+
+        public AcePostParamsBuilder with(String key, String value) {
+            list.add(new BasicNameValuePair(key, value));
+            return this;
+        }
+
+        public AcePostParamsBuilder with(String key, String[] values) {
+            for (String value : values) {
+                list.add(new BasicNameValuePair(key, value));
+            }
+            return this;
+        }
+
+        public List<NameValuePair> build() {
+            return list;
+        }
+
     }
 
 }

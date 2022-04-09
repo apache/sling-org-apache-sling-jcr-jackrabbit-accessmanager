@@ -98,7 +98,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         assertNotNull(privilegesObject);
         assertEquals(1, privilegesObject.size());
         //allow privilege
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_WRITE);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE);
 
         JsonObject aceObject2 = jsonObject.getJsonObject(testUserId2);
         assertNotNull(aceObject2);
@@ -110,8 +110,8 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         assertNotNull(privilegesObject2);
         assertEquals(2, privilegesObject2.size());
         //allow privilege
-        assertPrivilege(privilegesObject2, true, true, PrivilegeConstants.JCR_WRITE);
-        assertPrivilege(privilegesObject2, true, true, PrivilegeConstants.JCR_LOCK_MANAGEMENT);
+        assertPrivilege(privilegesObject2, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE);
+        assertPrivilege(privilegesObject2, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_LOCK_MANAGEMENT);
     }
 
     /**
@@ -161,7 +161,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         assertNotNull(privilegesObject);
         assertEquals(1, privilegesObject.size());
         //allow privilege
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_WRITE);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE);
     }
 
     /**
@@ -211,7 +211,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         assertNotNull(privilegesObject);
         assertEquals(1, privilegesObject.size());
         //allow privilege
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_ALL);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_ALL);
     }
 
     /**
@@ -261,7 +261,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         assertNotNull(privilegesObject);
         assertEquals(1, privilegesObject.size());
         //allow privilege
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_ALL);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_ALL);
     }
 
     /**
@@ -311,22 +311,22 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         assertNotNull(privilegesObject);
         assertTrue(privilegesObject.size() >= 11);
         // not there privileges
-        assertPrivilege(privilegesObject, false, true, PrivilegeConstants.JCR_ALL);
-        assertPrivilege(privilegesObject, false, true, PrivilegeConstants.JCR_WRITE);
+        assertPrivilege(privilegesObject, false, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_ALL);
+        assertPrivilege(privilegesObject, false, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE);
         // allow privileges
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ_ACCESS_CONTROL);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_LOCK_MANAGEMENT);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_VERSION_MANAGEMENT);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_NODE_TYPE_MANAGEMENT);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_RETENTION_MANAGEMENT);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_LIFECYCLE_MANAGEMENT);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_MODIFY_PROPERTIES);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_ADD_CHILD_NODES);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_REMOVE_CHILD_NODES);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ_ACCESS_CONTROL);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_LOCK_MANAGEMENT);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_VERSION_MANAGEMENT);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_NODE_TYPE_MANAGEMENT);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_RETENTION_MANAGEMENT);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_LIFECYCLE_MANAGEMENT);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_MODIFY_PROPERTIES);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_ADD_CHILD_NODES);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_REMOVE_CHILD_NODES);
         //deny privileges
-        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_REMOVE_NODE);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_REMOVE_NODE);
     }
 
     /**
@@ -375,7 +375,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         JsonObject privilegesObject = aceObject.getJsonObject("privileges");
         assertNotNull(privilegesObject);
         assertEquals(1, privilegesObject.size());
-        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_ALL);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_ALL);
     }
 
     /**
@@ -424,6 +424,6 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         JsonObject privilegesObject = aceObject.getJsonObject("privileges");
         assertNotNull(privilegesObject);
         assertEquals(1, privilegesObject.size());
-        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_ALL);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_ALL);
     }
 }
