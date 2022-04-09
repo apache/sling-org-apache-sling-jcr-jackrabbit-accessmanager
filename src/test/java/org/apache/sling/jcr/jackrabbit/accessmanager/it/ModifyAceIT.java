@@ -17,9 +17,7 @@
 package org.apache.sling.jcr.jackrabbit.accessmanager.it;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -28,7 +26,6 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Dictionary;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +36,8 @@ import javax.json.JsonArray;
 import javax.json.JsonException;
 import javax.json.JsonObject;
 import javax.json.JsonString;
+import javax.json.JsonValue;
+import javax.json.JsonValue.ValueType;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.http.NameValuePair;
@@ -121,18 +120,16 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         String principalString = aceObject.getString("principal");
         assertEquals(testUserId, principalString);
 
-            int order = aceObject.getInt("order");
-            assertEquals(0, order);
+        int order = aceObject.getInt("order");
+        assertEquals(0, order);
 
-        JsonArray grantedArray = aceObject.getJsonArray("granted");
-        assertNotNull(grantedArray);
-        assertEquals(1, grantedArray.size());
-        assertEquals(PrivilegeConstants.JCR_READ, grantedArray.getString(0));
-
-        JsonArray deniedArray = aceObject.getJsonArray("denied");
-        assertNotNull(deniedArray);
-        assertEquals(1, deniedArray.size());
-        assertEquals(PrivilegeConstants.JCR_WRITE, deniedArray.getString(0));
+        JsonObject privilegesObject = aceObject.getJsonObject("privileges");
+        assertNotNull(privilegesObject);
+        assertEquals(2, privilegesObject.size());
+        //allow privileges
+        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ);
+        //deny privileges
+        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_WRITE);
     }
 
     /**
@@ -185,20 +182,19 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         JsonObject aceObject = jsonObject.getJsonObject(testGroupId);
         assertNotNull(aceObject);
 
-            int order = aceObject.getInt("order");
-            assertEquals(0, order);
+        int order = aceObject.getInt("order");
+        assertEquals(0, order);
 
         String principalString = aceObject.getString("principal");
         assertEquals(testGroupId, principalString);
 
-        JsonArray grantedArray = aceObject.getJsonArray("granted");
-        assertNotNull(grantedArray);
-        assertEquals(1, grantedArray.size());
-        assertEquals(PrivilegeConstants.JCR_READ, grantedArray.getString(0));
-
-        JsonArray deniedArray = aceObject.getJsonArray("denied");
-        assertNotNull(deniedArray);
-        assertEquals(PrivilegeConstants.JCR_WRITE, deniedArray.getString(0));
+        JsonObject privilegesObject = aceObject.getJsonObject("privileges");
+        assertNotNull(privilegesObject);
+        assertEquals(2, privilegesObject.size());
+        //allow privileges
+        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ);
+        //deny privileges
+        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_WRITE);
     }
 
     /**
@@ -238,29 +234,19 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         String principalString = aceObject.getString("principal");
         assertEquals(testUserId, principalString);
 
-            int order = aceObject.getInt("order");
-            assertEquals(0, order);
+        int order = aceObject.getInt("order");
+        assertEquals(0, order);
 
-        JsonArray grantedArray = aceObject.getJsonArray("granted");
-        assertNotNull(grantedArray);
-        assertEquals(3, grantedArray.size());
-        Set<String> grantedPrivilegeNames = new HashSet<>();
-        for (int i=0; i < grantedArray.size(); i++) {
-            grantedPrivilegeNames.add(grantedArray.getString(i));
-        }
-        assertPrivilege(grantedPrivilegeNames, true, PrivilegeConstants.JCR_READ);
-        assertPrivilege(grantedPrivilegeNames, true, PrivilegeConstants.JCR_READ_ACCESS_CONTROL);
-        assertPrivilege(grantedPrivilegeNames, true, PrivilegeConstants.JCR_ADD_CHILD_NODES);
-
-        JsonArray deniedArray = aceObject.getJsonArray("denied");
-        assertNotNull(deniedArray);
-        assertEquals(2, deniedArray.size());
-        Set<String> deniedPrivilegeNames = new HashSet<>();
-        for (int i=0; i < deniedArray.size(); i++) {
-            deniedPrivilegeNames.add(deniedArray.getString(i));
-        }
-        assertPrivilege(deniedPrivilegeNames, true, PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL);
-        assertPrivilege(deniedPrivilegeNames, true, PrivilegeConstants.JCR_REMOVE_CHILD_NODES);
+        JsonObject privilegesObject = aceObject.getJsonObject("privileges");
+        assertNotNull(privilegesObject);
+        assertEquals(5, privilegesObject.size());
+        //allow privileges
+        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ);
+        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ_ACCESS_CONTROL);
+        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_ADD_CHILD_NODES);
+        //deny privileges
+        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL);
+        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_REMOVE_CHILD_NODES);
 
 
 
@@ -290,26 +276,16 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         String principalString2 = aceObject2.getString("principal");
         assertEquals(testUserId, principalString2);
 
-        JsonArray grantedArray2 = aceObject2.getJsonArray("granted");
-        assertNotNull(grantedArray2);
-        assertEquals(3, grantedArray2.size());
-        Set<String> grantedPrivilegeNames2 = new HashSet<>();
-        for (int i=0; i < grantedArray2.size(); i++) {
-            grantedPrivilegeNames2.add(grantedArray2.getString(i));
-        }
-        assertPrivilege(grantedPrivilegeNames2, true, PrivilegeConstants.JCR_READ);
-        assertPrivilege(grantedPrivilegeNames2, true, PrivilegeConstants.JCR_ADD_CHILD_NODES);
-        assertPrivilege(grantedPrivilegeNames2, true, PrivilegeConstants.JCR_MODIFY_PROPERTIES);
-
-        JsonArray deniedArray2 = aceObject2.getJsonArray("denied");
-        assertNotNull(deniedArray2);
-        assertEquals(2, deniedArray2.size());
-        Set<String> deniedPrivilegeNames2 = new HashSet<>();
-        for (int i=0; i < deniedArray2.size(); i++) {
-            deniedPrivilegeNames2.add(deniedArray2.getString(i));
-        }
-        assertPrivilege(deniedPrivilegeNames2, true, PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL);
-        assertPrivilege(deniedPrivilegeNames2, true, PrivilegeConstants.JCR_REMOVE_NODE);
+        JsonObject privilegesObject2 = aceObject2.getJsonObject("privileges");
+        assertNotNull(privilegesObject2);
+        assertEquals(5, privilegesObject2.size());
+        //allow privileges
+        assertPrivilege(privilegesObject2, true, true, PrivilegeConstants.JCR_READ);
+        assertPrivilege(privilegesObject2, true, true, PrivilegeConstants.JCR_ADD_CHILD_NODES);
+        assertPrivilege(privilegesObject2, true, true, PrivilegeConstants.JCR_MODIFY_PROPERTIES);
+        //deny privileges
+        assertPrivilege(privilegesObject2, true, false, PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL);
+        assertPrivilege(privilegesObject2, true, false, PrivilegeConstants.JCR_REMOVE_NODE);
     }
 
 
@@ -347,23 +323,13 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         assertEquals(testUserId, aceObject.getString("principal"));
 
-        JsonArray grantedArray = aceObject.getJsonArray("granted");
-        assertNotNull(grantedArray);
-        assertEquals(1, grantedArray.size());
-        Set<String> grantedPrivilegeNames = new HashSet<>();
-        for (int i=0; i < grantedArray.size(); i++) {
-            grantedPrivilegeNames.add(grantedArray.getString(i));
-        }
-        assertPrivilege(grantedPrivilegeNames, true, PrivilegeConstants.JCR_READ);
-
-        JsonArray deniedArray = aceObject.getJsonArray("denied");
-        assertNotNull(deniedArray);
-        assertEquals(1, deniedArray.size());
-        Set<String> deniedPrivilegeNames = new HashSet<>();
-        for (int i=0; i < deniedArray.size(); i++) {
-            deniedPrivilegeNames.add(deniedArray.getString(i));
-        }
-        assertPrivilege(deniedPrivilegeNames, true, PrivilegeConstants.JCR_WRITE);
+        JsonObject privilegesObject = aceObject.getJsonObject("privileges");
+        assertNotNull(privilegesObject);
+        assertEquals(2, privilegesObject.size());
+        //allow privileges
+        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ);
+        //deny privileges
+        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_WRITE);
 
 
 
@@ -390,28 +356,16 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         assertEquals(testUserId, aceObject2.getString("principal"));
 
-        JsonArray grantedArray2 = aceObject2.getJsonArray("granted");
-        assertNotNull(grantedArray2);
-        assertEquals(2, grantedArray2.size());
-        Set<String> grantedPrivilegeNames2 = new HashSet<>();
-        for (int i=0; i < grantedArray2.size(); i++) {
-            grantedPrivilegeNames2.add(grantedArray2.getString(i));
-        }
-        assertPrivilege(grantedPrivilegeNames2, true, PrivilegeConstants.JCR_READ);
-        assertPrivilege(grantedPrivilegeNames2, true, PrivilegeConstants.JCR_MODIFY_PROPERTIES);
-
-        JsonArray deniedArray2 = aceObject2.getJsonArray("denied");
-        assertNotNull(deniedArray2);
-        assertEquals(3, deniedArray2.size());
-        Set<String> deniedPrivilegeNames2 = new HashSet<>();
-        for (int i=0; i < deniedArray2.size(); i++) {
-            deniedPrivilegeNames2.add(deniedArray2.getString(i));
-        }
-        assertPrivilege(deniedPrivilegeNames2, false, PrivilegeConstants.JCR_WRITE);
-        //only the remaining privileges from the disaggregated jcr:write collection should remain.
-        assertPrivilege(deniedPrivilegeNames2, true, PrivilegeConstants.JCR_ADD_CHILD_NODES);
-        assertPrivilege(deniedPrivilegeNames2, true, PrivilegeConstants.JCR_REMOVE_NODE);
-        assertPrivilege(deniedPrivilegeNames2, true, PrivilegeConstants.JCR_REMOVE_CHILD_NODES);
+        JsonObject privilegesObject2 = aceObject2.getJsonObject("privileges");
+        assertNotNull(privilegesObject2);
+        assertEquals(5, privilegesObject2.size());
+        //allow privileges
+        assertPrivilege(privilegesObject2, true, true, PrivilegeConstants.JCR_READ);
+        assertPrivilege(privilegesObject2, true, true, PrivilegeConstants.JCR_MODIFY_PROPERTIES);
+        //deny privileges
+        assertPrivilege(privilegesObject2, true, false, PrivilegeConstants.JCR_ADD_CHILD_NODES);
+        assertPrivilege(privilegesObject2, true, false, PrivilegeConstants.JCR_REMOVE_NODE);
+        assertPrivilege(privilegesObject2, true, false, PrivilegeConstants.JCR_REMOVE_CHILD_NODES);
     }
 
     /**
@@ -448,23 +402,13 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         assertEquals(testUserId, aceObject.getString("principal"));
 
-        JsonArray grantedArray = aceObject.getJsonArray("granted");
-        assertNotNull(grantedArray);
-        assertEquals(1, grantedArray.size());
-        Set<String> grantedPrivilegeNames = new HashSet<>();
-        for (int i=0; i < grantedArray.size(); i++) {
-            grantedPrivilegeNames.add(grantedArray.getString(i));
-        }
-        assertPrivilege(grantedPrivilegeNames, true, PrivilegeConstants.JCR_READ);
-
-        JsonArray deniedArray = aceObject.getJsonArray("denied");
-        assertNotNull(deniedArray);
-        assertEquals(1, deniedArray.size());
-        Set<String> deniedPrivilegeNames = new HashSet<>();
-        for (int i=0; i < deniedArray.size(); i++) {
-            deniedPrivilegeNames.add(deniedArray.getString(i));
-        }
-        assertPrivilege(deniedPrivilegeNames, true, PrivilegeConstants.JCR_REMOVE_NODE);
+        JsonObject privilegesObject = aceObject.getJsonObject("privileges");
+        assertNotNull(privilegesObject);
+        assertEquals(2, privilegesObject.size());
+        //allow privileges
+        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ);
+        //deny privileges
+        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_REMOVE_NODE);
 
 
 
@@ -490,25 +434,15 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         JsonObject aceObject2 = jsonObject2.getJsonObject(testUserId);
         assertNotNull(aceObject2);
 
-        assertEquals(testUserId, aceObject.getString("principal"));
+        assertEquals(testUserId, aceObject2.getString("principal"));
 
-        JsonArray grantedArray2 = aceObject2.getJsonArray("granted");
-        assertNotNull(grantedArray2);
-        assertEquals(1, grantedArray2.size());
-        Set<String> grantedPrivilegeNames2 = new HashSet<>();
-        for (int i=0; i < grantedArray2.size(); i++) {
-            grantedPrivilegeNames2.add(grantedArray2.getString(i));
-        }
-        assertPrivilege(grantedPrivilegeNames2, true, PrivilegeConstants.JCR_READ);
-
-        JsonArray deniedArray2 = aceObject2.getJsonArray("denied");
-        assertNotNull(deniedArray2);
-        assertEquals(1, deniedArray2.size());
-        Set<String> deniedPrivilegeNames2 = new HashSet<>();
-        for (int i=0; i < deniedArray2.size(); i++) {
-            deniedPrivilegeNames2.add(deniedArray2.getString(i));
-        }
-        assertPrivilege(deniedPrivilegeNames2, true, PrivilegeConstants.JCR_WRITE);
+        JsonObject privilegesObject2 = aceObject2.getJsonObject("privileges");
+        assertNotNull(privilegesObject2);
+        assertEquals(2, privilegesObject2.size());
+        //allow privileges
+        assertPrivilege(privilegesObject2, true, true, PrivilegeConstants.JCR_READ);
+        //deny privileges
+        assertPrivilege(privilegesObject2, true, false, PrivilegeConstants.JCR_WRITE);
     }
 
 
@@ -545,16 +479,11 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         assertEquals(testUserId, aceObject.getString("principal"));
 
-        JsonArray grantedArray = aceObject.getJsonArray("granted");
-        assertNotNull(grantedArray);
-        assertEquals(1, grantedArray.size());
-        Set<String> grantedPrivilegeNames = new HashSet<>();
-        for (int i=0; i < grantedArray.size(); i++) {
-            grantedPrivilegeNames.add(grantedArray.getString(i));
-        }
-        assertPrivilege(grantedPrivilegeNames, true, PrivilegeConstants.JCR_WRITE);
-
-        assertFalse(aceObject.containsKey("denied"));
+        JsonObject privilegesObject = aceObject.getJsonObject("privileges");
+        assertNotNull(privilegesObject);
+        assertEquals(1, privilegesObject.size());
+        //allow privileges
+        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_WRITE);
 
 
         //2. post a new set of privileges to merge with the existing privileges
@@ -581,23 +510,13 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         assertEquals(testUserId, aceObject2.getString("principal"));
 
-        JsonArray grantedArray2 = aceObject2.getJsonArray("granted");
-        assertNotNull(grantedArray2);
-        assertEquals(1, grantedArray2.size());
-        Set<String> grantedPrivilegeNames2 = new HashSet<>();
-        for (int i=0; i < grantedArray2.size(); i++) {
-            grantedPrivilegeNames2.add(grantedArray2.getString(i));
-        }
-        assertPrivilege(grantedPrivilegeNames2, true, PrivilegeConstants.JCR_WRITE);
-
-        JsonArray deniedArray2 = aceObject2.getJsonArray("denied");
-        assertNotNull(deniedArray2);
-        assertEquals(1, deniedArray2.size());
-        Set<String> deniedPrivilegeNames2 = new HashSet<>();
-        for (int i=0; i < deniedArray2.size(); i++) {
-            deniedPrivilegeNames2.add(deniedArray2.getString(i));
-        }
-        assertPrivilege(deniedPrivilegeNames2, true, PrivilegeConstants.JCR_NODE_TYPE_MANAGEMENT);
+        JsonObject privilegesObject2 = aceObject2.getJsonObject("privileges");
+        assertNotNull(privilegesObject2);
+        assertEquals(2, privilegesObject2.size());
+        //allow privileges
+        assertPrivilege(privilegesObject2, true, true, PrivilegeConstants.JCR_WRITE);
+        //deny privileges
+        assertPrivilege(privilegesObject2, true, false, PrivilegeConstants.JCR_NODE_TYPE_MANAGEMENT);
     }
 
 
@@ -979,27 +898,16 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         assertEquals(testUserId, aceObject.getString("principal"));
 
-        JsonArray grantedArray = aceObject.getJsonArray("granted");
-        assertNotNull(grantedArray);
-        assertEquals(4, grantedArray.size());
-        Set<String> grantedPrivilegeNames = new HashSet<>();
-        for (int i=0; i < grantedArray.size(); i++) {
-            grantedPrivilegeNames.add(grantedArray.getString(i));
-        }
-        assertPrivilege(grantedPrivilegeNames, true, PrivilegeConstants.JCR_VERSION_MANAGEMENT);
-        assertPrivilege(grantedPrivilegeNames, true, PrivilegeConstants.JCR_READ);
-        assertPrivilege(grantedPrivilegeNames, true, PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL);
-        assertPrivilege(grantedPrivilegeNames, true, PrivilegeConstants.JCR_WRITE);
-
-        JsonArray deniedArray = aceObject.getJsonArray("denied");
-        assertNotNull(deniedArray);
-        assertEquals(1, deniedArray.size());
-        Set<String> deniedPrivilegeNames = new HashSet<>();
-        for (int i=0; i < deniedArray.size(); i++) {
-            deniedPrivilegeNames.add(deniedArray.getString(i));
-        }
-        //the leftovers from the denied rep:write that were not granted with jcr:write
-        assertPrivilege(deniedPrivilegeNames, true, PrivilegeConstants.JCR_NODE_TYPE_MANAGEMENT);
+        JsonObject privilegesObject = aceObject.getJsonObject("privileges");
+        assertNotNull(privilegesObject);
+        assertEquals(5, privilegesObject.size());
+        //allow privileges
+        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_VERSION_MANAGEMENT);
+        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ);
+        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL);
+        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_WRITE);
+        //deny privileges
+        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_NODE_TYPE_MANAGEMENT);
     }
 
     /**
@@ -1050,21 +958,14 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         assertEquals(testUserId, aceObject.getString("principal"));
 
-        JsonArray grantedArray = aceObject.getJsonArray("granted");
-        assertNotNull(grantedArray);
-        Set<String> grantedPrivilegeNames = new HashSet<>();
-        for (int i=0; i < grantedArray.size(); i++) {
-            grantedPrivilegeNames.add(grantedArray.getString(i));
-        }
-        assertPrivilege(grantedPrivilegeNames, true, PrivilegeConstants.JCR_VERSION_MANAGEMENT);
-        assertPrivilege(grantedPrivilegeNames, true, PrivilegeConstants.JCR_READ);
-        assertPrivilege(grantedPrivilegeNames, true, PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL);
-        assertPrivilege(grantedPrivilegeNames, true, PrivilegeConstants.REP_WRITE); //jcr:nodeTypeManagement + jcr:write
-        assertEquals("Expecting the correct number of privileges in " + grantedPrivilegeNames, 4, grantedPrivilegeNames.size());
-
-        //should be nothing left in the denied set.
-        Object deniedArray = aceObject.get("denied");
-        assertNull(deniedArray);
+        JsonObject privilegesObject = aceObject.getJsonObject("privileges");
+        assertNotNull(privilegesObject);
+        assertEquals(4, privilegesObject.size());
+        //allow privileges
+        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_VERSION_MANAGEMENT);
+        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ);
+        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL);
+        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.REP_WRITE);
     }
 
     /**
@@ -1100,28 +1001,45 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         assertEquals(testGroupId, group.getString("principal"));
         assertEquals(0, group.getInt("order"));
 
-        //verify restrictions are returned
-        assertTrue(group.containsKey("restrictions"));
-        JsonObject restrictionsObj = group.getJsonObject("restrictions");
-        assertNotNull(restrictionsObj);
+        JsonObject groupPrivilegesObject = group.getJsonObject("privileges");
+        assertNotNull(groupPrivilegesObject);
+        assertEquals(2, groupPrivilegesObject.size());
 
-        Object repGlob = restrictionsObj.get("rep:glob");
-        assertNotNull(repGlob);
-        assertTrue(repGlob instanceof JsonString);
-        assertEquals("/hello", ((JsonString)repGlob).getString());
+        VerifyAce verifyRestrictions = jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
 
-        Object itemNames = restrictionsObj.get("rep:itemNames");
-        assertNotNull(itemNames);
-        assertTrue(itemNames instanceof JsonArray);
-        assertEquals(2, ((JsonArray)itemNames).size());
+            JsonValue repGlobValue = restrictionsObj.get("rep:glob");
+            assertNotNull(repGlobValue);
+            assertTrue(repGlobValue instanceof JsonString);
+            assertEquals("/hello", ((JsonString)repGlobValue).getString());
 
+            JsonValue repItemNamesValue = restrictionsObj.get("rep:itemNames");
+            assertNotNull(repItemNamesValue);
+            assertTrue(repItemNamesValue instanceof JsonArray);
+            assertEquals(2, ((JsonArray)repItemNamesValue).size());
+        };
+        //allow privilege
+        assertPrivilege(groupPrivilegesObject, true, true, PrivilegeConstants.JCR_READ, verifyRestrictions);
+        //deny privilege
+        assertPrivilege(groupPrivilegesObject, true, false, PrivilegeConstants.JCR_WRITE, verifyRestrictions);
 
         JsonObject user =  jsonObject.getJsonObject(testUserId);
         assertNotNull(user);
         assertEquals(testUserId, user.getString("principal"));
         assertEquals(1, user.getInt("order"));
-        assertFalse(user.containsKey("restrictions"));
-
+        JsonObject userPrivilegesObject = user.getJsonObject("privileges");
+        assertNotNull(userPrivilegesObject);
+        assertEquals(2, userPrivilegesObject.size());
+        VerifyAce verifyRestrictions2 = jsonValue -> {
+            assertNotNull(jsonValue);
+            assertEquals(ValueType.TRUE, jsonValue.getValueType());
+        };
+        //allow privilege
+        assertPrivilege(userPrivilegesObject, true, true, PrivilegeConstants.JCR_READ, verifyRestrictions2);
+        //deny privilege
+        assertPrivilege(userPrivilegesObject, true, false, PrivilegeConstants.JCR_WRITE, verifyRestrictions2);
     }
 
     /**
@@ -1156,15 +1074,21 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         assertEquals(0, group.getInt("order"));
 
         //verify restrictions are returned
-        assertTrue(group.containsKey("restrictions"));
-        JsonObject restrictionsObj = group.getJsonObject("restrictions");
-        assertNotNull(restrictionsObj);
-        assertEquals(1, restrictionsObj.size());
+        JsonObject privilegesObject = group.getJsonObject("privileges");
+        assertNotNull(privilegesObject);
+        assertEquals(2, privilegesObject.size());
+        VerifyAce verifyRestrictions = jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
 
-        Object repGlob = restrictionsObj.get("rep:glob");
-        assertNotNull(repGlob);
-        assertTrue(repGlob instanceof JsonString);
-        assertEquals("/hello", ((JsonString)repGlob).getString());
+            JsonValue repGlobValue = restrictionsObj.get("rep:glob");
+            assertNotNull(repGlobValue);
+            assertTrue(repGlobValue instanceof JsonString);
+            assertEquals("/hello", ((JsonString)repGlobValue).getString());
+        };
+        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ, verifyRestrictions);
+        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_WRITE, verifyRestrictions);
 
 
 
@@ -1186,20 +1110,26 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         assertEquals(0, group2.getInt("order"));
 
         //verify restrictions are returned
-        assertTrue(group2.containsKey("restrictions"));
-        JsonObject restrictionsObj2 = group2.getJsonObject("restrictions");
-        assertNotNull(restrictionsObj2);
-        assertEquals(2, restrictionsObj2.size());
+        JsonObject privilegesObject2 = group2.getJsonObject("privileges");
+        assertNotNull(privilegesObject2);
+        assertEquals(2, privilegesObject2.size());
+        VerifyAce verifyRestrictions2 = jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
 
-        Object repGlob2 = restrictionsObj2.get("rep:glob");
-        assertNotNull(repGlob2);
-        assertTrue(repGlob2 instanceof JsonString);
-        assertEquals("/hello", ((JsonString)repGlob2).getString());
+            JsonValue repGlobValue = restrictionsObj.get("rep:glob");
+            assertNotNull(repGlobValue);
+            assertTrue(repGlobValue instanceof JsonString);
+            assertEquals("/hello", ((JsonString)repGlobValue).getString());
 
-        Object itemNames2 = restrictionsObj2.get("rep:itemNames");
-        assertNotNull(itemNames2);
-        assertTrue(itemNames2 instanceof JsonArray);
-        assertEquals(2, ((JsonArray)itemNames2).size());
+            JsonValue repItemNamesValue = restrictionsObj.get("rep:itemNames");
+            assertNotNull(repItemNamesValue);
+            assertTrue(repItemNamesValue instanceof JsonArray);
+            assertEquals(2, ((JsonArray)repItemNamesValue).size());
+        };
+        assertPrivilege(privilegesObject2, true, true, PrivilegeConstants.JCR_READ, verifyRestrictions2);
+        assertPrivilege(privilegesObject2, true, false, PrivilegeConstants.JCR_WRITE, verifyRestrictions2);
     }
 
     /**
@@ -1234,19 +1164,26 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         assertEquals(0, group.getInt("order"));
 
         //verify restrictions are returned
-        assertTrue(group.containsKey("restrictions"));
-        JsonObject restrictionsObj = group.getJsonObject("restrictions");
-        assertNotNull(restrictionsObj);
+        JsonObject privilegesObject = group.getJsonObject("privileges");
+        assertNotNull(privilegesObject);
+        assertEquals(2, privilegesObject.size());
+        VerifyAce verifyRestrictions = jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
 
-        Object repGlob = restrictionsObj.get("rep:glob");
-        assertNotNull(repGlob);
-        assertTrue(repGlob instanceof JsonString);
-        assertEquals("/hello", ((JsonString)repGlob).getString());
+            JsonValue repGlobValue = restrictionsObj.get("rep:glob");
+            assertNotNull(repGlobValue);
+            assertTrue(repGlobValue instanceof JsonString);
+            assertEquals("/hello", ((JsonString)repGlobValue).getString());
 
-        Object itemNames = restrictionsObj.get("rep:itemNames");
-        assertNotNull(itemNames);
-        assertTrue(itemNames instanceof JsonArray);
-        assertEquals(2, ((JsonArray)itemNames).size());
+            JsonValue repItemNamesValue = restrictionsObj.get("rep:itemNames");
+            assertNotNull(repItemNamesValue);
+            assertTrue(repItemNamesValue instanceof JsonArray);
+            assertEquals(2, ((JsonArray)repItemNamesValue).size());
+        };
+        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ, verifyRestrictions);
+        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_WRITE, verifyRestrictions);
 
 
         //second remove the restrictions
@@ -1267,7 +1204,15 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         assertEquals(0, group2.getInt("order"));
 
         //verify no restrictions are returned
-        assertFalse(group2.containsKey("restrictions"));
+        JsonObject privilegesObject2 = group2.getJsonObject("privileges");
+        assertNotNull(privilegesObject2);
+        assertEquals(2, privilegesObject2.size());
+        VerifyAce verifyRestrictions2 = jsonValue -> {
+            assertNotNull(jsonValue);
+            assertEquals(ValueType.TRUE, jsonValue.getValueType());
+        };
+        assertPrivilege(privilegesObject2, true, true, PrivilegeConstants.JCR_READ, verifyRestrictions2);
+        assertPrivilege(privilegesObject2, true, false, PrivilegeConstants.JCR_WRITE, verifyRestrictions2);
     }
 
     /**
@@ -1302,14 +1247,21 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         assertEquals(0, group.getInt("order"));
 
         //verify restrictions are returned
-        assertTrue(group.containsKey("restrictions"));
-        JsonObject restrictionsObj = group.getJsonObject("restrictions");
-        assertNotNull(restrictionsObj);
+        JsonObject privilegesObject = group.getJsonObject("privileges");
+        assertNotNull(privilegesObject);
+        assertEquals(2, privilegesObject.size());
+        VerifyAce verifyRestrictions = jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
 
-        Object repGlob = restrictionsObj.get("rep:glob");
-        assertNotNull(repGlob);
-        assertTrue(repGlob instanceof JsonString);
-        assertEquals("/hello", ((JsonString)repGlob).getString());
+            JsonValue repGlobValue = restrictionsObj.get("rep:glob");
+            assertNotNull(repGlobValue);
+            assertTrue(repGlobValue instanceof JsonString);
+            assertEquals("/hello", ((JsonString)repGlobValue).getString());
+        };
+        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ, verifyRestrictions);
+        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_WRITE, verifyRestrictions);
 
 
         //second remove the restriction and also supply a new value of the same
@@ -1330,14 +1282,21 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         assertEquals(0, group2.getInt("order"));
 
         //verify restrictions are returned
-        assertTrue(group2.containsKey("restrictions"));
-        JsonObject restrictionsObj2 = group2.getJsonObject("restrictions");
-        assertNotNull(restrictionsObj2);
+        JsonObject privilegesObject2 = group2.getJsonObject("privileges");
+        assertNotNull(privilegesObject2);
+        assertEquals(2, privilegesObject2.size());
+        VerifyAce verifyRestrictions2 = jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
 
-        Object repGlob2 = restrictionsObj2.get("rep:glob");
-        assertNotNull(repGlob2);
-        assertTrue(repGlob2 instanceof JsonString);
-        assertEquals("/hello_again", ((JsonString)repGlob2).getString());
+            JsonValue repGlobValue = restrictionsObj.get("rep:glob");
+            assertNotNull(repGlobValue);
+            assertTrue(repGlobValue instanceof JsonString);
+            assertEquals("/hello_again", ((JsonString)repGlobValue).getString());
+        };
+        assertPrivilege(privilegesObject2, true, true, PrivilegeConstants.JCR_READ, verifyRestrictions2);
+        assertPrivilege(privilegesObject2, true, false, PrivilegeConstants.JCR_WRITE, verifyRestrictions2);
     }
 
     /**

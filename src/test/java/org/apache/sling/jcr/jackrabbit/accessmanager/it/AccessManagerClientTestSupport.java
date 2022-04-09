@@ -23,6 +23,7 @@ import static org.apache.sling.testing.paxexam.SlingOptions.slingJcrJackrabbitSe
 import static org.apache.sling.testing.paxexam.SlingOptions.slingScriptingJavascript;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.ops4j.pax.exam.CoreOptions.when;
@@ -43,6 +44,7 @@ import javax.inject.Inject;
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
+import javax.json.JsonValue;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.http.Header;
@@ -264,6 +266,36 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         }
     }
 
+    protected void assertPrivilege(JsonObject privilegesObject, boolean expected, boolean allow, String privilegeName) {
+        assertPrivilege(privilegesObject, expected, allow, privilegeName, null);
+    }
+    protected void assertPrivilege(JsonObject privilegesObject, boolean expected, boolean allow, String privilegeName,
+            VerifyAce verifyAce) {
+        assertNotNull(privilegesObject);
+        if (expected != privilegesObject.containsKey(privilegeName)) {
+            fail("Expected privilege " + privilegeName + " to be "
+                    + (expected ? "included" : "NOT INCLUDED")
+                    + " in supplied object)");
+        }
+        JsonObject privilegeObj = privilegesObject.getJsonObject(privilegeName);
+        if (!expected) {
+            assertNull(privilegeObj);
+        } else {
+            assertNotNull(privilegeObj);
+            String key;
+            if (allow) {
+                key = "allow";
+            } else {
+                key = "deny";
+            }
+            assertTrue(privilegeObj.containsKey(key));
+            JsonValue jsonValue = privilegeObj.get(key);
+            if (verifyAce != null) {
+                verifyAce.verify(jsonValue);
+            }
+        }
+    }
+
     protected Object doAuthenticatedWork(Credentials creds, AuthenticatedWorker worker) throws IOException {
         Object result = null;
         AuthScope authScope = new AuthScope(baseServerUri.getHost(), baseServerUri.getPort(), baseServerUri.getScheme());
@@ -447,4 +479,9 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
     protected static interface AuthenticatedWorker {
         public Object doWork() throws IOException;
     }
+
+    protected static interface VerifyAce {
+        public void verify(JsonValue jsonValue);
+    }
+
 }

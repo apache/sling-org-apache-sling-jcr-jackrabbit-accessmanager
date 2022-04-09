@@ -29,9 +29,11 @@ import javax.jcr.security.AccessControlPolicy;
 import javax.json.JsonObject;
 import javax.servlet.Servlet;
 
+import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.apache.sling.jcr.jackrabbit.accessmanager.GetAcl;
 import org.osgi.service.component.annotations.Component;
+import org.osgi.service.component.annotations.Reference;
 
 /**
  * <p>
@@ -60,40 +62,36 @@ import org.osgi.service.component.annotations.Component;
  * <h4>Example Response</h4>
  * <code style='white-space: pre'>
  * {
- * &quot;principalNameA&quot;:
- *      { &quot;granted&quot; : [
- *           &quot;permission1&quot;,
- *           &quot;permission2&quot;,
- *           &quot;permission3&quot;,
- *           &quot;permission4&quot; ],
- *        &quot;denied&quot; : [
- *           &quot;permission5&quot;,
- *           &quot;permission6&quot;,
- *           &quot;permission7&quot;,
- *           &quot;permission8&quot;]
- *       },
- * &quot;principalNameB&quot;:
- *       { &quot;granted&quot; : [
- *           &quot;permission1&quot;,
- *           &quot;permission2&quot;,
- *           &quot;permission3&quot;,
- *           &quot;permission4&quot; ],
- *         &quot;denied&quot; : [
- *           &quot;permission5&quot;,
- *           &quot;permission6&quot;,
- *           &quot;permission7&quot;,
- *           &quot;permission8&quot;] },
- * &quot;principalNameC&quot;:
- *       { &quot;granted&quot; : [
- *           &quot;permission1&quot;,
- *           &quot;permission2&quot;,
- *           &quot;permission3&quot;,
- *           &quot;permission4&quot; ],
- *         &quot;denied&quot; : [
- *           &quot;permission5&quot;,
- *           &quot;permission6&quot;,
- *           &quot;permission7&quot;,
- *           &quot;permission8&quot;] }
+ * &quot;principalNameA&quot;:{ 
+ *    &quot;permissions&quot;: {
+ *      &quot;permission1&quot;:{
+ *           &quot;allow&quot;:true
+ *      },
+ *      &quot;permission2&quot;:{
+ *           &quot;allow&quot;:true
+ *      },
+ *      &quot;permission5&quot;:{
+ *           &quot;deny&quot;:true
+ *      }
+ *    },
+ * &quot;principalNameB&quot;:{ 
+ *    &quot;permissions&quot;: {
+ *      &quot;permission1&quot;:{
+ *           &quot;allow&quot;:true
+ *      },
+ *      &quot;permission2&quot;:{
+ *           &quot;allow&quot;:[
+ *              "restrictionName1: "restrictionValue1",
+ *              "restrictionName2: [
+ *                  "restrictionValue2a",
+ *                  "restrictionValue2b"
+ *              ]
+ *           ]
+ *      },
+ *      &quot;permission5&quot;:{
+ *           &quot;deny&quot;:true
+ *      }
+ *    }
  * }
  * </code>
  */
@@ -106,7 +104,13 @@ property= {
         "sling.servlet.selectors=tidy.acl",
         "sling.servlet.extensions=json",
         "sling.servlet.prefix:Integer=-1"
-})
+},
+reference = {
+        @Reference(name="RestrictionProvider",
+                bind = "bindRestrictionProvider",
+                service = RestrictionProvider.class)
+}
+)
 public class GetAclServlet extends AbstractGetAclServlet implements GetAcl {
     private static final long serialVersionUID = 3391376559396223185L;
 

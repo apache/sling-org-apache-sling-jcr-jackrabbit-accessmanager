@@ -17,23 +17,24 @@
 package org.apache.sling.jcr.jackrabbit.accessmanager.post;
 
 import java.io.IOException;
-import java.lang.reflect.Array;
+import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.jcr.AccessDeniedException;
 import javax.jcr.Item;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.jcr.Value;
-import javax.jcr.ValueFormatException;
 import javax.jcr.security.AccessControlEntry;
 import javax.jcr.security.Privilege;
 import javax.json.Json;
@@ -45,19 +46,49 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
+import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionDefinition;
+import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.resource.ResourceNotFoundException;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
-import org.apache.sling.jcr.base.util.AccessControlUtil;
+import org.apache.sling.jcr.jackrabbit.accessmanager.impl.AddRemoveCallback;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrivilegesHelper;
+import org.apache.sling.jcr.jackrabbit.accessmanager.impl.SetWithAddRemoveCallbacks;
+import org.jetbrains.annotations.NotNull;
 
 @SuppressWarnings("serial")
 public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
 
+    protected static final String KEY_PRINCIPAL = "principal";
     protected static final String KEY_ORDER = "order";
+    protected static final String KEY_PRIVILEGES = "privileges";
+    protected static final String KEY_ALLOW = "allow";
+    protected static final String KEY_DENY = "deny";
+    /**
+     * @deprecated since 3.0.12, To be removed before the exported package version goes to 4.0
+     */
+    @Deprecated
     protected static final String KEY_DENIED = "denied";
+    /**
+     * @deprecated since 3.0.12, To be removed before the exported package version goes to 4.0
+     */
+    @Deprecated
     protected static final String KEY_GRANTED = "granted";
+
+    private transient RestrictionProvider restrictionProvider;
+
+    // @Reference
+    protected void bindRestrictionProvider(RestrictionProvider rp) {
+        this.restrictionProvider = rp;
+    }
+
+    /**
+     * Return the RestrictionProvider service
+     */
+    protected RestrictionProvider getRestrictionProvider() {
+        return restrictionProvider;
+    }
 
     /* (non-Javadoc)
      * @see org.apache.sling.api.servlets.SlingSafeMethodsServlet#doGet(org.apache.sling.api.SlingHttpServletRequest, org.apache.sling.api.SlingHttpServletResponse)
@@ -73,7 +104,7 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
 
             JsonObject acl = internalGetAcl(session, resourcePath);
             response.setContentType("application/json");
-            response.setCharacterEncoding("UTF-8");
+            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
 
             boolean isTidy = false;
             final String[] selectors = request.getRequestPathInfo().getSelectors();
@@ -102,7 +133,6 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
         }
     }
 
-    @SuppressWarnings("unchecked")
     protected JsonObject internalGetAcl(Session jcrSession, String resourcePath) throws RepositoryException {
 
         if (jcrSession == null) {
@@ -116,157 +146,171 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
             throw new ResourceNotFoundException("Resource is not a JCR Node");
         }
 
+        //make a temp map for quick lookup below
+        Set<RestrictionDefinition> supportedRestrictions = getRestrictionProvider().getSupportedRestrictions(resourcePath);
+        Map<String, RestrictionDefinition> srMap = new HashMap<>();
+        for (RestrictionDefinition restrictionDefinition : supportedRestrictions) {
+            srMap.put(restrictionDefinition.getName(), restrictionDefinition);
+        }
+
         // Calculate a map of privileges to all the aggregate privileges it is contained in.
         // Use for fast lookup during the mergePrivilegeSets calls below.
         Map<Privilege, Set<Privilege>> privilegeToAncestorMap = PrivilegesHelper.buildPrivilegeToAncestorMap(jcrSession, resourcePath);
 
-        AccessControlEntry[] declaredAccessControlEntries = getAccessControlEntries(jcrSession, resourcePath);
-        Map<String, Map<String, Object>> aclMap = new LinkedHashMap<>();
-        Map<String, Map<String, Object>> restrictionMap = new LinkedHashMap<>();
-        int sequence = 0;
-
-        for (AccessControlEntry ace : declaredAccessControlEntries) {
-            Principal principal = ace.getPrincipal();
-            Map<String, Object> map = aclMap.get(principal.getName());
-            if (map == null) {
-                map = new LinkedHashMap<>();
-                aclMap.put(principal.getName(), map);
-                map.put(KEY_ORDER, sequence++);
-            }
-        }
-        //evaluate these in reverse order so the most entries with highest specificity are last
-        for (int i = declaredAccessControlEntries.length - 1; i >= 0; i--) {
-            AccessControlEntry ace = declaredAccessControlEntries[i];
-            Principal principal = ace.getPrincipal();
-
-            if (ace instanceof JackrabbitAccessControlEntry) {
-                JackrabbitAccessControlEntry jace = (JackrabbitAccessControlEntry)ace;
-                String[] restrictionNames = jace.getRestrictionNames();
-                if (restrictionNames != null) {
-                    Map<String, Object> restrictions = restrictionMap.get(principal.getName());
-                    if (restrictions == null) {
-                        restrictions = new HashMap<>();
-                        restrictionMap.put(principal.getName(), restrictions);
-                    }
-                    for (String rname : restrictionNames) {
-                        try {
-                            //try as a single-value restriction
-                            Value value = jace.getRestriction(rname);
-                            restrictions.put(rname, value);
-                        } catch (ValueFormatException vfe) {
-                            //try as a multi-value restriction
-                            Value[] values = jace.getRestrictions(rname);
-                            restrictions.put(rname, values);
-                        }
-                    }
-                }
-            }
-
-            Map<String, Object> map = aclMap.get(principal.getName());
-
-            Set<Privilege> grantedSet = (Set<Privilege>) map.get(KEY_GRANTED);
-            if (grantedSet == null) {
-                grantedSet = new LinkedHashSet<>();
-                map.put(KEY_GRANTED, grantedSet);
-            }
-            Set<Privilege> deniedSet = (Set<Privilege>) map.get(KEY_DENIED);
-            if (deniedSet == null) {
-                deniedSet = new LinkedHashSet<>();
-                map.put(KEY_DENIED, deniedSet);
-            }
-
-            boolean allow = AccessControlUtil.isAllow(ace);
-            if (allow) {
-                Privilege[] privileges = ace.getPrivileges();
-                for (Privilege privilege : privileges) {
-                    PrivilegesHelper.mergePrivilegeSets(privilege,
-                            privilegeToAncestorMap,
-                            grantedSet, deniedSet);
-                }
-            } else {
-                Privilege[] privileges = ace.getPrivileges();
-                for (Privilege privilege : privileges) {
-                    PrivilegesHelper.mergePrivilegeSets(privilege,
-                            privilegeToAncestorMap,
-                            deniedSet, grantedSet);
-                }
-            }
-        }
-
-        List<JsonObject> aclList = new ArrayList<>();
-        Set<Entry<String, Map<String, Object>>> entrySet = aclMap.entrySet();
-        for (Entry<String, Map<String, Object>> entry : entrySet) {
-            String principalName = entry.getKey();
-            Map<String, Object> value = entry.getValue();
-
-            JsonObjectBuilder aceObject = Json.createObjectBuilder();
-            aceObject.add("principal", principalName);
-
-            Set<Privilege> grantedSet = (Set<Privilege>) value.get(KEY_GRANTED);
-            if (grantedSet != null && !grantedSet.isEmpty()) {
-                JsonArrayBuilder arrayBuilder = Json.createArrayBuilder();
-                for (Privilege v : grantedSet)
-                {
-                    arrayBuilder.add(v.getName());
-                }
-                aceObject.add(KEY_GRANTED, arrayBuilder);
-            }
-
-            Set<Privilege> deniedSet = (Set<Privilege>) value.get(KEY_DENIED);
-            if (deniedSet != null && !deniedSet.isEmpty()) {
-                JsonArrayBuilder arrayBuilder = Json.createArrayBuilder();
-                for (Privilege v : deniedSet)
-                {
-                    arrayBuilder.add(v.getName());
-                }
-                aceObject.add(KEY_DENIED, arrayBuilder);
-            }
-            aceObject.add(KEY_ORDER, (Integer) value.get(KEY_ORDER));
-
-            Map<String, Object> restrictions = restrictionMap.get(principalName);
-            if (restrictions != null && !restrictions.isEmpty()) {
-                Set<Entry<String, Object>> entrySet2 = restrictions.entrySet();
-                JsonObjectBuilder jsonRestrictions = Json.createObjectBuilder();
-                for (Entry<String, Object> entry2 : entrySet2) {
-                    Object rvalue = entry2.getValue();
-                    if (rvalue != null) {
-                        if (rvalue.getClass().isArray()) {
-                            JsonArrayBuilder arrayBuilder = Json.createArrayBuilder();
-                            int length = Array.getLength(rvalue);
-                            for (int i= 0; i  < length; i++) {
-                                Object object = Array.get(rvalue, i);
-                                addTo(arrayBuilder, object);
-                            }
-                            jsonRestrictions.add(entry2.getKey(), arrayBuilder);
+        AccessControlEntry[] accessControlEntries = getAccessControlEntries(jcrSession, resourcePath);
+        Map<Principal, Integer> principalToOrderMap = new HashMap<>();
+        Map<Principal, Map<Privilege, LocalPrivilege>> principalToPrivilegesMap = new HashMap<>();
+        //evaluate these in reverse order so the entries with highest specificity are processed last
+        for (int i = accessControlEntries.length - 1; i >= 0; i--) {
+            AccessControlEntry accessControlEntry = accessControlEntries[i];
+            if (accessControlEntry instanceof JackrabbitAccessControlEntry) {
+                JackrabbitAccessControlEntry jrAccessControlEntry = (JackrabbitAccessControlEntry)accessControlEntry;
+                Privilege[] privileges = jrAccessControlEntry.getPrivileges();
+                if (privileges != null) {
+                    boolean isAllow = jrAccessControlEntry.isAllow();
+                    Principal principal = accessControlEntry.getPrincipal();
+                    principalToOrderMap.put(principal, i);
+                    Map<Privilege, LocalPrivilege> map = principalToPrivilegesMap.computeIfAbsent(principal, k -> new HashMap<>());
+                    for (Privilege p : privileges) {
+                        LocalPrivilege privilegeItem = map.computeIfAbsent(p, LocalPrivilege::new);
+                        if (isAllow) {
+                            privilegeItem.setAllow(true);
                         } else {
-                            addTo(jsonRestrictions, entry2.getKey(), rvalue);
+                            privilegeItem.setDeny(true);
+                        }
+
+                        // populate the declared restrictions
+                        @NotNull
+                        String[] restrictionNames = jrAccessControlEntry.getRestrictionNames();
+                        Set<LocalRestriction> restrictionItems = new HashSet<>();
+                        for (String restrictionName : restrictionNames) {
+                            RestrictionDefinition rd = srMap.get(restrictionName);
+                            boolean isMulti = rd.getRequiredType().isArray();
+                            if (isMulti) {
+                                restrictionItems.add(new LocalRestriction(rd, jrAccessControlEntry.getRestrictions(restrictionName)));
+                            } else {
+                                restrictionItems.add(new LocalRestriction(rd, jrAccessControlEntry.getRestriction(restrictionName)));
+                            }
+                        }
+                        if (isAllow) {
+                            privilegeItem.setAllowRestrictions(restrictionItems);
+                        } else {
+                            privilegeItem.setDenyRestrictions(restrictionItems);
                         }
                     }
+
+                    mergePrivilegeSets(privilegeToAncestorMap, privileges, isAllow, map);
                 }
-                aceObject.add("restrictions", jsonRestrictions);
             }
-            
-            aclList.add(aceObject.build());
-        }
-        JsonObjectBuilder jsonAclMap = Json.createObjectBuilder();
-        for (Map.Entry<String, Map<String, Object>> entry : aclMap.entrySet())
-        {
-            JsonObjectBuilder builder = Json.createObjectBuilder();
-            for (Map.Entry<String, Object> inner : entry.getValue().entrySet())
-            {
-                addTo(builder, inner.getKey(), inner.getValue());
-            }
-            jsonAclMap.add(entry.getKey(), builder);
         }
 
-        for (JsonObject jsonObj : aclList) {
-            jsonAclMap.add(jsonObj.getString("principal"), jsonObj);
-        }
+        // sort the entries by the order value for readability
+        List<Entry<Principal, Map<Privilege, LocalPrivilege>>> entrySetList = new ArrayList<>(principalToPrivilegesMap.entrySet());
+        Collections.sort(entrySetList, (e1, e2) -> principalToOrderMap.get(e1.getKey()).compareTo(principalToOrderMap.get(e2.getKey())));
 
-        return jsonAclMap.build();
+        // convert the data to JSON
+        JsonObjectBuilder jsonObj = convertToJson(entrySetList);
+        return jsonObj.build();
     }
-    
-    private JsonObjectBuilder addTo(JsonObjectBuilder builder, String key, Object value) {
+
+    protected void mergePrivilegeSets(Map<Privilege, Set<Privilege>> privilegeToAncestorMap, Privilege[] privileges,
+            boolean isAllow, Map<Privilege, LocalPrivilege> map) {
+        // prepare a filtered set that contains only the allow privileges
+        Set<Privilege> allowSet =
+                map.entrySet().stream()
+                    .filter(e -> e.getValue().isAllow())
+                    .map(Entry::getKey)
+                    .collect(Collectors.toSet());
+        // prepare a filtered set that contains only the deny privileges
+        Set<Privilege> denySet =
+                map.entrySet().stream()
+                    .filter(e -> e.getValue().isDeny())
+                    .map(Entry::getKey)
+                    .collect(Collectors.toSet());
+
+        for (Privilege privilege : privileges) {
+            // filter the allowSet/denySet to only include the
+            //   items with identical restrictions
+            LocalPrivilege lp = map.get(privilege);
+            allowSet = new SetWithAddRemoveCallbacks<>(
+                    allowSet.stream()
+                        .filter(p -> lp.sameAllowRestrictions(map.get(p)))
+                        .collect(Collectors.toSet()),
+                        new AddRemoveAllowPrivilegeCallback(map),
+                    Privilege.class);
+            denySet = new SetWithAddRemoveCallbacks<>(
+                    denySet.stream()
+                    .filter(p -> lp.sameDenyRestrictions(map.get(p)))
+                    .collect(Collectors.toSet()),
+                    new AddRemoveDenyPrivilegeCallback(map),
+                    Privilege.class);
+
+            // to tell the mergePrivilegeSets calls if the allow and deny restrictions 
+            //  are the same so it can know if allow/deny are exclusive
+            boolean sameAllowAndDenyRestrictions = lp.sameAllowAndDenyRestrictions();
+            if (isAllow) {
+                PrivilegesHelper.mergePrivilegeSets(privilege,
+                        privilegeToAncestorMap,
+                        allowSet, denySet, sameAllowAndDenyRestrictions);
+            } else {
+                PrivilegesHelper.mergePrivilegeSets(privilege,
+                        privilegeToAncestorMap,
+                        denySet, allowSet, sameAllowAndDenyRestrictions);
+            }
+        }
+    }
+
+    protected JsonObjectBuilder convertToJson(List<Entry<Principal, Map<Privilege, LocalPrivilege>>> entrySetList) {
+        JsonObjectBuilder jsonObj = Json.createObjectBuilder();
+        for (int i = 0; i < entrySetList.size(); i++) {
+            Entry<Principal, Map<Privilege, LocalPrivilege>> entry = entrySetList.get(i);
+            Principal principal = entry.getKey();
+            JsonObjectBuilder principalObj = Json.createObjectBuilder();
+            principalObj.add(KEY_PRINCIPAL, principal.getName());
+            principalObj.add(KEY_ORDER, i);
+            JsonObjectBuilder privilegesObj = Json.createObjectBuilder();
+            Collection<LocalPrivilege> privileges = entry.getValue().values();
+            for (LocalPrivilege pi : privileges) {
+                if (pi.isNone()) {
+                    continue;
+                }
+                JsonObjectBuilder privilegeObj = Json.createObjectBuilder();
+
+                if (pi.isAllow()) {
+                    addRestrictions(privilegeObj, KEY_ALLOW, pi.getAllowRestrictions());
+                }
+                if (pi.isDeny()) {
+                    addRestrictions(privilegeObj, KEY_DENY, pi.getDenyRestrictions());
+                }
+                privilegesObj.add(pi.getName(), privilegeObj);
+            }
+            principalObj.add(KEY_PRIVILEGES, privilegesObj);
+            jsonObj.add(principal.getName(), principalObj);
+        }
+        return jsonObj;
+    }
+
+    protected void addRestrictions(JsonObjectBuilder privilegeObj, String key, Set<LocalRestriction> restrictions) {
+        if (restrictions.isEmpty()) {
+            privilegeObj.add(key, true);
+        } else {
+            JsonObjectBuilder allowObj = Json.createObjectBuilder();
+            for (LocalRestriction ri : restrictions) {
+                if (ri.isMultiValue()) {
+                    JsonArrayBuilder rvalues = Json.createArrayBuilder();
+                    for (Value value: ri.getValues()) {
+                        addTo(rvalues, value);
+                    }
+                    allowObj.add(ri.getName(), rvalues);
+                } else {
+                    addTo(allowObj, ri.getName(), ri.getValue());
+                }
+            }
+            privilegeObj.add(key, allowObj);
+        }
+    }
+
+    protected JsonObjectBuilder addTo(JsonObjectBuilder builder, String key, Object value) {
         if (value instanceof Byte || value instanceof Short || value instanceof Integer || value instanceof Long) {
             builder.add(key, ((Number) value).longValue());
         } else if (value instanceof Float || value instanceof Double) {
@@ -283,7 +327,7 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
         return builder;
     }
 
-    private JsonArrayBuilder addTo(JsonArrayBuilder builder, Object value) {
+    protected JsonArrayBuilder addTo(JsonArrayBuilder builder, Object value) {
         if (value instanceof Byte || value instanceof Short || value instanceof Integer || value instanceof Long) {
             builder.add(((Number) value).longValue());
         } else if (value instanceof Float || value instanceof Double) {
@@ -297,5 +341,65 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
     }
 
     protected abstract AccessControlEntry[] getAccessControlEntries(Session session, String absPath) throws RepositoryException;
+
+    /**
+     * callback to do additional updates to the principalToPrivilegesMap when
+     * calls to PrivilegesHelper.mergePrivilegeSets(..) makes changes to the privilege sets 
+     */
+    private static final class AddRemoveDenyPrivilegeCallback implements AddRemoveCallback<Privilege> {
+        private final Map<Privilege, LocalPrivilege> map;
+
+        private AddRemoveDenyPrivilegeCallback(Map<Privilege, LocalPrivilege> map) {
+            this.map = map;
+        }
+
+        @Override
+        public void added(Privilege p) {
+            LocalPrivilege newItem = map.computeIfAbsent(p, LocalPrivilege::new);
+            newItem.setDeny(true);
+        }
+
+        @Override
+        public void removed(Privilege p) {
+            LocalPrivilege lp = map.get(p);
+            if (lp != null) {
+                lp.setDeny(false);
+                if (lp.isNone()) {
+                    // not granted or denied, so we can purge the entry
+                    map.remove(p);
+                }
+            }
+        }
+    }
+
+    /**
+     * callback to do additional updates to the principalToPrivilegesMap when
+     * calls to PrivilegesHelper.mergePrivilegeSets(..) makes changes to the privilege sets 
+     */
+    private static final class AddRemoveAllowPrivilegeCallback implements AddRemoveCallback<Privilege> {
+        private final Map<Privilege, LocalPrivilege> map;
+
+        private AddRemoveAllowPrivilegeCallback(Map<Privilege, LocalPrivilege> map) {
+            this.map = map;
+        }
+
+        @Override
+        public void added(Privilege p) {
+            LocalPrivilege newItem = map.computeIfAbsent(p, LocalPrivilege::new);
+            newItem.setAllow(true);
+        }
+
+        @Override
+        public void removed(Privilege p) {
+            LocalPrivilege lp = map.get(p);
+            if (lp != null) {
+                lp.setAllow(false);
+                if (lp.isNone()) {
+                    // not granted or denied, so we can purge the entry
+                    map.remove(p);
+                }
+            }
+        }
+    }
 
 }
