@@ -43,6 +43,7 @@ import java.util.List;
 
 import javax.inject.Inject;
 import javax.json.Json;
+import javax.json.JsonException;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
 import javax.json.JsonValue;
@@ -493,7 +494,9 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
 
     protected enum PrivilegeValues {
         ALLOW("allow"),
-        DENY("deny");
+        DENY("deny"),
+        NONE("none"),
+        BOGUS("bogus"); //to simulate invalid value
 
         private String paramValue;
 
@@ -510,7 +513,12 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
     protected enum DeleteValues {
         ALL("all"),
         ALLOW("allow"),
-        DENY("deny");
+        DENY("deny"),
+
+        // some invalid values for testing
+        TRUE("true"),
+        VALUE_DOES_NOT("value does not"),
+        MATTER("matter");
 
         private String paramValue;
 
@@ -598,6 +606,55 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
             return list;
         }
 
+    }
+
+    protected void addOrUpdateAce(String folderUrl, List<NameValuePair> postParams) throws IOException, JsonException {
+        addOrUpdateAce(folderUrl, postParams, HttpServletResponse.SC_OK);
+    }
+    protected void addOrUpdateAce(String folderUrl, List<NameValuePair> postParams, int expectedStatus) throws IOException, JsonException {
+        String postUrl = folderUrl + ".modifyAce.html";
+
+        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
+        assertAuthenticatedPostStatus(creds, postUrl, expectedStatus, postParams, null);
+    }
+
+    protected String addOrUpdateAce(String folderUrl, List<NameValuePair> postParams, String contentType) throws IOException, JsonException {
+        return addOrUpdateAce(folderUrl, postParams, contentType, HttpServletResponse.SC_OK);
+    }
+
+    protected String addOrUpdateAce(String folderUrl, List<NameValuePair> postParams, String contentType, int expectedStatus) throws IOException, JsonException {
+        String postUrl = folderUrl + ".modifyAce." + (CONTENT_TYPE_JSON.equals(contentType) ? "json" : "html");
+
+        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
+        return getAuthenticatedPostContent(creds, postUrl, contentType, postParams, expectedStatus);
+    }
+
+    protected JsonObject getAcl(String folderUrl) throws IOException, JsonException {
+        String getUrl = testFolderUrl + ".acl.json";
+
+        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
+        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
+        assertNotNull(json);
+
+        JsonObject aclObject = parseJson(json);
+        return aclObject;
+    }
+
+    protected JsonObject getAce(String folderUrl, String principalId) throws IOException, JsonException {
+        JsonObject aclObject = getAcl(folderUrl);
+        assertNotNull(aclObject);
+
+        JsonObject aceObj = aclObject.getJsonObject(principalId);
+        assertNotNull(aceObj);
+        assertEquals(principalId, aceObj.getString("principal"));
+        return aceObj;
+    }
+
+    protected JsonObject getAcePrivleges(String folderUrl, String principalId) throws IOException, JsonException {
+        JsonObject ace = getAce(folderUrl, principalId);
+        JsonObject privilegesObject = ace.getJsonObject("privileges");
+        assertNotNull(privilegesObject);
+        return privilegesObject;
     }
 
 }

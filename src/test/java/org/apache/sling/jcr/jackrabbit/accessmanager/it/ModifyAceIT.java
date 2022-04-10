@@ -24,9 +24,7 @@ import static org.junit.Assert.assertTrue;
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.Dictionary;
-import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
@@ -43,9 +41,6 @@ import javax.json.JsonValue.ValueType;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.http.NameValuePair;
-import org.apache.http.auth.Credentials;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.message.BasicNameValuePair;
 import org.apache.jackrabbit.oak.spi.security.authorization.accesscontrol.AccessControlConstants;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
 import org.apache.sling.servlets.post.JSONResponse;
@@ -98,31 +93,16 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         testFolderUrl = createTestFolder();
 
-        String postUrl = testFolderUrl + ".modifyAce.html";
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.DENY)
+                .withPrivilege(PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL, PrivilegeValues.BOGUS)//invalid value should be ignored.
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
 
-        List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:read", "granted"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:write", "denied"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:modifyAccessControl", "bogus")); //invalid value should be ignored.
-
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
-
-        //fetch the JSON for the acl to verify the settings.
-        String getUrl = testFolderUrl + ".acl.json";
-
-        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json);
-        JsonObject jsonObject = parseJson(json);
-        assertEquals(1, jsonObject.size());
-
-        JsonObject aceObject = jsonObject.getJsonObject(testUserId);
+        JsonObject aceObject = getAce(testFolderUrl, testUserId);
         assertNotNull(aceObject);
-
-        String principalString = aceObject.getString("principal");
-        assertEquals(testUserId, principalString);
 
         int order = aceObject.getInt("order");
         assertEquals(0, order);
@@ -130,9 +110,9 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         JsonObject privilegesObject = aceObject.getJsonObject("privileges");
         assertNotNull(privilegesObject);
         assertEquals(2, privilegesObject.size());
-        //allow privileges
+        //allow
         assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ);
-        //deny privileges
+        //deny
         assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE);
     }
 
@@ -145,15 +125,14 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         testFolderUrl = createTestFolder();
 
-        String postUrl = testFolderUrl + ".modifyAce.html";
-
-        List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair(":responseType", "custom"));
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:read", "granted"));
-
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        String content = getAuthenticatedPostContent(creds, postUrl, CONTENT_TYPE_HTML, postParams, HttpServletResponse.SC_OK);
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .with(":responseType", "custom")
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.DENY)
+                .withPrivilege(PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL, PrivilegeValues.BOGUS)//invalid value should be ignored.
+                .build();
+        String content = addOrUpdateAce(testFolderUrl, postParams, CONTENT_TYPE_HTML);
         assertEquals("Thanks!", content); //verify that the content matches the custom response
     }
 
@@ -163,27 +142,15 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         testFolderUrl = createTestFolder();
 
-        String postUrl = testFolderUrl + ".modifyAce.html";
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.DENY)
+                .withPrivilege(PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL, PrivilegeValues.BOGUS)//invalid value should be ignored.
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
 
-        List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testGroupId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:read", "granted"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:write", "denied"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:modifyAccessControl", "bogus")); //invalid value should be ignored.
-
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
-
-        //fetch the JSON for the acl to verify the settings.
-        String getUrl = testFolderUrl + ".acl.json";
-
-        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json);
-        JsonObject jsonObject = parseJson(json);
-        assertEquals(1, jsonObject.size());
-
-        JsonObject aceObject = jsonObject.getJsonObject(testGroupId);
+        JsonObject aceObject = getAce(testFolderUrl, testGroupId);
         assertNotNull(aceObject);
 
         int order = aceObject.getInt("order");
@@ -210,29 +177,17 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder();
 
-        String postUrl = testFolderUrl + ".modifyAce.html";
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_READ_ACCESS_CONTROL, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_ADD_CHILD_NODES, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL, PrivilegeValues.DENY)
+                .withPrivilege(PrivilegeConstants.JCR_REMOVE_CHILD_NODES, PrivilegeValues.DENY)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
 
-        //1. create an initial set of privileges
-        List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:read", "granted"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:readAccessControl", "granted"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:addChildNodes", "granted"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:modifyAccessControl", "denied"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:removeChildNodes", "denied"));
-
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
-        //fetch the JSON for the acl to verify the settings.
-        String getUrl = testFolderUrl + ".acl.json";
-
-        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json);
-        JsonObject jsonObject = parseJson(json);
-        assertEquals(1, jsonObject.size());
-
-        JsonObject aceObject = jsonObject.getJsonObject(testUserId);
+        JsonObject aceObject = getAce(testFolderUrl, testUserId);
         assertNotNull(aceObject);
 
         String principalString = aceObject.getString("principal");
@@ -255,26 +210,17 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
 
         //2. post a new set of privileges to merge with the existing privileges
-        List<NameValuePair> postParams2 = new ArrayList<>();
-        postParams2.add(new BasicNameValuePair("principalId", testUserId));
-        //jcr:read and jcr:addChildNodes are not posted, so they should remain in the granted ACE
-        postParams2.add(new BasicNameValuePair("privilege@jcr:readAccessControl", "none")); //clear the existing privilege
-        postParams2.add(new BasicNameValuePair("privilege@jcr:modifyProperties", "granted")); //add a new privilege
-        //jcr:modifyAccessControl is not posted, so it should remain in the denied ACE
-        postParams2.add(new BasicNameValuePair("privilege@jcr:modifyAccessControl", "denied")); //deny the modifyAccessControl privilege
-        postParams2.add(new BasicNameValuePair("privilege@jcr:removeChildNodes", "none")); //clear the existing privilege
-        postParams2.add(new BasicNameValuePair("privilege@jcr:removeNode", "denied")); //deny a new privilege
+        List<NameValuePair> postParams2 = new AcePostParamsBuilder(testUserId)
+                //jcr:read and jcr:addChildNodes are not posted, so they should remain in the granted ACE
+                .withPrivilege(PrivilegeConstants.JCR_READ_ACCESS_CONTROL, PrivilegeValues.NONE)
+                .withPrivilege(PrivilegeConstants.JCR_MODIFY_PROPERTIES, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL, PrivilegeValues.DENY)
+                .withPrivilege(PrivilegeConstants.JCR_REMOVE_CHILD_NODES, PrivilegeValues.NONE)
+                .withPrivilege(PrivilegeConstants.JCR_REMOVE_NODE, PrivilegeValues.DENY)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams2);
 
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams2, null);
-
-
-        //fetch the JSON for the acl to verify the settings.
-        String json2 = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json2);
-        JsonObject jsonObject2 = parseJson(json2);
-        assertEquals(1, jsonObject2.size());
-
-        JsonObject aceObject2 = jsonObject2.getJsonObject(testUserId);
+        JsonObject aceObject2 = getAce(testFolderUrl, testUserId);
         assertNotNull(aceObject2);
 
         String principalString2 = aceObject2.getString("principal");
@@ -348,27 +294,14 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder();
 
-        String postUrl = testFolderUrl + ".modifyAce.html";
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_REMOVE_NODE, PrivilegeValues.DENY)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
 
-        //1. create an initial set of privileges
-        List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:read", "granted"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:removeNode", "denied"));
-
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
-        //fetch the JSON for the acl to verify the settings.
-        String getUrl = testFolderUrl + ".acl.json";
-
-        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json);
-
-        JsonObject jsonObject = parseJson(json);
-        assertEquals(1, jsonObject.size());
-
-        JsonObject aceObject = jsonObject.getJsonObject(testUserId);
+        JsonObject aceObject = getAce(testFolderUrl, testUserId);
         assertNotNull(aceObject);
 
         assertEquals(testUserId, aceObject.getString("principal"));
@@ -384,25 +317,16 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
 
         //2. post a new set of privileges to merge with the existing privileges
-        List<NameValuePair> postParams2 = new ArrayList<>();
-        postParams2.add(new BasicNameValuePair("principalId", testUserId));
-        //jcr:read is not posted, so it should remain in the granted ACE
+        List<NameValuePair> postParams2 = new AcePostParamsBuilder(testUserId)
+                //jcr:read is not posted, so it should remain in the granted ACE
 
-        //deny the full jcr:write aggregate privilege, which should merge with the
-        //existing part.
-        postParams2.add(new BasicNameValuePair("privilege@jcr:write", "denied")); //add a new privilege
+                //deny the full jcr:write aggregate privilege, which should merge with the
+                //existing part.
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.DENY)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams2);
 
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams2, null);
-
-
-        //fetch the JSON for the acl to verify the settings.
-        String json2 = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json2);
-
-        JsonObject jsonObject2 = parseJson(json2);
-        assertEquals(1, jsonObject2.size());
-
-        JsonObject aceObject2 = jsonObject2.getJsonObject(testUserId);
+        JsonObject aceObject2 = getAce(testFolderUrl, testUserId);
         assertNotNull(aceObject2);
 
         assertEquals(testUserId, aceObject2.getString("principal"));
@@ -426,26 +350,13 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder();
 
-        String postUrl = testFolderUrl + ".modifyAce.html";
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.ALLOW)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
 
-        //1. create an initial set of privileges
-        List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:write", "granted"));
-
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
-        //fetch the JSON for the acl to verify the settings.
-        String getUrl = testFolderUrl + ".acl.json";
-
-        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json);
-
-        JsonObject jsonObject = parseJson(json);
-        assertEquals(1, jsonObject.size());
-
-        JsonObject aceObject = jsonObject.getJsonObject(testUserId);
+        JsonObject aceObject = getAce(testFolderUrl, testUserId);
         assertNotNull(aceObject);
 
         assertEquals(testUserId, aceObject.getString("principal"));
@@ -458,26 +369,17 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
 
         //2. post a new set of privileges to merge with the existing privileges
-        List<NameValuePair> postParams2 = new ArrayList<>();
-        postParams2.add(new BasicNameValuePair("principalId", testUserId));
-        //jcr:write is not posted, so it should remain in the granted ACE
+        List<NameValuePair> postParams2 = new AcePostParamsBuilder(testUserId)
+                //jcr:write is not posted, so it should remain in the granted ACE
 
-        //deny the jcr:nodeTypeManagement privilege, which should merge with the
-        //existing ACE.
-        postParams2.add(new BasicNameValuePair("privilege@jcr:nodeTypeManagement", "denied")); //add a new privilege
+                //deny the jcr:nodeTypeManagement privilege, which should merge with the
+                //existing ACE.
+                .withPrivilege(PrivilegeConstants.JCR_NODE_TYPE_MANAGEMENT, PrivilegeValues.DENY)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams2);
 
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams2, null);
-
-
-        //fetch the JSON for the acl to verify the settings.
-        String json2 = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json2);
-
-        JsonObject jsonObject2 = parseJson(json2);
-        assertEquals(1, jsonObject2.size());
-
-        JsonObject aceObject2 = jsonObject2.getJsonObject(testUserId);
-        assertNotNull(aceObject2);
+        JsonObject aceObject2 = getAce(testFolderUrl, testUserId);
+        assertNotNull(aceObject);
 
         assertEquals(testUserId, aceObject2.getString("principal"));
 
@@ -504,24 +406,18 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         addOrUpdateAce(testFolderUrl, testGroupId, true, "first");
 
-        //fetch the JSON for the acl to verify the settings.
-        String getUrl = testFolderUrl + ".acl.json";
+        JsonObject aclObject = getAcl(testFolderUrl);
+        assertNotNull(aclObject);
+        assertEquals(2, aclObject.size());
 
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json);
-
-        JsonObject jsonObject = parseJson(json);
-        assertEquals(2, jsonObject.size());
-
-        JsonObject group = jsonObject.getJsonObject(testGroupId);
+        JsonObject group = aclObject.getJsonObject(testGroupId);
         assertNotNull(group);
         assertEquals(testGroupId, group.getString("principal"));
-                assertEquals(0, group.getInt("order"));
-        JsonObject user =  jsonObject.getJsonObject(testUserId);
-                assertNotNull(user);
-                assertEquals(testUserId, user.getString("principal"));
-                assertEquals(1, user.getInt("order"));
+        assertEquals(0, group.getInt("order"));
+        JsonObject user =  aclObject.getJsonObject(testUserId);
+        assertNotNull(user);
+        assertEquals(testUserId, user.getString("principal"));
+        assertEquals(1, user.getInt("order"));
     }
 
     /**
@@ -536,24 +432,18 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         addOrUpdateAce(testFolderUrl, testGroupId, true, "last");
 
-        //fetch the JSON for the acl to verify the settings.
-        String getUrl = testFolderUrl + ".acl.json";
+        JsonObject aclObject = getAcl(testFolderUrl);
+        assertNotNull(aclObject);
+        assertEquals(2, aclObject.size());
 
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json);
-
-        JsonObject jsonObject = parseJson(json);
-        assertEquals(2, jsonObject.size());
-
-                JsonObject user =  jsonObject.getJsonObject(testUserId);
-                assertNotNull(user);
-                assertEquals(testUserId, user.getString("principal"));
-                assertEquals(0, user.getInt("order"));
-                JsonObject group = jsonObject.getJsonObject(testGroupId);
-                assertNotNull(group);
-                assertEquals(testGroupId, group.getString("principal"));
-                assertEquals(1, group.getInt("order"));
+        JsonObject user =  aclObject.getJsonObject(testUserId);
+        assertNotNull(user);
+        assertEquals(testUserId, user.getString("principal"));
+        assertEquals(0, user.getInt("order"));
+        JsonObject group = aclObject.getJsonObject(testGroupId);
+        assertNotNull(group);
+        assertEquals(testGroupId, group.getString("principal"));
+        assertEquals(1, group.getInt("order"));
 
     }
 
@@ -569,27 +459,18 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         addOrUpdateAce(testFolderUrl, testGroupId, true, "before " + testUserId);
 
-        //fetch the JSON for the acl to verify the settings.
-        String getUrl = testFolderUrl + ".acl.json";
+        JsonObject aclObject = getAcl(testFolderUrl);
+        assertNotNull(aclObject);
+        assertEquals(2, aclObject.size());
 
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json);
-
-
-                JsonObject jsonObject = parseJson(json);
-                assertEquals(2, jsonObject.size());
-
-
-                JsonObject group = jsonObject.getJsonObject(testGroupId);
-                assertNotNull(group);
-                assertEquals(testGroupId, group.getString("principal"));
-                assertEquals(0, group.getInt("order"));
-                JsonObject user =  jsonObject.getJsonObject(testUserId);
-                assertNotNull(user);
-                assertEquals(testUserId, user.getString("principal"));
-                assertEquals(1, user.getInt("order"));
-
+        JsonObject group = aclObject.getJsonObject(testGroupId);
+        assertNotNull(group);
+        assertEquals(testGroupId, group.getString("principal"));
+        assertEquals(0, group.getInt("order"));
+        JsonObject user =  aclObject.getJsonObject(testUserId);
+        assertNotNull(user);
+        assertEquals(testUserId, user.getString("principal"));
+        assertEquals(1, user.getInt("order"));
     }
 
     /**
@@ -604,25 +485,18 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         addOrUpdateAce(testFolderUrl, testGroupId, true, "after " + testUserId);
 
-        //fetch the JSON for the acl to verify the settings.
-        String getUrl = testFolderUrl + ".acl.json";
+        JsonObject aclObject = getAcl(testFolderUrl);
+        assertNotNull(aclObject);
+        assertEquals(2, aclObject.size());
 
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json);
-
-                JsonObject jsonObject = parseJson(json);
-                assertEquals(2, jsonObject.size());
-
-                JsonObject user =  jsonObject.getJsonObject(testUserId);
-                assertNotNull(user);
-                assertEquals(testUserId, user.getString("principal"));
-                assertEquals(0, user.getInt("order"));
-                JsonObject group = jsonObject.getJsonObject(testGroupId);
-                assertNotNull(group);
-                assertEquals(testGroupId, group.getString("principal"));
-                assertEquals(1, group.getInt("order"));
-
+        JsonObject user =  aclObject.getJsonObject(testUserId);
+        assertNotNull(user);
+        assertEquals(testUserId, user.getString("principal"));
+        assertEquals(0, user.getInt("order"));
+        JsonObject group = aclObject.getJsonObject(testGroupId);
+        assertNotNull(group);
+        assertEquals(testGroupId, group.getString("principal"));
+        assertEquals(1, group.getInt("order"));
     }
 
     /**
@@ -636,54 +510,43 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         testGroupId = createTestGroup();
         addOrUpdateAce(testFolderUrl, testGroupId, true, "0");
 
-        //fetch the JSON for the acl to verify the settings.
-        String getUrl = testFolderUrl + ".acl.json";
+        JsonObject aclObject = getAcl(testFolderUrl);
+        assertNotNull(aclObject);
+        assertEquals(2, aclObject.size());
 
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json);
+        JsonObject group = aclObject.getJsonObject(testGroupId);
+        assertNotNull(group);
+        assertEquals(testGroupId, group.getString("principal"));
+        assertEquals(0, group.getInt("order"));
 
-
-                JsonObject jsonObject = parseJson(json);
-                assertEquals(2, jsonObject.size());
-
-                JsonObject group = jsonObject.getJsonObject(testGroupId);
-                assertNotNull(group);
-                assertEquals(testGroupId, group.getString("principal"));
-                assertEquals(0, group.getInt("order"));
-
-                JsonObject user =  jsonObject.getJsonObject(testUserId);
-                assertNotNull(user);
-                assertEquals(testUserId, user.getString("principal"));
-                assertEquals(1, user.getInt("order"));
-
+        JsonObject user =  aclObject.getJsonObject(testUserId);
+        assertNotNull(user);
+        assertEquals(testUserId, user.getString("principal"));
+        assertEquals(1, user.getInt("order"));
 
 
         //add another principal between the testGroupId and testUserId
         testUserId2 = createTestUser();
         addOrUpdateAce(testFolderUrl, testUserId2, true, "1");
 
-        String json2 = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json2);
+        JsonObject aclObject2 = getAcl(testFolderUrl);
+        assertNotNull(aclObject2);
+        assertEquals(3, aclObject2.size());
 
-                JsonObject jsonObject2 = parseJson(json2);
-                assertEquals(3, jsonObject2.size());
+        JsonObject group2 = aclObject2.getJsonObject(testGroupId);
+        assertNotNull(group2);
+        assertEquals(testGroupId, group2.getString("principal"));
+        assertEquals(0, group2.getInt("order"));
 
-                JsonObject group2 = jsonObject2.getJsonObject(testGroupId);
-                assertNotNull(group2);
-                assertEquals(testGroupId, group2.getString("principal"));
-                assertEquals(0, group2.getInt("order"));
+        JsonObject user3 =  aclObject2.getJsonObject(testUserId2);
+        assertNotNull(user3);
+        assertEquals(testUserId2, user3.getString("principal"));
+        assertEquals(1, user3.getInt("order"));
 
-                JsonObject user3 =  jsonObject2.getJsonObject(testUserId2);
-                assertNotNull(user3);
-                assertEquals(testUserId2, user3.getString("principal"));
-                assertEquals(1, user3.getInt("order"));
-
-                JsonObject user2 =  jsonObject2.getJsonObject(testUserId);
-                assertNotNull(user2);
-                assertEquals(testUserId, user2.getString("principal"));
-                assertEquals(2, user2.getInt("order"));
-
+        JsonObject user2 =  aclObject2.getJsonObject(testUserId);
+        assertNotNull(user2);
+        assertEquals(testUserId, user2.getString("principal"));
+        assertEquals(2, user2.getInt("order"));
     }
 
     /**
@@ -701,26 +564,18 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         //update the ace to make sure the update does not change the ACE order
         addOrUpdateAce(testFolderUrl, testGroupId, false, null);
 
+        JsonObject aclObject = getAcl(testFolderUrl);
+        assertNotNull(aclObject);
+        assertEquals(2, aclObject.size());
 
-        //fetch the JSON for the acl to verify the settings.
-        String getUrl = testFolderUrl + ".acl.json";
-
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json);
-
-                JsonObject jsonObject = parseJson(json);
-                assertEquals(2, jsonObject.size());
-
-                JsonObject group = jsonObject.getJsonObject(testGroupId);
-                assertNotNull(group);
-                assertEquals(testGroupId, group.getString("principal"));
-                assertEquals(0, group.getInt("order"));
-                JsonObject user =  jsonObject.getJsonObject(testUserId);
-                assertNotNull(user);
-                assertEquals(testUserId, user.getString("principal"));
-                assertEquals(1, user.getInt("order"));
-
+        JsonObject group = aclObject.getJsonObject(testGroupId);
+        assertNotNull(group);
+        assertEquals(testGroupId, group.getString("principal"));
+        assertEquals(0, group.getInt("order"));
+        JsonObject user =  aclObject.getJsonObject(testUserId);
+        assertNotNull(user);
+        assertEquals(testUserId, user.getString("principal"));
+        assertEquals(1, user.getInt("order"));
     }
 
 
@@ -734,21 +589,14 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         addOrUpdateAce(testFolderUrl, testUserId, true, null);
 
-        //fetch the JSON for the acl to verify the settings.
-        String getUrl = testFolderUrl + ".acl.json";
+        JsonObject aclObject = getAcl(testFolderUrl);
+        assertNotNull(aclObject);
+        assertEquals(1, aclObject.size());
 
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json);
-
-                JsonObject jsonObject = parseJson(json);
-                assertEquals(1, jsonObject.size());
-
-                JsonObject user = jsonObject.getJsonObject(testUserId);
-                assertNotNull(user);
-                assertEquals(testUserId, user.getString("principal"));
-                assertEquals(0, user.getInt("order"));
-
+        JsonObject user = aclObject.getJsonObject(testUserId);
+        assertNotNull(user);
+        assertEquals(testUserId, user.getString("principal"));
+        assertEquals(0, user.getInt("order"));
     }
 
     /**
@@ -758,15 +606,13 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         addOrUpdateAce(folderUrl, principalId, readGranted, order, null);
     }
     private void addOrUpdateAce(String folderUrl, String principalId, boolean readGranted, String order, Map<String, Object> restrictions) throws IOException, JsonException {
-        String postUrl = folderUrl + ".modifyAce.html";
-
         //1. create an initial set of privileges
-        List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", principalId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:read", readGranted ? "granted" : "denied"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:write", "denied"));
+        // update the ACE
+        AcePostParamsBuilder builder = new AcePostParamsBuilder(principalId)
+                .withPrivilege(PrivilegeConstants.JCR_READ, readGranted ? PrivilegeValues.ALLOW : PrivilegeValues.DENY)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.DENY);
         if (order != null) {
-            postParams.add(new BasicNameValuePair("order", order));
+            builder.withOrder(order);
         }
         if (restrictions != null) {
             Set<Entry<String, Object>> entrySet = restrictions.entrySet();
@@ -774,25 +620,24 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
                 Object value = entry.getValue();
                 if (value != null) {
                     String rname = entry.getKey();
-                    String paramName = String.format("restriction@%s", rname);
 
                     if (value.getClass().isArray()) {
                         int length = Array.getLength(value);
+                        String [] rvalues = new String[length];
                         for (int i=0; i < length; i++) {
                             Object rvalue = Array.get(value, i);
                             if (rvalue instanceof String) {
-                                postParams.add(new BasicNameValuePair(paramName, (String)rvalue));
+                                rvalues[i] = (String)rvalue;
                             }
                         }
+                        builder.withRestriction(rname, rvalues);
                     } else if (value instanceof String) {
-                        postParams.add(new BasicNameValuePair(paramName, (String)value));
+                        builder.withRestriction(rname, (String)value);
                     }
                 }
             }
         }
-
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
+        addOrUpdateAce(folderUrl, builder.build());
     }
 
     /**
@@ -804,16 +649,13 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         testFolderUrl = createTestFolder();
 
-        String postUrl = testFolderUrl + ".modifyAce.json";
-
-        List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:read", "granted"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:write", "denied"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:modifyAccessControl", "bogus")); //invalid value should be ignored.
-
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        String json = getAuthenticatedPostContent(creds, postUrl, CONTENT_TYPE_JSON, postParams, HttpServletResponse.SC_OK);
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.DENY)
+                .withPrivilege(PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL, PrivilegeValues.BOGUS) //invalid value should be ignored.
+                .build();
+        String json = addOrUpdateAce(testFolderUrl, postParams, CONTENT_TYPE_JSON);
 
         //make sure the json response can be parsed as a JSON object
         JsonObject jsonObject = parseJson(json);
@@ -830,41 +672,26 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         testFolderUrl = createTestFolder();
 
-        String postUrl = testFolderUrl + ".modifyAce.json";
-
-        //1. setup an initial set of denied privileges for the test user
-        List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:versionManagement", "denied"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:read", "denied"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:modifyAccessControl", "denied"));
-        postParams.add(new BasicNameValuePair("privilege@rep:write", "denied"));
-
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        /*String json = */getAuthenticatedPostContent(creds, postUrl, CONTENT_TYPE_JSON, postParams, HttpServletResponse.SC_OK);
-
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_VERSION_MANAGEMENT, PrivilegeValues.DENY)
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.DENY)
+                .withPrivilege(PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL, PrivilegeValues.DENY)
+                .withPrivilege(PrivilegeConstants.REP_WRITE, PrivilegeValues.DENY)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
 
         //2. now grant the jcr:write subset from the rep:write aggregate privilege
-        postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:versionManagement", "granted"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:read", "granted"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:modifyAccessControl", "granted"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:write", "granted")); //sub-aggregate of rep:write
-
-        /*String json = */getAuthenticatedPostContent(creds, postUrl, CONTENT_TYPE_JSON, postParams, HttpServletResponse.SC_OK);
+        postParams = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_VERSION_MANAGEMENT, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.ALLOW) //sub-aggregate of rep:write
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
 
         //3. verify that the acl has the correct values
-        //fetch the JSON for the acl to verify the settings.
-        String getUrl = testFolderUrl + ".acl.json";
-
-        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json);
-
-        JsonObject jsonObject = parseJson(json);
-        assertEquals(1, jsonObject.size());
-
-        JsonObject aceObject = jsonObject.getJsonObject(testUserId);
+        JsonObject aceObject = getAce(testFolderUrl, testUserId);
         assertNotNull(aceObject);
 
         assertEquals(testUserId, aceObject.getString("principal"));
@@ -890,41 +717,27 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         testFolderUrl = createTestFolder();
 
-        String postUrl = testFolderUrl + ".modifyAce.json";
-
-        //1. setup an initial set of denied privileges for the test user
-        List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:versionManagement", "denied"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:read", "denied"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:modifyAccessControl", "denied"));
-        postParams.add(new BasicNameValuePair("privilege@rep:write", "denied"));
-
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        /*String json = */getAuthenticatedPostContent(creds, postUrl, CONTENT_TYPE_JSON, postParams, HttpServletResponse.SC_OK);
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_VERSION_MANAGEMENT, PrivilegeValues.DENY)
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.DENY)
+                .withPrivilege(PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL, PrivilegeValues.DENY)
+                .withPrivilege(PrivilegeConstants.REP_WRITE, PrivilegeValues.DENY)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
 
         //2. now grant the all the privileges contained in the rep:write privilege
-        postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:versionManagement", "granted"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:read", "granted"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:modifyAccessControl", "granted"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:nodeTypeManagement", "granted")); //sub-privilege of rep:write
-        postParams.add(new BasicNameValuePair("privilege@jcr:write", "granted")); //sub-aggregate of rep:write
-
-        /*String json = */getAuthenticatedPostContent(creds, postUrl, CONTENT_TYPE_JSON, postParams, HttpServletResponse.SC_OK);
+        postParams = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_VERSION_MANAGEMENT, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_NODE_TYPE_MANAGEMENT, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.ALLOW) //sub-aggregate of rep:write
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
 
         //3. verify that the acl has the correct values
-        //fetch the JSON for the acl to verify the settings.
-        String getUrl = testFolderUrl + ".acl.json";
-
-        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json);
-
-        JsonObject jsonObject = parseJson(json);
-        assertEquals(1, jsonObject.size());
-
-        JsonObject aceObject = jsonObject.getJsonObject(testUserId);
+        JsonObject aceObject = getAce(testFolderUrl, testUserId);
         assertNotNull(aceObject);
 
         assertEquals(testUserId, aceObject.getString("principal"));
@@ -949,25 +762,21 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         testGroupId = createTestGroup();
 
-        Map<String, Object> restrictions = new HashMap<>();
-        restrictions.put("rep:glob", "/hello");
-        restrictions.put("rep:itemNames", new String[] {"child1", "child2"});
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+                .withOrder("first")
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.DENY)
+                .withRestriction(AccessControlConstants.REP_GLOB, "/hello")
+                .withRestriction(AccessControlConstants.REP_ITEM_NAMES, new String[] {"child1", "child2"})
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
 
-        addOrUpdateAce(testFolderUrl, testGroupId, true, "first", restrictions);
+        JsonObject aclObject = getAcl(testFolderUrl);
+        assertNotNull(aclObject);
+        assertEquals(2, aclObject.size());
 
-        //fetch the JSON for the acl to verify the settings.
-        String getUrl = testFolderUrl + ".acl.json";
-
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json);
-
-
-        JsonObject jsonObject = parseJson(json);
-        assertEquals(2, jsonObject.size());
-
-
-        JsonObject group = jsonObject.getJsonObject(testGroupId);
+        JsonObject group = aclObject.getJsonObject(testGroupId);
         assertNotNull(group);
         assertEquals(testGroupId, group.getString("principal"));
         assertEquals(0, group.getInt("order"));
@@ -996,7 +805,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         //deny privilege
         assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, verifyRestrictions);
 
-        JsonObject user =  jsonObject.getJsonObject(testUserId);
+        JsonObject user =  aclObject.getJsonObject(testUserId);
         assertNotNull(user);
         assertEquals(testUserId, user.getString("principal"));
         assertEquals(1, user.getInt("order"));
@@ -1024,22 +833,19 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         testGroupId = createTestGroup();
 
         //first create an ACE with the first restriction
-        Map<String, Object> restrictions = new HashMap<>();
-        restrictions.put("rep:glob", "/hello");
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+                .withOrder("first")
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.DENY)
+                .withRestriction(AccessControlConstants.REP_GLOB, "/hello")
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
 
-        addOrUpdateAce(testFolderUrl, testGroupId, true, "first", restrictions);
+        JsonObject aclObject = getAcl(testFolderUrl);
+        assertNotNull(aclObject);
+        assertEquals(2, aclObject.size());
 
-        //fetch the JSON for the acl to verify the settings.
-        String getUrl = testFolderUrl + ".acl.json";
-
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json);
-
-        JsonObject jsonObject = parseJson(json);
-        assertEquals(2, jsonObject.size());
-
-        JsonObject group = jsonObject.getJsonObject(testGroupId);
+        JsonObject group = aclObject.getJsonObject(testGroupId);
         assertNotNull(group);
         assertEquals(testGroupId, group.getString("principal"));
         assertEquals(0, group.getInt("order"));
@@ -1053,7 +859,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
             assertTrue(jsonValue instanceof JsonObject);
             JsonObject restrictionsObj = (JsonObject)jsonValue;
 
-            JsonValue repGlobValue = restrictionsObj.get("rep:glob");
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
             assertNotNull(repGlobValue);
             assertTrue(repGlobValue instanceof JsonString);
             assertEquals("/hello", ((JsonString)repGlobValue).getString());
@@ -1064,18 +870,19 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
 
         //second update the ACE with a second restriction
-        Map<String, Object> restrictions2 = new HashMap<>();
-        restrictions2.put("rep:itemNames", new String[] {"child1", "child2"});
+        List<NameValuePair> postParams2 = new AcePostParamsBuilder(testGroupId)
+                .withOrder("first")
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.DENY)
+                .withRestriction(AccessControlConstants.REP_ITEM_NAMES, new String[] {"child1", "child2"})
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams2);
 
-        addOrUpdateAce(testFolderUrl, testGroupId, true, "first", restrictions2);
+        JsonObject aclObject2 = getAcl(testFolderUrl);
+        assertNotNull(aclObject2);
+        assertEquals(2, aclObject2.size());
 
-        String json2 = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json2);
-
-        JsonObject jsonObject2 = parseJson(json2);
-        assertEquals(2, jsonObject2.size());
-
-        JsonObject group2 = jsonObject2.getJsonObject(testGroupId);
+        JsonObject group2 = aclObject2.getJsonObject(testGroupId);
         assertNotNull(group2);
         assertEquals(testGroupId, group2.getString("principal"));
         assertEquals(0, group2.getInt("order"));
@@ -1089,12 +896,12 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
             assertTrue(jsonValue instanceof JsonObject);
             JsonObject restrictionsObj = (JsonObject)jsonValue;
 
-            JsonValue repGlobValue = restrictionsObj.get("rep:glob");
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
             assertNotNull(repGlobValue);
             assertTrue(repGlobValue instanceof JsonString);
             assertEquals("/hello", ((JsonString)repGlobValue).getString());
 
-            JsonValue repItemNamesValue = restrictionsObj.get("rep:itemNames");
+            JsonValue repItemNamesValue = restrictionsObj.get(AccessControlConstants.REP_ITEM_NAMES);
             assertNotNull(repItemNamesValue);
             assertTrue(repItemNamesValue instanceof JsonArray);
             assertEquals(2, ((JsonArray)repItemNamesValue).size());
@@ -1112,24 +919,21 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         testGroupId = createTestGroup();
 
-        //first create an ACE with the restrictions
-        Map<String, Object> restrictions = new HashMap<>();
-        restrictions.put("rep:glob", "/hello");
-        restrictions.put("rep:itemNames", new String[] {"child1", "child2"});
+        //first create an ACE with the first restriction
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+                .withOrder("first")
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.DENY)
+                .withRestriction(AccessControlConstants.REP_GLOB, "/hello")
+                .withRestriction(AccessControlConstants.REP_ITEM_NAMES, new String[] {"child1", "child2"})
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
 
-        addOrUpdateAce(testFolderUrl, testGroupId, true, "first", restrictions);
+        JsonObject aclObject = getAcl(testFolderUrl);
+        assertNotNull(aclObject);
+        assertEquals(2, aclObject.size());
 
-        //fetch the JSON for the acl to verify the settings.
-        String getUrl = testFolderUrl + ".acl.json";
-
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json);
-
-        JsonObject jsonObject = parseJson(json);
-        assertEquals(2, jsonObject.size());
-
-        JsonObject group = jsonObject.getJsonObject(testGroupId);
+        JsonObject group = aclObject.getJsonObject(testGroupId);
         assertNotNull(group);
         assertEquals(testGroupId, group.getString("principal"));
         assertEquals(0, group.getInt("order"));
@@ -1158,18 +962,19 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
 
         //second remove the restrictions
-        Map<String, Object> restrictions2 = new HashMap<>();
-        restrictions2.put("rep:glob@Delete", "true");
-        restrictions2.put("rep:itemNames@Delete", new String[] {"value does not", "matter"});
-        addOrUpdateAce(testFolderUrl, testGroupId, true, "first", restrictions2);
+        List<NameValuePair> postParams2 = new AcePostParamsBuilder(testGroupId)
+                .withOrder("first")
+                .withDeleteRestriction(AccessControlConstants.REP_GLOB, DeleteValues.TRUE)
+                .withDeleteRestriction(AccessControlConstants.REP_ITEM_NAMES, DeleteValues.VALUE_DOES_NOT)
+                .withDeleteRestriction(AccessControlConstants.REP_ITEM_NAMES, DeleteValues.MATTER)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams2);
 
-        String json2 = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json2);
+        JsonObject aclObject2 = getAcl(testFolderUrl);
+        assertNotNull(aclObject2);
+        assertEquals(2, aclObject2.size());
 
-        JsonObject jsonObject2 = parseJson(json2);
-        assertEquals(2, jsonObject2.size());
-
-        JsonObject group2 = jsonObject2.getJsonObject(testGroupId);
+        JsonObject group2 = aclObject2.getJsonObject(testGroupId);
         assertNotNull(group2);
         assertEquals(testGroupId, group2.getString("principal"));
         assertEquals(0, group2.getInt("order"));
@@ -1196,23 +1001,20 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         testGroupId = createTestGroup();
 
-        //first create an ACE with the restrictions
-        Map<String, Object> restrictions = new HashMap<>();
-        restrictions.put("rep:glob", "/hello");
+        //first create an ACE with the first restriction
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+                .withOrder("first")
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.DENY)
+                .withRestriction(AccessControlConstants.REP_GLOB, "/hello")
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
 
-        addOrUpdateAce(testFolderUrl, testGroupId, true, "first", restrictions);
+        JsonObject aclObject = getAcl(testFolderUrl);
+        assertNotNull(aclObject);
+        assertEquals(2, aclObject.size());
 
-        //fetch the JSON for the acl to verify the settings.
-        String getUrl = testFolderUrl + ".acl.json";
-
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json);
-
-        JsonObject jsonObject = parseJson(json);
-        assertEquals(2, jsonObject.size());
-
-        JsonObject group = jsonObject.getJsonObject(testGroupId);
+        JsonObject group = aclObject.getJsonObject(testGroupId);
         assertNotNull(group);
         assertEquals(testGroupId, group.getString("principal"));
         assertEquals(0, group.getInt("order"));
@@ -1236,18 +1038,18 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
 
         //second remove the restriction and also supply a new value of the same
-        Map<String, Object> restrictions2 = new HashMap<>();
-        restrictions2.put("rep:glob@Delete", "true");
-        restrictions2.put("rep:glob", "/hello_again");
-        addOrUpdateAce(testFolderUrl, testGroupId, true, "first", restrictions2);
+        List<NameValuePair> postParams2 = new AcePostParamsBuilder(testGroupId)
+                .withOrder("first")
+                .withDeleteRestriction(AccessControlConstants.REP_GLOB, DeleteValues.TRUE)
+                .withRestriction(AccessControlConstants.REP_GLOB, "/hello_again")
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams2);
 
-        String json2 = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json2);
+        JsonObject aclObject2 = getAcl(testFolderUrl);
+        assertNotNull(aclObject2);
+        assertEquals(2, aclObject2.size());
 
-        JsonObject jsonObject2 = parseJson(json2);
-        assertEquals(2, jsonObject2.size());
-
-        JsonObject group2 = jsonObject2.getJsonObject(testGroupId);
+        JsonObject group2 = aclObject2.getJsonObject(testGroupId);
         assertNotNull(group2);
         assertEquals(testGroupId, group2.getString("principal"));
         assertEquals(0, group2.getInt("order"));
@@ -1280,17 +1082,14 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         testFolderUrl = createTestFolder();
 
-        String postUrl = testFolderUrl + ".modifyAce.json";
-
-        List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair(":http-equiv-accept", JSONResponse.RESPONSE_CONTENT_TYPE));
-        postParams.add(new BasicNameValuePair("principalId", invalidUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:read", "granted"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:write", "denied"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:modifyAccessControl", "bogus")); //invalid value should be ignored.
-
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        String json = getAuthenticatedPostContent(creds, postUrl, CONTENT_TYPE_JSON, postParams, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(invalidUserId)
+                .with(":http-equiv-accept", JSONResponse.RESPONSE_CONTENT_TYPE)
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.DENY)
+                .withPrivilege(PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL, PrivilegeValues.BOGUS)//invalid value should be ignored.
+                .build();
+        String json = addOrUpdateAce(testFolderUrl, postParams, CONTENT_TYPE_JSON, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         assertNotNull(json);
 
         JsonObject jsonObject = parseJson(json);
@@ -1307,17 +1106,14 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         testFolderUrl = createTestFolder();
 
-        String postUrl = testFolderUrl + ".modifyAce.json";
-
-        List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair(":http-equiv-accept", JSONResponse.RESPONSE_CONTENT_TYPE));
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:read", "granted"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:write", "denied"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:modifyAccessControl", "bogus")); //invalid value should be ignored.
-
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        String json = getAuthenticatedPostContent(creds, postUrl, CONTENT_TYPE_JSON, postParams, HttpServletResponse.SC_OK);
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .with(":http-equiv-accept", JSONResponse.RESPONSE_CONTENT_TYPE)
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.DENY)
+                .withPrivilege(PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL, PrivilegeValues.BOGUS)//invalid value should be ignored.
+                .build();
+        String json = addOrUpdateAce(testFolderUrl, postParams, CONTENT_TYPE_JSON);
         assertNotNull(json);
 
         JsonObject jsonObject = parseJson(json);
@@ -1334,15 +1130,12 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         testFolderUrl = createTestFolder();
 
-        String postUrl = testFolderUrl + ".modifyAce.html";
-
-        List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:read", "granted"));
-        postParams.add(new BasicNameValuePair(":redirect", redirectTo));
-
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        assertAuthenticatedPostStatus(creds, postUrl, expectedStatus, postParams, null);
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+                .withRedirect(redirectTo)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams, expectedStatus);
     }
 
     @Test
@@ -1831,32 +1624,6 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         });
     }
 
-    protected void addOrUpdateAce(String folderUrl, List<NameValuePair> postParams) throws IOException, JsonException {
-        String postUrl = folderUrl + ".modifyAce.html";
-
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-    }
-
-    protected JsonObject getAce(String folderUrl, String principalId) throws IOException, JsonException {
-        String getUrl = testFolderUrl + ".acl.json";
-
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json);
-
-        JsonObject jsonObject = parseJson(json);
-        JsonObject aceObj = jsonObject.getJsonObject(principalId);
-        assertNotNull(aceObj);
-        assertEquals(principalId, aceObj.getString("principal"));
-        return aceObj;
-    }
-    protected JsonObject getAcePrivleges(String folderUrl, String principalId) throws IOException, JsonException {
-        JsonObject ace = getAce(folderUrl, principalId);
-        JsonObject privilegesObject = ace.getJsonObject("privileges");
-        assertNotNull(privilegesObject);
-        return privilegesObject;
-    }
 
     /**
      * SLING-11243 - Test to verify adding an ACE with privilege restriction
@@ -2143,6 +1910,211 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         //deny privilege
         assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.REP_WRITE, true, verifyTrue);
+    }
+
+    /**
+     * SLING-11243 - Test to verify an allow and deny restriction with the same value are both submitted.
+     * The allow restriction wins out and the deny restriction is ignored
+     */
+    @Test
+    public void testModifyAceAllowReadAndDenyRead() throws IOException, JsonException {
+        testFolderUrl = createTestFolder();
+        testGroupId = createTestGroup();
+
+        // start with an existing restriction
+        addOrUpdateAce(testFolderUrl, new AcePostParamsBuilder(testGroupId)
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+                .build());
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+            .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+            .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.DENY)
+            .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+        JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(1, groupPrivilegesObject.size());
+
+        //allow privilege is there (allow prefererred over deny)
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, true, verifyTrue);
+        //deny privilege is not there
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_READ, false, null);
+    }
+
+    /**
+     * SLING-11243 - Test to verify an allow and deny restriction with the same value are both submitted.
+     * The allow restriction wins out and the deny restriction is ignored
+     */
+    @Test
+    public void testModifyAceDenyReadAndAllowRead() throws IOException, JsonException {
+        testFolderUrl = createTestFolder();
+        testGroupId = createTestGroup();
+
+        // start with an existing restriction
+        addOrUpdateAce(testFolderUrl, new AcePostParamsBuilder(testGroupId)
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+                .build());
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+            .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.DENY)
+            .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+            .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+        JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(1, groupPrivilegesObject.size());
+
+        //allow privilege is there (allow prefererred over deny)
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, true, verifyTrue);
+        //deny privilege is not there
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_READ, false, null);
+    }
+
+    /**
+     * SLING-11243 - Test to verify an allow and deny restriction with the same value are both submitted.
+     * The allow restriction wins out and the deny restriction is ignored
+     */
+    @Test
+    public void testModifyAceAllowReadAndNoneRead() throws IOException, JsonException {
+        testFolderUrl = createTestFolder();
+        testGroupId = createTestGroup();
+
+        // start with an existing restriction
+        addOrUpdateAce(testFolderUrl, new AcePostParamsBuilder(testGroupId)
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+                .build());
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+            .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+            .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.NONE)
+            .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+        JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(1, groupPrivilegesObject.size());
+
+        //allow privilege is there (allow prefererred over none)
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, true, verifyTrue);
+        //deny privilege is not there
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_READ, false, null);
+    }
+
+
+    /**
+     * SLING-11243 - Test to verify an allow and deny restriction with the same value are both submitted.
+     * The allow restriction wins out and the deny restriction is ignored
+     */
+    @Test
+    public void testModifyAceAllowReadRestrictionAndDenySameReadRestriction() throws IOException, JsonException {
+        testFolderUrl = createTestFolder();
+        testGroupId = createTestGroup();
+
+        // start with an existing restriction
+        addOrUpdateAce(testFolderUrl, new AcePostParamsBuilder(testGroupId)
+                .withPrivilegeRestriction(PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, AccessControlConstants.REP_GLOB, "/hello")
+                .build());
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+            .withPrivilegeRestriction(PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, AccessControlConstants.REP_GLOB, "/hello")
+            .withPrivilegeRestriction(PrivilegeValues.DENY, PrivilegeConstants.JCR_READ, AccessControlConstants.REP_GLOB, "/hello")
+            .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+        JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(1, groupPrivilegesObject.size());
+
+        //allow privilege is there (allow prefererred over deny)
+        //allow privilege
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, true, jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
+            assertNotNull(repGlobValue);
+            assertTrue(repGlobValue instanceof JsonString);
+            assertEquals("/hello", ((JsonString)repGlobValue).getString());
+        });
+        //deny privilege is not there
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_READ, false, null);
+    }
+
+    /**
+     * SLING-11243 - Test to verify an allow and deny restriction with the same value are both submitted.
+     * The allow restriction wins out and the deny restriction is ignored
+     */
+    @Test
+    public void testModifyAceDenyReadRestrictionAndAllowSameReadRestriction() throws IOException, JsonException {
+        testFolderUrl = createTestFolder();
+        testGroupId = createTestGroup();
+
+        // start with an existing restriction
+        addOrUpdateAce(testFolderUrl, new AcePostParamsBuilder(testGroupId)
+                .withPrivilegeRestriction(PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, AccessControlConstants.REP_GLOB, "/hello")
+                .build());
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+            .withPrivilegeRestriction(PrivilegeValues.DENY, PrivilegeConstants.JCR_READ, AccessControlConstants.REP_GLOB, "/hello")
+            .withPrivilegeRestriction(PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, AccessControlConstants.REP_GLOB, "/hello")
+            .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+        JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(1, groupPrivilegesObject.size());
+
+        //allow privilege is there (allow prefererred over deny)
+        //allow privilege
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, true, jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
+            assertNotNull(repGlobValue);
+            assertTrue(repGlobValue instanceof JsonString);
+            assertEquals("/hello", ((JsonString)repGlobValue).getString());
+        });
+        //deny privilege is not there
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_READ, false, null);
+    }
+
+    /**
+     * SLING-11243 - Test to verify an allow and deny restriction with the same value are both submitted.
+     * The allow restriction wins out and the deny restriction is ignored
+     */
+    @Test
+    public void testModifyAceAllowReadRestrictionAndNoneSameReadRestriction() throws IOException, JsonException {
+        testFolderUrl = createTestFolder();
+        testGroupId = createTestGroup();
+
+        // start with an existing restriction
+        addOrUpdateAce(testFolderUrl, new AcePostParamsBuilder(testGroupId)
+                .withPrivilegeRestriction(PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, AccessControlConstants.REP_GLOB, "/hello2")
+                .build());
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+            .withPrivilegeRestriction(PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, AccessControlConstants.REP_GLOB, "/hello")
+            .withPrivilegeRestriction(PrivilegeValues.NONE, PrivilegeConstants.JCR_READ, AccessControlConstants.REP_GLOB, "/hello")
+            .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+        JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(1, groupPrivilegesObject.size());
+
+        //allow privilege is there (allow prefererred over deny)
+        //allow privilege
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, true, jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
+            assertNotNull(repGlobValue);
+            assertTrue(repGlobValue instanceof JsonString);
+            assertEquals("/hello", ((JsonString)repGlobValue).getString());
+        });
+        //deny privilege is not there
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_READ, false, null);
     }
 
 }

@@ -84,33 +84,24 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder();
 
-        String postUrl = testFolderUrl + ".modifyAce.html";
-
-        List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:read", "granted"));
-        postParams.add(new BasicNameValuePair("privilege@jcr:write", "denied"));
-
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.DENY)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
 
         if (addGroupAce) {
             testGroupId = createTestGroup();
 
-            postParams = new ArrayList<>();
-            postParams.add(new BasicNameValuePair("principalId", testGroupId));
-            postParams.add(new BasicNameValuePair("privilege@jcr:read", "granted"));
-
-            assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
+            postParams = new AcePostParamsBuilder(testGroupId)
+                    .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+                    .build();
+            addOrUpdateAce(testFolderUrl, postParams);
         }
 
         //fetch the JSON for the acl to verify the settings.
-        String getUrl = testFolderUrl + ".acl.json";
-
-        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json);
-
-        JsonObject jsonObject = parseJson(json);
+        JsonObject jsonObject = getAcl(testFolderUrl);
 
         if (addGroupAce) {
             assertEquals(2, jsonObject.size());

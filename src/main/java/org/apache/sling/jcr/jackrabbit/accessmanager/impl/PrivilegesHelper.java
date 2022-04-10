@@ -340,10 +340,8 @@ public final class PrivilegesHelper {
                 Set<LocalRestriction> denyRestrictions = new HashSet<>(localPrivilege.getDenyRestrictions());
                 denyRestrictions.removeIf(lr -> lr.getName().equals(restriction.getName()));
                 denyRestrictions.add(restriction);
-                if (localPrivilege.isNone() || !localPrivilege.sameAllowRestrictions(denyRestrictions)) {
-                    localPrivilege.setDeny(true);
-                    localPrivilege.setDenyRestrictions(denyRestrictions);
-                }
+                localPrivilege.setDeny(true);
+                localPrivilege.setDenyRestrictions(denyRestrictions);
             }
         }
         if (forAllow) {
@@ -353,10 +351,8 @@ public final class PrivilegesHelper {
                 Set<LocalRestriction> allowRestrictions = new HashSet<>(localPrivilege.getAllowRestrictions());
                 allowRestrictions.removeIf(lr -> lr.getName().equals(restriction.getName()));
                 allowRestrictions.add(restriction);
-                if (localPrivilege.isNone() || !localPrivilege.sameDenyRestrictions(allowRestrictions)) {
-                    localPrivilege.setAllow(true);
-                    localPrivilege.setAllowRestrictions(allowRestrictions);
-                }
+                localPrivilege.setAllow(true);
+                localPrivilege.setAllowRestrictions(allowRestrictions);
             }
         }
 
