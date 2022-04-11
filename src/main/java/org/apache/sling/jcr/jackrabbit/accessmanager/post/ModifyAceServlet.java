@@ -130,7 +130,7 @@ property= {
 })
 public class ModifyAceServlet extends AbstractAccessPostServlet implements ModifyAce {
     private static final long serialVersionUID = -9182485466670280437L;
-    private static final String INVALID_OR_NOT_SUPPORTED_RESTRICTION_NAME_WAS_SUPPLIED = "Invalid or not supported restriction name was supplied";
+    private static final String INVALID_OR_NOT_SUPPORTED_RESTRICTION_NAME_WAS_SUPPLIED = "Invalid restriction name was supplied";
 
     /**
      * Possible values for a privilege parameter
@@ -442,7 +442,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
                 RestrictionDefinition rd = srMap.get(restrictionName);
                 if (rd == null) {
                     //illegal restriction name?
-                    throw new IllegalArgumentException(INVALID_OR_NOT_SUPPORTED_RESTRICTION_NAME_WAS_SUPPLIED);
+                    throw new AccessControlException(INVALID_OR_NOT_SUPPORTED_RESTRICTION_NAME_WAS_SUPPLIED);
                 }
                 Collection<Privilege> privileges;
                 if (privilegeName == null) {
@@ -453,34 +453,32 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
                     Privilege privilege = acm.privilegeFromName(privilegeName);
                     privileges = Collections.singletonList(privilege);
                 }
-                if (privileges != null) {
-                    String[] parameterValues;
-                    if (privilegeName == null) {
-                        // for backward compatibility, the restriction@[restriction_name]@Delete syntax
-                        //   deletes from both 'allow' and 'deny'
-                        parameterValues = new String[] { "all" };
-                    } else {
-                        parameterValues = request.getParameterValues(paramName);
-                    }
-                    for (String allowOrDeny : parameterValues) {
-                        DeleteValues value = DeleteValues.valueOfParam(allowOrDeny);
-                        switch (value) {
-                        case ALL:
-                            // not specified try both the deny and allow sets
-                            PrivilegesHelper.unallowOrUndenyRestriction(privilegeToLocalPrivilegesMap,
-                                    restrictionName, privileges);
-                            break;
-                        case ALLOW:
-                            PrivilegesHelper.unallowRestriction(privilegeToLocalPrivilegesMap,
-                                    restrictionName, privileges);
-                            break;
-                        case DENY:
-                            PrivilegesHelper.undenyRestriction(privilegeToLocalPrivilegesMap,
-                                    restrictionName, privileges);
-                            break;
-                        default:
-                            break;
-                        }
+                String[] parameterValues;
+                if (privilegeName == null) {
+                    // for backward compatibility, the restriction@[restriction_name]@Delete syntax
+                    //   deletes from both 'allow' and 'deny'
+                    parameterValues = new String[] { "all" };
+                } else {
+                    parameterValues = request.getParameterValues(paramName);
+                }
+                for (String allowOrDeny : parameterValues) {
+                    DeleteValues value = DeleteValues.valueOfParam(allowOrDeny);
+                    switch (value) {
+                    case ALL:
+                        // not specified try both the deny and allow sets
+                        PrivilegesHelper.unallowOrUndenyRestriction(privilegeToLocalPrivilegesMap,
+                                restrictionName, privileges);
+                        break;
+                    case ALLOW:
+                        PrivilegesHelper.unallowRestriction(privilegeToLocalPrivilegesMap,
+                                restrictionName, privileges);
+                        break;
+                    case DENY:
+                        PrivilegesHelper.undenyRestriction(privilegeToLocalPrivilegesMap,
+                                restrictionName, privileges);
+                        break;
+                    default:
+                        break;
                     }
                 }
             }
@@ -528,7 +526,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
                 RestrictionDefinition rd = srMap.get(restrictionName);
                 if (rd == null) {
                     //illegal restriction name?
-                    throw new IllegalArgumentException(INVALID_OR_NOT_SUPPORTED_RESTRICTION_NAME_WAS_SUPPLIED);
+                    throw new AccessControlException(INVALID_OR_NOT_SUPPORTED_RESTRICTION_NAME_WAS_SUPPLIED);
                 }
                 LocalRestriction localRestriction;
                 int restrictionType = rd.getRequiredType().tag();
@@ -620,11 +618,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             if (matcher.matches()) {
                 String privilegeName = matcher.group(1);
                 Privilege privilege = acm.privilegeFromName(privilegeName);
-                if (privilege == null) {
-                    throw new IllegalArgumentException("Invalid or not supported privilege name was supplied");
-                } else {
-                    privilegeToParamNameMap.put(privilege, paramName);
-                }
+                privilegeToParamNameMap.put(privilege, paramName);
             }
         }
         List<Entry<Privilege, String>> sortedEntries = new ArrayList<>(privilegeToParamNameMap.entrySet());
@@ -953,7 +947,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
                 RestrictionDefinition rd = srMap.get(entry.getKey());
                 if (rd == null) {
                     //illegal restriction name?
-                    throw new IllegalArgumentException(INVALID_OR_NOT_SUPPORTED_RESTRICTION_NAME_WAS_SUPPLIED);
+                    throw new AccessControlException(INVALID_OR_NOT_SUPPORTED_RESTRICTION_NAME_WAS_SUPPLIED);
                 }
                 localRestrictions.add(new LocalRestriction(rd, entry.getValue()));
             }
@@ -963,7 +957,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
                 RestrictionDefinition rd = srMap.get(entry.getKey());
                 if (rd == null) {
                     //illegal restriction name?
-                    throw new IllegalArgumentException(INVALID_OR_NOT_SUPPORTED_RESTRICTION_NAME_WAS_SUPPLIED);
+                    throw new AccessControlException(INVALID_OR_NOT_SUPPORTED_RESTRICTION_NAME_WAS_SUPPLIED);
                 }
                 localRestrictions.add(new LocalRestriction(rd, entry.getValue()));
             }

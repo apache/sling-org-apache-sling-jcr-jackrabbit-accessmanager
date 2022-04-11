@@ -104,12 +104,61 @@ public class PrivilegesHelperTest {
     }
 
     @Test
-    public void testConsolidateAggregates() throws RepositoryException {
+    public void testConsolidateAggregatesPartial() throws RepositoryException {
         Map<Privilege, LocalPrivilege> merged = new HashMap<>();
 
         // allow jcr:all
         PrivilegesHelper.allow(merged, Collections.emptySet(),
                 Collections.singleton(priv(PrivilegeConstants.JCR_ALL)));
+
+        // deny jcr:read
+        PrivilegesHelper.deny(merged, Collections.emptySet(),
+                Collections.singleton(priv(PrivilegeConstants.JCR_READ)));
+        PrivilegesHelper.allow(merged, Collections.emptySet(),
+                Collections.singleton(priv(PrivilegeConstants.REP_READ_PROPERTIES)));
+
+        PrivilegesHelper.consolidateAggregates(acm, "/", merged, privilegeLongestDepthMap);
+
+        Set<Privilege> allowSet = merged.values().stream()
+                .filter(lp -> lp.isAllow())
+                .map(lp -> lp.getPrivilege())
+                .collect(Collectors.toSet());
+        Set<Privilege> denySet = merged.values().stream()
+                .filter(lp -> lp.isDeny())
+                .map(lp -> lp.getPrivilege())
+                .collect(Collectors.toSet());
+
+        assertEquals(14, allowSet.size());
+        assertThat(allowSet, not(hasItems(
+                priv(PrivilegeConstants.JCR_ALL),
+                priv(PrivilegeConstants.JCR_READ))));
+        assertThat(allowSet, hasItems(
+                priv(PrivilegeConstants.JCR_LOCK_MANAGEMENT),
+                priv(PrivilegeConstants.JCR_LIFECYCLE_MANAGEMENT),
+                priv(PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL),
+                priv(PrivilegeConstants.JCR_NAMESPACE_MANAGEMENT),
+                priv(PrivilegeConstants.JCR_NODE_TYPE_DEFINITION_MANAGEMENT),
+                priv(PrivilegeConstants.JCR_READ_ACCESS_CONTROL),
+                priv(PrivilegeConstants.JCR_RETENTION_MANAGEMENT),
+                priv(PrivilegeConstants.JCR_VERSION_MANAGEMENT),
+                priv(PrivilegeConstants.JCR_WORKSPACE_MANAGEMENT),
+                priv(PrivilegeConstants.REP_INDEX_DEFINITION_MANAGEMENT),
+                priv(PrivilegeConstants.REP_PRIVILEGE_MANAGEMENT),
+                priv(PrivilegeConstants.REP_USER_MANAGEMENT),
+                priv(PrivilegeConstants.REP_WRITE),
+                priv(PrivilegeConstants.REP_READ_PROPERTIES)));
+
+        assertEquals(1, denySet.size());
+        assertThat(denySet, hasItems(priv(PrivilegeConstants.REP_READ_NODES)));
+    }
+
+    @Test
+    public void testConsolidateAggregatesFull() throws RepositoryException {
+        Map<Privilege, LocalPrivilege> merged = new HashMap<>();
+
+        // allow jcr:write
+        PrivilegesHelper.allow(merged, Collections.emptySet(),
+                Collections.singleton(priv(PrivilegeConstants.JCR_WRITE)));
 
         // deny jcr:read
         PrivilegesHelper.deny(merged, Collections.emptySet(),
@@ -126,24 +175,9 @@ public class PrivilegesHelperTest {
                 .map(lp -> lp.getPrivilege())
                 .collect(Collectors.toSet());
 
-        assertThat(allowSet.size(), equalTo(13));
-        assertThat(allowSet, not(hasItems(priv(
-                PrivilegeConstants.JCR_ALL),
-                priv(PrivilegeConstants.JCR_READ))));
+        assertEquals(1, allowSet.size());
         assertThat(allowSet, hasItems(
-                priv(PrivilegeConstants.JCR_LOCK_MANAGEMENT),
-                priv(PrivilegeConstants.JCR_LIFECYCLE_MANAGEMENT),
-                priv(PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL),
-                priv(PrivilegeConstants.JCR_NAMESPACE_MANAGEMENT),
-                priv(PrivilegeConstants.JCR_NODE_TYPE_DEFINITION_MANAGEMENT),
-                priv(PrivilegeConstants.JCR_READ_ACCESS_CONTROL),
-                priv(PrivilegeConstants.JCR_RETENTION_MANAGEMENT),
-                priv(PrivilegeConstants.JCR_VERSION_MANAGEMENT),
-                priv(PrivilegeConstants.JCR_WORKSPACE_MANAGEMENT),
-                priv(PrivilegeConstants.REP_INDEX_DEFINITION_MANAGEMENT),
-                priv(PrivilegeConstants.REP_PRIVILEGE_MANAGEMENT),
-                priv(PrivilegeConstants.REP_USER_MANAGEMENT),
-                priv(PrivilegeConstants.REP_WRITE)));
+                priv(PrivilegeConstants.JCR_WRITE)));
 
         assertEquals(1, denySet.size());
         assertThat(denySet, hasItems(priv(PrivilegeConstants.JCR_READ)));
@@ -168,6 +202,41 @@ public class PrivilegesHelperTest {
         assertTrue(allowLocalPriv.isAllow());
         assertTrue(allowLocalPriv.getAllowRestrictions().isEmpty());
         assertFalse(allowLocalPriv.isDeny());
+    }
+
+    @Test
+    public void testAllowLocalPrivWithSameRestrictionsAsDeny() throws RepositoryException {
+        Map<Privilege, LocalPrivilege> merged = new HashMap<>();
+
+        PrivilegesHelper.localDenyPriv(merged,
+                priv(PrivilegeConstants.JCR_MODIFY_PROPERTIES), true, Collections.emptySet());
+
+        LocalPrivilege allowLocalPriv = PrivilegesHelper.localAllowPriv(merged,
+                priv(PrivilegeConstants.JCR_MODIFY_PROPERTIES), true, Collections.emptySet());
+        assertNotNull(allowLocalPriv);
+        assertEquals(priv(PrivilegeConstants.JCR_MODIFY_PROPERTIES), allowLocalPriv.getPrivilege());
+        assertTrue(allowLocalPriv.isAllow());
+        assertTrue(allowLocalPriv.getAllowRestrictions().isEmpty());
+        assertFalse(allowLocalPriv.isDeny());
+    }
+
+    @Test
+    public void testAllowLocalPrivWithDifferentRestrictionsAsDeny() throws RepositoryException {
+        Map<Privilege, LocalPrivilege> merged = new HashMap<>();
+
+        PrivilegesHelper.localDenyPriv(merged,
+                priv(PrivilegeConstants.JCR_MODIFY_PROPERTIES), true, Collections.emptySet());
+
+        LocalPrivilege allowLocalPriv = PrivilegesHelper.localAllowPriv(merged,
+                priv(PrivilegeConstants.JCR_MODIFY_PROPERTIES), true, 
+                Collections.singleton(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello"))));
+        assertNotNull(allowLocalPriv);
+        assertEquals(priv(PrivilegeConstants.JCR_MODIFY_PROPERTIES), allowLocalPriv.getPrivilege());
+        assertTrue(allowLocalPriv.isAllow());
+        assertEquals(Collections.singleton(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello"))),
+                allowLocalPriv.getAllowRestrictions());
+        assertTrue(allowLocalPriv.isDeny());
+        assertTrue(allowLocalPriv.getDenyRestrictions().isEmpty());
     }
 
     @Test
@@ -369,12 +438,12 @@ public class PrivilegesHelperTest {
         Map<Privilege, LocalPrivilege> merged = new HashMap<>();
 
         // allow jcr:read with restriction
-        PrivilegesHelper.allowRestriction(merged, new LocalRestriction(rd(AccessControlConstants.REP_GLOB),
-                val("/hello")),
+        PrivilegesHelper.allowRestriction(merged, 
+                new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")),
                 Collections.singleton(priv(PrivilegeConstants.JCR_READ)));
         // allow jcr:modifyProperties with restriction
-        PrivilegesHelper.allowRestriction(merged, new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES),
-                vals("item1", "item2")),
+        PrivilegesHelper.allowRestriction(merged, 
+                new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2")),
                 Collections.singleton(priv(PrivilegeConstants.JCR_MODIFY_PROPERTIES)));
 
         // unallow jcr:read with restriction
@@ -398,6 +467,33 @@ public class PrivilegesHelperTest {
         Set<LocalRestriction> modifyAllowRestrictions = 
                 merged.get(priv(PrivilegeConstants.REP_ADD_PROPERTIES)).getAllowRestrictions();
         assertTrue(modifyAllowRestrictions.isEmpty());
+    }
+
+    @Test
+    public void testUnallowRestrictionNotExisting() throws RepositoryException {
+        Map<Privilege, LocalPrivilege> merged = new HashMap<>();
+
+        // allow jcr:read with restriction
+        PrivilegesHelper.allowRestriction(merged, 
+                new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")),
+                Collections.singleton(priv(PrivilegeConstants.JCR_READ)));
+
+        // unallow jcr:read with restriction that has not been added
+        PrivilegesHelper.unallowRestriction(merged, AccessControlConstants.REP_NT_NAMES,
+                Collections.singleton(priv(PrivilegeConstants.JCR_READ)));
+
+        Set<Privilege> allowSet = merged.values().stream()
+                .filter(lp -> lp.isAllow())
+                .map(lp -> lp.getPrivilege())
+                .collect(Collectors.toSet());
+
+        assertEquals(2, allowSet.size());
+
+        Set<LocalRestriction> readAllowRestrictions =
+                merged.get(priv(PrivilegeConstants.REP_READ_PROPERTIES)).getAllowRestrictions();
+        assertEquals(1, readAllowRestrictions.size());
+        assertEquals(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")),
+                readAllowRestrictions.iterator().next());
     }
 
     @Test
@@ -498,6 +594,33 @@ public class PrivilegesHelperTest {
         Set<LocalRestriction> modifyDenyRestrictions =
                 merged.get(priv(PrivilegeConstants.REP_ADD_PROPERTIES)).getDenyRestrictions();
         assertTrue(modifyDenyRestrictions.isEmpty());
+    }
+
+    @Test
+    public void testUndenyRestrictionNotExists() throws RepositoryException {
+        Map<Privilege, LocalPrivilege> merged = new HashMap<>();
+
+        // deny jcr:read with restriction
+        PrivilegesHelper.denyRestriction(merged,
+                new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")),
+                Collections.singleton(priv(PrivilegeConstants.JCR_READ)));
+
+        // undeny jcr:read with restriction that does note exist
+        PrivilegesHelper.undenyRestriction(merged, AccessControlConstants.REP_ITEM_NAMES,
+                Collections.singleton(priv(PrivilegeConstants.JCR_READ)));
+
+        Set<Privilege> denySet = merged.values().stream()
+                .filter(lp -> lp.isDeny())
+                .map(lp -> lp.getPrivilege())
+                .collect(Collectors.toSet());
+
+        assertEquals(2, denySet.size());
+
+        Set<LocalRestriction> readDenyRestrictions =
+                merged.get(priv(PrivilegeConstants.REP_READ_PROPERTIES)).getDenyRestrictions();
+        assertEquals(1, readDenyRestrictions.size());
+        assertEquals(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")),
+                readDenyRestrictions.iterator().next());
     }
 
     @Test

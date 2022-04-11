@@ -393,6 +393,57 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
     }
 
 
+    /**
+     * Test to verify adding an ACE before an existing ACE
+     * the ACL
+     */
+    @Test
+    public void testAddAceOrderByEmpty() throws IOException, JsonException {
+        createAceOrderTestFolderWithOneAce();
+
+        testGroupId = createTestGroup();
+
+        addOrUpdateAce(testFolderUrl, testGroupId, true, "");
+
+        JsonObject aclObject = getAcl(testFolderUrl);
+        assertNotNull(aclObject);
+        assertEquals(2, aclObject.size());
+
+        JsonObject group = aclObject.getJsonObject(testGroupId);
+        assertNotNull(group);
+        assertEquals(testGroupId, group.getString("principal"));
+        assertEquals(1, group.getInt("order"));
+        JsonObject user =  aclObject.getJsonObject(testUserId);
+        assertNotNull(user);
+        assertEquals(testUserId, user.getString("principal"));
+        assertEquals(0, user.getInt("order"));
+    }
+
+    /**
+     * Test to verify adding an ACE before an existing ACE
+     * the ACL
+     */
+    @Test
+    public void testAddAceOrderByNull() throws IOException, JsonException {
+        createAceOrderTestFolderWithOneAce();
+
+        testGroupId = createTestGroup();
+
+        addOrUpdateAce(testFolderUrl, testGroupId, true, null);
+
+        JsonObject aclObject = getAcl(testFolderUrl);
+        assertNotNull(aclObject);
+        assertEquals(2, aclObject.size());
+
+        JsonObject group = aclObject.getJsonObject(testGroupId);
+        assertNotNull(group);
+        assertEquals(testGroupId, group.getString("principal"));
+        assertEquals(1, group.getInt("order"));
+        JsonObject user =  aclObject.getJsonObject(testUserId);
+        assertNotNull(user);
+        assertEquals(testUserId, user.getString("principal"));
+        assertEquals(0, user.getInt("order"));
+    }
 
     /**
      * Test to verify adding an ACE in the first position of
@@ -1335,6 +1386,45 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * SLING-11243 - Test to verify modifying an ACE to remove a privilege
      */
     @Test
+    public void testModifyAceDeleteWritePrivilegeWithInvalidValue() throws IOException, JsonException {
+        commonModifyAceDeleteWritePrivilege();
+
+        // remove with an invalid value
+        List<NameValuePair> postParams2 = new AcePostParamsBuilder(testGroupId)
+                .withDeletePrivilege(PrivilegeConstants.JCR_WRITE, DeleteValues.VALUE_DOES_NOT)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams2);
+        JsonObject groupPrivilegesObject2 = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(2, groupPrivilegesObject2.size());
+
+        //allow privilege should remain as before
+        assertPrivilege(groupPrivilegesObject2, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, true, jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue repItemNamesValue = restrictionsObj.get(AccessControlConstants.REP_ITEM_NAMES);
+            assertNotNull(repItemNamesValue);
+            assertTrue(repItemNamesValue instanceof JsonArray);
+            assertEquals(2, ((JsonArray)repItemNamesValue).size());
+        });
+        //deny privilege should remain as before
+        assertPrivilege(groupPrivilegesObject2, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE, true, jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
+            assertNotNull(repGlobValue);
+            assertTrue(repGlobValue instanceof JsonString);
+            assertEquals("/hello", ((JsonString)repGlobValue).getString());
+        });
+    }
+
+    /**
+     * SLING-11243 - Test to verify modifying an ACE to remove a privilege
+     */
+    @Test
     public void testModifyAceDeleteWriteDenyPrivilege() throws IOException, JsonException {
         commonModifyAceDeleteWritePrivilege();
 
@@ -1487,6 +1577,54 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
             assertTrue(repItemNamesValue instanceof JsonArray);
             assertEquals(2, ((JsonArray)repItemNamesValue).size());
         });
+    }
+
+    /**
+     * SLING-11243 - Test to verify adding an ACE with privilege restriction
+     */
+    @Test
+    public void testModifyAceDeletePrivilegeRestrictionWithInvalidValue() throws IOException, JsonException {
+        testModifyAceAddAllowAndDenyPrivilegeRestriction();
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
+                .withDeletePrivilegeRestriction(PrivilegeConstants.JCR_READ, AccessControlConstants.REP_GLOB, DeleteValues.VALUE_DOES_NOT)
+                .withDeletePrivilegeRestriction(PrivilegeConstants.JCR_WRITE, AccessControlConstants.REP_ITEM_NAMES, DeleteValues.MATTER)
+            .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+        JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
+        assertEquals(2, groupPrivilegesObject.size());
+
+        //allow privilege remain as before
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
+            assertNotNull(repGlobValue);
+            assertTrue(repGlobValue instanceof JsonString);
+            assertEquals("/hello", ((JsonString)repGlobValue).getString());
+
+            JsonValue repItemNamesValue = restrictionsObj.get(AccessControlConstants.REP_ITEM_NAMES);
+            assertNull(repItemNamesValue);
+        });
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE, false, null);
+        //deny privilege remain as before
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
+            assertNull(repGlobValue);
+
+            JsonValue repItemNamesValue = restrictionsObj.get(AccessControlConstants.REP_ITEM_NAMES);
+            assertNotNull(repItemNamesValue);
+            assertTrue(repItemNamesValue instanceof JsonArray);
+            assertEquals(2, ((JsonArray)repItemNamesValue).size());
+        });
+        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_READ, false, null);
     }
 
     /**
@@ -2115,6 +2253,42 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         });
         //deny privilege is not there
         assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_READ, false, null);
+    }
+
+    @Test
+    public void testModifyAceForInvalidRestrictionName() throws IOException, JsonException {
+        testUserId = createTestUser();
+
+        testFolderUrl = createTestFolder();
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .with(":http-equiv-accept", JSONResponse.RESPONSE_CONTENT_TYPE)
+                .withRestriction("invalid_name", "hello")
+                .build();
+        String json = addOrUpdateAce(testFolderUrl, postParams, CONTENT_TYPE_JSON, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        assertNotNull(json);
+
+        JsonObject jsonObject = parseJson(json);
+        assertEquals("javax.jcr.security.AccessControlException: Invalid restriction name was supplied", jsonObject.getString("status.message"));
+    }
+
+    @Test
+    public void testModifyAceForInvalidPrivilegeName() throws IOException, JsonException {
+        testUserId = createTestUser();
+
+        testFolderUrl = createTestFolder();
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .with(":http-equiv-accept", JSONResponse.RESPONSE_CONTENT_TYPE)
+                .withPrivilege("invalid_name", PrivilegeValues.ALLOW)
+                .build();
+        String json = addOrUpdateAce(testFolderUrl, postParams, CONTENT_TYPE_JSON, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        assertNotNull(json);
+
+        JsonObject jsonObject = parseJson(json);
+        assertEquals("javax.jcr.security.AccessControlException: No such privilege invalid_name", jsonObject.getString("status.message"));
     }
 
 }
