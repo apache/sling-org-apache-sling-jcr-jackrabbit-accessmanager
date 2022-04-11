@@ -23,6 +23,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 import javax.inject.Inject;
@@ -33,7 +35,10 @@ import javax.jcr.Session;
 import javax.jcr.SimpleCredentials;
 import javax.jcr.Value;
 import javax.jcr.ValueFactory;
+import javax.jcr.security.AccessControlException;
 import javax.json.JsonObject;
+import javax.json.JsonString;
+import javax.json.JsonValue;
 
 import org.apache.jackrabbit.oak.spi.security.authorization.accesscontrol.AccessControlConstants;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
@@ -223,6 +228,95 @@ public class ModifyAceServiceIT extends AccessManagerClientTestSupport {
     }
 
     @Test
+    public void testModifyAceChangeExistingWithRestrictionsAutoSave() throws RepositoryException {
+        assertNotNull(modifyAce);
+        Map<String, String> privilegesMap = new HashMap<>();
+        privilegesMap.put(PrivilegeConstants.JCR_READ, "allow");
+        privilegesMap.put(PrivilegeConstants.JCR_READ_ACCESS_CONTROL, "deny");
+        modifyAce.modifyAce(adminSession,
+                testNode.getPath(),
+                "everyone",
+                privilegesMap,
+                "first",
+                Collections.emptyMap(),
+                Collections.emptyMap(),
+                Collections.emptySet(),
+                false);
+
+        // and now change it again
+        modifyAce.modifyAce(adminSession,
+                testNode.getPath(),
+                "everyone",
+                Collections.singletonMap(PrivilegeConstants.JCR_READ, "allow"),
+                "first",
+                Collections.singletonMap(AccessControlConstants.REP_GLOB, val(PropertyType.STRING, "/hello")),
+                Collections.singletonMap(AccessControlConstants.REP_ITEM_NAMES, vals(PropertyType.NAME, "child1", "child2")),
+                Collections.emptySet(),
+                false);
+        // not autosaved, so should be changes pending
+        assertTrue(adminSession.hasPendingChanges());
+        adminSession.save();
+
+        JsonObject aceObject = ace(testNode.getPath(), "everyone");
+        int order = aceObject.getInt("order");
+        assertEquals(0, order);
+
+        JsonObject privilegesObject = aceObject.getJsonObject("privileges");
+        assertNotNull(privilegesObject);
+        assertEquals(2, privilegesObject.size());
+        //allow
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
+            assertNotNull(repGlobValue);
+            assertTrue(repGlobValue instanceof JsonString);
+            assertEquals("/hello", ((JsonString)repGlobValue).getString());
+        });
+        assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_READ_ACCESS_CONTROL);
+    }
+
+    @Test
+    public void testModifyAceWithInvalidSingleValueRestrictionsName() throws RepositoryException {
+        assertNotNull(modifyAce);
+        try {
+            modifyAce.modifyAce(adminSession,
+                    testNode.getPath(),
+                    "everyone",
+                    Collections.singletonMap(PrivilegeConstants.JCR_READ, "allow"),
+                    "first",
+                    Collections.singletonMap("invalid_name", val(PropertyType.STRING, "/hello")),
+                    Collections.emptyMap(),
+                    Collections.emptySet(),
+                    false);
+            fail("Expected AccessControlException");
+        } catch (AccessControlException acex) {
+            assertEquals("Invalid restriction name was supplied", acex.getMessage());
+        }
+    }
+
+    @Test
+    public void testModifyAceWithInvalidMultiValueRestrictionsName() throws RepositoryException {
+        assertNotNull(modifyAce);
+        try {
+            modifyAce.modifyAce(adminSession,
+                    testNode.getPath(),
+                    "everyone",
+                    Collections.singletonMap(PrivilegeConstants.JCR_READ, "allow"),
+                    "first",
+                    Collections.emptyMap(),
+                    Collections.singletonMap("invalid_name", vals(PropertyType.NAME, "child1", "child2")),
+                    Collections.emptySet(),
+                    false);
+            fail("Expected AccessControlException");
+        } catch (AccessControlException acex) {
+            assertEquals("Invalid restriction name was supplied", acex.getMessage());
+        }
+    }
+
+    @Test
     public void testModifyAceWithLocalPrivileges() throws RepositoryException {
         assertNotNull(modifyAce);
         LocalPrivilege localPrivilege = new LocalPrivilege(adminSession.getAccessControlManager().privilegeFromName(PrivilegeConstants.JCR_READ));
@@ -261,6 +355,7 @@ public class ModifyAceServiceIT extends AccessManagerClientTestSupport {
                     Collections.singleton(localPrivilege),
                     "first",
                     false);
+            fail("Expected RepositoryException");
         } catch (RepositoryException re) {
             assertEquals("JCR Session not found", re.getMessage());
         }
@@ -317,6 +412,7 @@ public class ModifyAceServiceIT extends AccessManagerClientTestSupport {
                     privileges,
                     "first",
                     false);
+            fail("Expected RepositoryException");
         } catch (RepositoryException re) {
             assertEquals("principalId was not submitted.", re.getMessage());
         }
@@ -334,6 +430,7 @@ public class ModifyAceServiceIT extends AccessManagerClientTestSupport {
                     Collections.singleton(localPrivilege),
                     "first",
                     false);
+            fail("Expected RepositoryException");
         } catch (RepositoryException re) {
             assertEquals("Invalid principalId was submitted.", re.getMessage());
         }

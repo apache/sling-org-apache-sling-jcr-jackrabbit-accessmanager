@@ -2291,4 +2291,40 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         assertEquals("javax.jcr.security.AccessControlException: No such privilege invalid_name", jsonObject.getString("status.message"));
     }
 
+    @Test
+    public void testModifyAceForInvalidDeleteRestrictionName() throws IOException, JsonException {
+        testUserId = createTestUser();
+
+        testFolderUrl = createTestFolder();
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .with(":http-equiv-accept", JSONResponse.RESPONSE_CONTENT_TYPE)
+                .withDeletePrivilegeRestriction(PrivilegeConstants.JCR_READ, "invalid_name", DeleteValues.ALLOW)
+                .build();
+        String json = addOrUpdateAce(testFolderUrl, postParams, CONTENT_TYPE_JSON, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        assertNotNull(json);
+
+        JsonObject jsonObject = parseJson(json);
+        assertEquals("javax.jcr.security.AccessControlException: Invalid restriction name was supplied", jsonObject.getString("status.message"));
+    }
+
+    @Test
+    public void testModifyAceForInvalidDeleteRestrictionPrivilegeName() throws IOException, JsonException {
+        testUserId = createTestUser();
+
+        testFolderUrl = createTestFolder();
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .with(":http-equiv-accept", JSONResponse.RESPONSE_CONTENT_TYPE)
+                .withDeletePrivilegeRestriction("invalid_name", AccessControlConstants.REP_GLOB, DeleteValues.ALLOW)
+                .build();
+        String json = addOrUpdateAce(testFolderUrl, postParams, CONTENT_TYPE_JSON, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        assertNotNull(json);
+
+        JsonObject jsonObject = parseJson(json);
+        assertEquals("javax.jcr.security.AccessControlException: No such privilege invalid_name", jsonObject.getString("status.message"));
+    }
+
 }
