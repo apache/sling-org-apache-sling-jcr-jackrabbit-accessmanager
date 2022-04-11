@@ -348,9 +348,10 @@ public class ModifyAceServiceIT extends AccessManagerClientTestSupport {
         assertNotNull(modifyAce);
         LocalPrivilege localPrivilege = new LocalPrivilege(adminSession.getAccessControlManager().privilegeFromName(PrivilegeConstants.JCR_READ));
         localPrivilege.setAllow(true);
+        String resourcePath = testNode.getPath();
         try {
             modifyAce.modifyAce(null,
-                    testNode.getPath(),
+                    resourcePath,
                     "everyone",
                     Collections.singleton(localPrivilege),
                     "first",
@@ -405,9 +406,10 @@ public class ModifyAceServiceIT extends AccessManagerClientTestSupport {
         LocalPrivilege localPrivilege = new LocalPrivilege(adminSession.getAccessControlManager().privilegeFromName(PrivilegeConstants.JCR_READ));
         localPrivilege.setAllow(true);
         Set<LocalPrivilege> privileges = Collections.singleton(localPrivilege);
+        String resourcePath = testNode.getPath();
         try {
             modifyAce.modifyAce(adminSession,
-                    testNode.getPath(),
+                    resourcePath,
                     null,
                     privileges,
                     "first",
@@ -423,9 +425,10 @@ public class ModifyAceServiceIT extends AccessManagerClientTestSupport {
         assertNotNull(modifyAce);
         LocalPrivilege localPrivilege = new LocalPrivilege(adminSession.getAccessControlManager().privilegeFromName(PrivilegeConstants.JCR_READ));
         localPrivilege.setAllow(true);
+        String resourcePath = testNode.getPath();
         try {
             modifyAce.modifyAce(adminSession,
-                    testNode.getPath(),
+                    resourcePath,
                     "not_a_real_principalid",
                     Collections.singleton(localPrivilege),
                     "first",

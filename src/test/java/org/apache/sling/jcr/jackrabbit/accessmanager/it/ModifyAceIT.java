@@ -392,18 +392,12 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         assertPrivilege(privilegesObject2, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_NODE_TYPE_MANAGEMENT);
     }
 
-
-    /**
-     * Test to verify adding an ACE before an existing ACE
-     * the ACL
-     */
-    @Test
-    public void testAddAceOrderByEmpty() throws IOException, JsonException {
+    protected void commonAddAceOrderBy(String order) throws IOException {
         createAceOrderTestFolderWithOneAce();
 
         testGroupId = createTestGroup();
 
-        addOrUpdateAce(testFolderUrl, testGroupId, true, "");
+        addOrUpdateAce(testFolderUrl, testGroupId, true, order);
 
         JsonObject aclObject = getAcl(testFolderUrl);
         assertNotNull(aclObject);
@@ -424,25 +418,17 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * the ACL
      */
     @Test
+    public void testAddAceOrderByEmpty() throws IOException, JsonException {
+        commonAddAceOrderBy("");
+    }
+
+    /**
+     * Test to verify adding an ACE before an existing ACE
+     * the ACL
+     */
+    @Test
     public void testAddAceOrderByNull() throws IOException, JsonException {
-        createAceOrderTestFolderWithOneAce();
-
-        testGroupId = createTestGroup();
-
-        addOrUpdateAce(testFolderUrl, testGroupId, true, null);
-
-        JsonObject aclObject = getAcl(testFolderUrl);
-        assertNotNull(aclObject);
-        assertEquals(2, aclObject.size());
-
-        JsonObject group = aclObject.getJsonObject(testGroupId);
-        assertNotNull(group);
-        assertEquals(testGroupId, group.getString("principal"));
-        assertEquals(1, group.getInt("order"));
-        JsonObject user =  aclObject.getJsonObject(testUserId);
-        assertNotNull(user);
-        assertEquals(testUserId, user.getString("principal"));
-        assertEquals(0, user.getInt("order"));
+        commonAddAceOrderBy(null);
     }
 
     /**
