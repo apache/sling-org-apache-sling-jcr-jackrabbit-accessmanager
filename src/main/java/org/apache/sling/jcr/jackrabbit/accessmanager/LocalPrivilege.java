@@ -84,7 +84,7 @@ public class LocalPrivilege {
      * compares if restrictions present is same as specified restrictions in the
      * supplied argument
      * 
-     * @param lp the other LocalPrivilege to compare to
+     * @param otherAllowRestrictions the other restrictions set to compare to
      * @return true or false
      */
     public boolean sameAllowRestrictions(Set<LocalRestriction> otherAllowRestrictions) {
@@ -102,7 +102,7 @@ public class LocalPrivilege {
      * compares if restrictions present is same as specified restrictions in the
      * supplied argument
      * 
-     * @param lp the other LocalPrivilege to compare to
+     * @param otherDenyRestrictions the other restrictions set to compare to
      * @return true or false
      */
     public boolean sameDenyRestrictions(Set<LocalRestriction> otherDenyRestrictions) {

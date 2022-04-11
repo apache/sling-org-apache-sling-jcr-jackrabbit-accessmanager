@@ -93,14 +93,22 @@ import org.osgi.service.component.annotations.ReferencePolicyOption;
  * <dl>
  * <dt>principalId</dt>
  * <dd>The principal of the ACEs to modify in the ACL specified by the path.</dd>
- * <dt>privilege@*</dt>
- * <dd>One or more privileges, either granted or denied or none, which will be applied
- * to (or removed from) the node ACL. Any permissions that are present in an
- * existing ACE for the principal but not in the request are left untouched.</dd>
- * <dt>restriction@*</dt>
- * <dd>One or more restrictions which will be applied to the ACE</dd>
- * <dt>restriction@*@Delete</dt>
+ * <dt>privilege@[privilege_name]</dt>
+ * <dd>One or more privileges which will be applied to the ACE. Any permissions that are present in an
+ * existing ACE for the principal but not in the request are left untouched. The parameter value must be either 'allow', 'deny' or 'all'. 
+ * For backward compatibility, 'granted' or 'denied' may also be used for the parameter value as an alias for 'allow' or 'deny'.</dd>
+ * <dt>restriction@[restriction_name]</dt>
+ * <dd>One or more restrictions which will be applied to the ACE. The value is the target value of the restriction to be set.</dd>
+ * <dt>restriction@[restriction_name]@Delete</dt>
  * <dd>One or more restrictions which will be removed from the ACE</dd>
+ * <dt>privilege@[privilege_name]@Delete</dt>
+ * <dd>One param for each privilege to delete. The parameter value must be either 'allow', 'deny' or 'all' to specify which state to delete from</dd>
+ * <dt>restriction@[privilege_name]@[restriction_name]@Allow</dt>
+ * <dt>restriction@[privilege_name]@[restriction_name]@Deny</dt>
+ * <dd>One param for each restriction value. The same parameter name may be used again for multi-value restrictions. The @Allow or @Deny suffix 
+ *     specifies whether to apply the restriction to the 'allow' or 'deny' privilege.  The value is the target value of the restriction to be set.</dd>
+ * <dt>restriction@[privilege_name]@[restriction_name]@Delete</dt>
+ * <dd>One param for each restriction to delete. The parameter value must be either 'allow', 'deny' or 'all' to specify which state to delete from.</dd>
  * </dl>
  *
  * <h4>Response</h4>
@@ -259,7 +267,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
     /**
      * Verify that the user supplied arguments are valid
      * 
-     * @param session the JCR session
+     * @param jcrSession the JCR session
      * @param resourcePath the resource path
      * @param principalId the principal id
      * @return the principal for the requested principalId
@@ -714,7 +722,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
      * restriction set.
      * 
      * @param principal the principal whose aces should be added
-     * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
+     * @param restrictionsToLocalPrivilegesMap the map containing the restrictions mapped to the LocalPrivlege items with those resrictions
      * @param isAllow true for 'allow' ACE, false for 'deny' ACE
      * @param acl the access control list to update
      */

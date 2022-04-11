@@ -152,6 +152,28 @@ public class ModifyAceServiceIT extends AccessManagerClientTestSupport {
     }
 
     @Test
+    public void testModifyAceWithPrivilegesUsingPrefixedName() throws RepositoryException {
+        assertNotNull(modifyAce);
+        modifyAce.modifyAce(adminSession,
+                testNode.getPath(),
+                "everyone",
+                Collections.singletonMap("privilege@" + PrivilegeConstants.JCR_READ, "allow"),
+                "first");
+        // autosaved, so nothing should be pending
+        assertFalse(adminSession.hasPendingChanges());
+
+        JsonObject aceObject = ace(testNode.getPath(), "everyone");
+        int order = aceObject.getInt("order");
+        assertEquals(0, order);
+
+        JsonObject privilegesObject = aceObject.getJsonObject("privileges");
+        assertNotNull(privilegesObject);
+        assertEquals(1, privilegesObject.size());
+        //allow
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ);
+    }
+
+    @Test
     public void testModifyAceWithPrivilegesAutoSave() throws RepositoryException {
         assertNotNull(modifyAce);
         modifyAce.modifyAce(adminSession,
