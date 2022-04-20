@@ -16,6 +16,7 @@
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager;
 
+import java.util.Collection;
 import java.util.Map;
 
 import javax.jcr.RepositoryException;
@@ -35,7 +36,7 @@ public class ModifyAceTest {
 
     @Test(expected = UnsupportedRepositoryOperationException.class)
     public void testModify1() throws RepositoryException {
-        modifyAce.modifyAce(null, null, null, null, null, false);
+        modifyAce.modifyAce(null, null, null, (Map<String, String>)null, null, false);
     }
 
     @Test(expected = UnsupportedRepositoryOperationException.class)
@@ -47,6 +48,12 @@ public class ModifyAceTest {
     public void testModify3() throws RepositoryException {
         modifyAce.modifyAce(null, null, null, null, null, null, null, null, false);
     }
+
+    @Test(expected = UnsupportedRepositoryOperationException.class)
+    public void testModify4() throws RepositoryException {
+        modifyAce.modifyAce(null, null, null, (Collection<LocalPrivilege>)null, null, false);
+    }
+
 
     protected static class ModifyAceOldImpl implements ModifyAce {
 

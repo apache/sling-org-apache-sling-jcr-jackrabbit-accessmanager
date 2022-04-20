@@ -37,6 +37,7 @@ import org.apache.jackrabbit.oak.security.authorization.restriction.RestrictionP
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionDefinition;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.jackrabbit.value.ValueFactoryImpl;
+import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
 import org.apache.sling.testing.mock.sling.ResourceResolverType;
 import org.apache.sling.testing.mock.sling.junit.SlingContext;
 import org.junit.Before;
@@ -85,7 +86,7 @@ public class LocalRestrictionTest {
     }
 
     /**
-     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.post.LocalRestriction#hashCode()}.
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction#hashCode()}.
      */
     @Test
     public void testHashCode() throws Exception {
@@ -98,7 +99,7 @@ public class LocalRestrictionTest {
     }
 
     /**
-     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.post.LocalRestriction#getName()}.
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction#getName()}.
      */
     @Test
     public void testGetName() throws Exception {
@@ -107,7 +108,7 @@ public class LocalRestrictionTest {
     }
 
     /**
-     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.post.LocalRestriction#isMultiValue()}.
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction#isMultiValue()}.
      */
     @Test
     public void testIsMultiValue() throws Exception {
@@ -119,7 +120,7 @@ public class LocalRestrictionTest {
     }
 
     /**
-     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.post.LocalRestriction#getValue()}.
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction#getValue()}.
      */
     @Test
     public void testGetValue() throws Exception {
@@ -137,7 +138,7 @@ public class LocalRestrictionTest {
     }
 
     /**
-     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.post.LocalRestriction#getValues()}.
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction#getValues()}.
      */
     @Test
     public void testGetValues() throws Exception {
@@ -152,7 +153,7 @@ public class LocalRestrictionTest {
     }
 
     /**
-     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.post.LocalRestriction#toString()}.
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction#toString()}.
      */
     @Test
     public void testToString() throws Exception {
@@ -164,7 +165,7 @@ public class LocalRestrictionTest {
     }
 
     /**
-     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.post.LocalRestriction#equals(java.lang.Object)}.
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction#equals(java.lang.Object)}.
      */
     @Test
     public void testEqualsObject() throws Exception {

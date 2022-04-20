@@ -21,7 +21,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.json.JsonException;
@@ -31,7 +30,6 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.auth.Credentials;
 import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.message.BasicNameValuePair;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -57,29 +55,23 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         testFolderUrl = createTestFolder(null, "sling-tests",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"propOne\" : \"propOneValue\", \"child\" : { \"childPropOne\" : true } }");
 
-        String postUrl = testFolderUrl + ".modifyAce.html";
-
         //1. create an initial set of privileges
-        List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:write", "granted"));
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.ALLOW)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+
+        List<NameValuePair> postParams2 = new AcePostParamsBuilder(testUserId2)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.ALLOW)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams2);
+
+        List<NameValuePair> postParams3 = new AcePostParamsBuilder(testUserId2)
+                .withPrivilege(PrivilegeConstants.JCR_LOCK_MANAGEMENT, PrivilegeValues.ALLOW)
+                .build();
+        addOrUpdateAce(testFolderUrl + "/child", postParams3);
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
-        postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId2));
-        postParams.add(new BasicNameValuePair("privilege@jcr:write", "granted"));
-
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
-        postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId2));
-        postParams.add(new BasicNameValuePair("privilege@jcr:lockManagement", "granted"));
-
-        postUrl = testFolderUrl + "/child.modifyAce.html";
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
 
         //fetch the JSON for the eacl to verify the settings.
         String getUrl = testFolderUrl + "/child.eacl.json";
@@ -98,7 +90,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         assertNotNull(privilegesObject);
         assertEquals(1, privilegesObject.size());
         //allow privilege
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_WRITE);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE);
 
         JsonObject aceObject2 = jsonObject.getJsonObject(testUserId2);
         assertNotNull(aceObject2);
@@ -110,8 +102,8 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         assertNotNull(privilegesObject2);
         assertEquals(2, privilegesObject2.size());
         //allow privilege
-        assertPrivilege(privilegesObject2, true, true, PrivilegeConstants.JCR_WRITE);
-        assertPrivilege(privilegesObject2, true, true, PrivilegeConstants.JCR_LOCK_MANAGEMENT);
+        assertPrivilege(privilegesObject2, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE);
+        assertPrivilege(privilegesObject2, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_LOCK_MANAGEMENT);
     }
 
     /**
@@ -124,25 +116,18 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         testFolderUrl = createTestFolder(null, "sling-tests",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"propOne\" : \"propOneValue\", \"child\" : { \"childPropOne\" : true } }");
 
-        String postUrl = testFolderUrl + ".modifyAce.html";
-
         //1. create an initial set of privileges
-        List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:write", "denied"));
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.DENY)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+
+        List<NameValuePair> postParams3 = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.ALLOW)
+                .build();
+        addOrUpdateAce(testFolderUrl + "/child", postParams3);
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
-        postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:write", "granted"));
-
-        postUrl = testFolderUrl + "/child.modifyAce.html";
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
 
         //fetch the JSON for the eacl to verify the settings.
         String getUrl = testFolderUrl + "/child.eacl.json";
@@ -161,7 +146,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         assertNotNull(privilegesObject);
         assertEquals(1, privilegesObject.size());
         //allow privilege
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_WRITE);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE);
     }
 
     /**
@@ -174,25 +159,17 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         testFolderUrl = createTestFolder(null, "sling-tests",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"propOne\" : \"propOneValue\", \"child\" : { \"childPropOne\" : true } }");
 
-        String postUrl = testFolderUrl + ".modifyAce.html";
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_ALL, PrivilegeValues.ALLOW)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
 
-        //1. create an initial set of privileges
-        List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:all", "granted"));
+        List<NameValuePair> postParams3 = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.ALLOW)
+                .build();
+        addOrUpdateAce(testFolderUrl + "/child", postParams3);
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
-        postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:write", "granted"));
-
-        postUrl = testFolderUrl + "/child.modifyAce.html";
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
 
         //fetch the JSON for the eacl to verify the settings.
         String getUrl = testFolderUrl + "/child.eacl.json";
@@ -211,7 +188,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         assertNotNull(privilegesObject);
         assertEquals(1, privilegesObject.size());
         //allow privilege
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_ALL);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_ALL);
     }
 
     /**
@@ -224,25 +201,17 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         testFolderUrl = createTestFolder(null, "sling-tests",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"propOne\" : \"propOneValue\", \"child\" : { \"childPropOne\" : true } }");
 
-        String postUrl = testFolderUrl + ".modifyAce.html";
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.ALLOW)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
 
-        //1. create an initial set of privileges
-        List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:write", "granted"));
+        List<NameValuePair> postParams3 = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_ALL, PrivilegeValues.ALLOW)
+                .build();
+        addOrUpdateAce(testFolderUrl + "/child", postParams3);
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
-        postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:all", "granted"));
-
-        postUrl = testFolderUrl + "/child.modifyAce.html";
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
 
         //fetch the JSON for the eacl to verify the settings.
         String getUrl = testFolderUrl + "/child.eacl.json";
@@ -261,7 +230,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         assertNotNull(privilegesObject);
         assertEquals(1, privilegesObject.size());
         //allow privilege
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_ALL);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_ALL);
     }
 
     /**
@@ -274,25 +243,17 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         testFolderUrl = createTestFolder(null, "sling-tests",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"propOne\" : \"propOneValue\", \"child\" : { \"childPropOne\" : true } }");
 
-        String postUrl = testFolderUrl + ".modifyAce.html";
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_ALL, PrivilegeValues.ALLOW)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
 
-        //1. create an initial set of privileges
-        List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:all", "granted"));
+        List<NameValuePair> postParams3 = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_REMOVE_NODE, PrivilegeValues.DENY)
+                .build();
+        addOrUpdateAce(testFolderUrl + "/child", postParams3);
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
-        postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:removeNode", "denied"));
-
-        postUrl = testFolderUrl + "/child.modifyAce.html";
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
 
         //fetch the JSON for the eacl to verify the settings.
         String getUrl = testFolderUrl + "/child.eacl.json";
@@ -311,22 +272,22 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         assertNotNull(privilegesObject);
         assertTrue(privilegesObject.size() >= 11);
         // not there privileges
-        assertPrivilege(privilegesObject, false, true, PrivilegeConstants.JCR_ALL);
-        assertPrivilege(privilegesObject, false, true, PrivilegeConstants.JCR_WRITE);
+        assertPrivilege(privilegesObject, false, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_ALL);
+        assertPrivilege(privilegesObject, false, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE);
         // allow privileges
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_READ_ACCESS_CONTROL);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_LOCK_MANAGEMENT);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_VERSION_MANAGEMENT);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_NODE_TYPE_MANAGEMENT);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_RETENTION_MANAGEMENT);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_LIFECYCLE_MANAGEMENT);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_MODIFY_PROPERTIES);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_ADD_CHILD_NODES);
-        assertPrivilege(privilegesObject, true, true, PrivilegeConstants.JCR_REMOVE_CHILD_NODES);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ_ACCESS_CONTROL);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_LOCK_MANAGEMENT);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_VERSION_MANAGEMENT);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_NODE_TYPE_MANAGEMENT);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_RETENTION_MANAGEMENT);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_LIFECYCLE_MANAGEMENT);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_MODIFY_PROPERTIES);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_ADD_CHILD_NODES);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_REMOVE_CHILD_NODES);
         //deny privileges
-        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_REMOVE_NODE);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_REMOVE_NODE);
     }
 
     /**
@@ -339,25 +300,17 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         testFolderUrl = createTestFolder(null, "sling-tests",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"propOne\" : \"propOneValue\", \"child\" : { \"childPropOne\" : true } }");
 
-        String postUrl = testFolderUrl + ".modifyAce.html";
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.ALLOW)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
 
-        //1. create an initial set of privileges
-        List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:write", "granted"));
+        List<NameValuePair> postParams3 = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_ALL, PrivilegeValues.DENY)
+                .build();
+        addOrUpdateAce(testFolderUrl + "/child", postParams3);
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
-        postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:all", "denied"));
-
-        postUrl = testFolderUrl + "/child.modifyAce.html";
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
 
         //fetch the JSON for the eacl to verify the settings.
         String getUrl = testFolderUrl + "/child.eacl.json";
@@ -375,7 +328,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         JsonObject privilegesObject = aceObject.getJsonObject("privileges");
         assertNotNull(privilegesObject);
         assertEquals(1, privilegesObject.size());
-        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_ALL);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_ALL);
     }
 
     /**
@@ -388,25 +341,17 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         testFolderUrl = createTestFolder(null, "sling-tests",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"propOne\" : \"propOneValue\", \"child\" : { \"childPropOne\" : true } }");
 
-        String postUrl = testFolderUrl + ".modifyAce.html";
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_MODIFY_PROPERTIES, PrivilegeValues.ALLOW)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
 
-        //1. create an initial set of privileges
-        List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:modifyProperties", "granted"));
+        List<NameValuePair> postParams3 = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_ALL, PrivilegeValues.DENY)
+                .build();
+        addOrUpdateAce(testFolderUrl + "/child", postParams3);
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
-        postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair("principalId", testUserId));
-        postParams.add(new BasicNameValuePair("privilege@jcr:all", "denied"));
-
-        postUrl = testFolderUrl + "/child.modifyAce.html";
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
-
 
         //fetch the JSON for the eacl to verify the settings.
         String getUrl = testFolderUrl + "/child.eacl.json";
@@ -424,6 +369,6 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         JsonObject privilegesObject = aceObject.getJsonObject("privileges");
         assertNotNull(privilegesObject);
         assertEquals(1, privilegesObject.size());
-        assertPrivilege(privilegesObject, true, false, PrivilegeConstants.JCR_ALL);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_ALL);
     }
 }

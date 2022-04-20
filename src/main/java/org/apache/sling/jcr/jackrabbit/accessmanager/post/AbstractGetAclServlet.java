@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -28,7 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import javax.jcr.AccessDeniedException;
 import javax.jcr.Item;
@@ -36,6 +36,7 @@ import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.jcr.Value;
 import javax.jcr.security.AccessControlEntry;
+import javax.jcr.security.AccessControlManager;
 import javax.jcr.security.Privilege;
 import javax.json.Json;
 import javax.json.JsonArrayBuilder;
@@ -48,13 +49,15 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionDefinition;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
+import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.resource.ResourceNotFoundException;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
-import org.apache.sling.jcr.jackrabbit.accessmanager.impl.AddRemoveCallback;
+import org.apache.sling.jcr.base.util.AccessControlUtil;
+import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
+import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrivilegesHelper;
-import org.apache.sling.jcr.jackrabbit.accessmanager.impl.SetWithAddRemoveCallbacks;
 import org.jetbrains.annotations.NotNull;
 
 @SuppressWarnings("serial")
@@ -153,10 +156,6 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
             srMap.put(restrictionDefinition.getName(), restrictionDefinition);
         }
 
-        // Calculate a map of privileges to all the aggregate privileges it is contained in.
-        // Use for fast lookup during the mergePrivilegeSets calls below.
-        Map<Privilege, Set<Privilege>> privilegeToAncestorMap = PrivilegesHelper.buildPrivilegeToAncestorMap(jcrSession, resourcePath);
-
         AccessControlEntry[] accessControlEntries = getAccessControlEntries(jcrSession, resourcePath);
         Map<Principal, Integer> principalToOrderMap = new HashMap<>();
         Map<Principal, Map<Privilege, LocalPrivilege>> principalToPrivilegesMap = new HashMap<>();
@@ -171,37 +170,36 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
                     Principal principal = accessControlEntry.getPrincipal();
                     principalToOrderMap.put(principal, i);
                     Map<Privilege, LocalPrivilege> map = principalToPrivilegesMap.computeIfAbsent(principal, k -> new HashMap<>());
-                    for (Privilege p : privileges) {
-                        LocalPrivilege privilegeItem = map.computeIfAbsent(p, LocalPrivilege::new);
-                        if (isAllow) {
-                            privilegeItem.setAllow(true);
+                    // populate the declared restrictions
+                    @NotNull
+                    String[] restrictionNames = jrAccessControlEntry.getRestrictionNames();
+                    Set<LocalRestriction> restrictionItems = new HashSet<>();
+                    for (String restrictionName : restrictionNames) {
+                        RestrictionDefinition rd = srMap.get(restrictionName);
+                        boolean isMulti = rd.getRequiredType().isArray();
+                        if (isMulti) {
+                            restrictionItems.add(new LocalRestriction(rd, jrAccessControlEntry.getRestrictions(restrictionName)));
                         } else {
-                            privilegeItem.setDeny(true);
-                        }
-
-                        // populate the declared restrictions
-                        @NotNull
-                        String[] restrictionNames = jrAccessControlEntry.getRestrictionNames();
-                        Set<LocalRestriction> restrictionItems = new HashSet<>();
-                        for (String restrictionName : restrictionNames) {
-                            RestrictionDefinition rd = srMap.get(restrictionName);
-                            boolean isMulti = rd.getRequiredType().isArray();
-                            if (isMulti) {
-                                restrictionItems.add(new LocalRestriction(rd, jrAccessControlEntry.getRestrictions(restrictionName)));
-                            } else {
-                                restrictionItems.add(new LocalRestriction(rd, jrAccessControlEntry.getRestriction(restrictionName)));
-                            }
-                        }
-                        if (isAllow) {
-                            privilegeItem.setAllowRestrictions(restrictionItems);
-                        } else {
-                            privilegeItem.setDenyRestrictions(restrictionItems);
+                            restrictionItems.add(new LocalRestriction(rd, jrAccessControlEntry.getRestriction(restrictionName)));
                         }
                     }
 
-                    mergePrivilegeSets(privilegeToAncestorMap, privileges, isAllow, map);
+                    if (isAllow) {
+                        PrivilegesHelper.allow(map, restrictionItems, Arrays.asList(privileges));
+                    } else {
+                        PrivilegesHelper.deny(map, restrictionItems, Arrays.asList(privileges));
+                    }
                 }
             }
+        }
+
+        // combine any aggregates that are still valid
+        AccessControlManager acm = AccessControlUtil.getAccessControlManager(jcrSession);
+        Map<Privilege, Integer> privilegeLongestDepthMap = PrivilegesHelper.buildPrivilegeLongestDepthMap(acm.privilegeFromName(PrivilegeConstants.JCR_ALL));
+        for (Entry<Principal, Map<Privilege, LocalPrivilege>> entry : principalToPrivilegesMap.entrySet()) {
+            Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap = entry.getValue();
+
+            PrivilegesHelper.consolidateAggregates(acm, resourcePath, privilegeToLocalPrivilegesMap, privilegeLongestDepthMap);
         }
 
         // sort the entries by the order value for readability
@@ -213,52 +211,6 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
         return jsonObj.build();
     }
 
-    protected void mergePrivilegeSets(Map<Privilege, Set<Privilege>> privilegeToAncestorMap, Privilege[] privileges,
-            boolean isAllow, Map<Privilege, LocalPrivilege> map) {
-        // prepare a filtered set that contains only the allow privileges
-        Set<Privilege> allowSet =
-                map.entrySet().stream()
-                    .filter(e -> e.getValue().isAllow())
-                    .map(Entry::getKey)
-                    .collect(Collectors.toSet());
-        // prepare a filtered set that contains only the deny privileges
-        Set<Privilege> denySet =
-                map.entrySet().stream()
-                    .filter(e -> e.getValue().isDeny())
-                    .map(Entry::getKey)
-                    .collect(Collectors.toSet());
-
-        for (Privilege privilege : privileges) {
-            // filter the allowSet/denySet to only include the
-            //   items with identical restrictions
-            LocalPrivilege lp = map.get(privilege);
-            allowSet = new SetWithAddRemoveCallbacks<>(
-                    allowSet.stream()
-                        .filter(p -> lp.sameAllowRestrictions(map.get(p)))
-                        .collect(Collectors.toSet()),
-                        new AddRemoveAllowPrivilegeCallback(map),
-                    Privilege.class);
-            denySet = new SetWithAddRemoveCallbacks<>(
-                    denySet.stream()
-                    .filter(p -> lp.sameDenyRestrictions(map.get(p)))
-                    .collect(Collectors.toSet()),
-                    new AddRemoveDenyPrivilegeCallback(map),
-                    Privilege.class);
-
-            // to tell the mergePrivilegeSets calls if the allow and deny restrictions 
-            //  are the same so it can know if allow/deny are exclusive
-            boolean sameAllowAndDenyRestrictions = lp.sameAllowAndDenyRestrictions();
-            if (isAllow) {
-                PrivilegesHelper.mergePrivilegeSets(privilege,
-                        privilegeToAncestorMap,
-                        allowSet, denySet, sameAllowAndDenyRestrictions);
-            } else {
-                PrivilegesHelper.mergePrivilegeSets(privilege,
-                        privilegeToAncestorMap,
-                        denySet, allowSet, sameAllowAndDenyRestrictions);
-            }
-        }
-    }
 
     protected JsonObjectBuilder convertToJson(List<Entry<Principal, Map<Privilege, LocalPrivilege>>> entrySetList) {
         JsonObjectBuilder jsonObj = Json.createObjectBuilder();
@@ -341,65 +293,5 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
     }
 
     protected abstract AccessControlEntry[] getAccessControlEntries(Session session, String absPath) throws RepositoryException;
-
-    /**
-     * callback to do additional updates to the principalToPrivilegesMap when
-     * calls to PrivilegesHelper.mergePrivilegeSets(..) makes changes to the privilege sets 
-     */
-    private static final class AddRemoveDenyPrivilegeCallback implements AddRemoveCallback<Privilege> {
-        private final Map<Privilege, LocalPrivilege> map;
-
-        private AddRemoveDenyPrivilegeCallback(Map<Privilege, LocalPrivilege> map) {
-            this.map = map;
-        }
-
-        @Override
-        public void added(Privilege p) {
-            LocalPrivilege newItem = map.computeIfAbsent(p, LocalPrivilege::new);
-            newItem.setDeny(true);
-        }
-
-        @Override
-        public void removed(Privilege p) {
-            LocalPrivilege lp = map.get(p);
-            if (lp != null) {
-                lp.setDeny(false);
-                if (lp.isNone()) {
-                    // not granted or denied, so we can purge the entry
-                    map.remove(p);
-                }
-            }
-        }
-    }
-
-    /**
-     * callback to do additional updates to the principalToPrivilegesMap when
-     * calls to PrivilegesHelper.mergePrivilegeSets(..) makes changes to the privilege sets 
-     */
-    private static final class AddRemoveAllowPrivilegeCallback implements AddRemoveCallback<Privilege> {
-        private final Map<Privilege, LocalPrivilege> map;
-
-        private AddRemoveAllowPrivilegeCallback(Map<Privilege, LocalPrivilege> map) {
-            this.map = map;
-        }
-
-        @Override
-        public void added(Privilege p) {
-            LocalPrivilege newItem = map.computeIfAbsent(p, LocalPrivilege::new);
-            newItem.setAllow(true);
-        }
-
-        @Override
-        public void removed(Privilege p) {
-            LocalPrivilege lp = map.get(p);
-            if (lp != null) {
-                lp.setAllow(false);
-                if (lp.isNone()) {
-                    // not granted or denied, so we can purge the entry
-                    map.remove(p);
-                }
-            }
-        }
-    }
 
 }

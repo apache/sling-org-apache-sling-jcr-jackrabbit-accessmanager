@@ -41,6 +41,8 @@ import org.apache.jackrabbit.oak.spi.security.authorization.restriction.Restrict
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
 import org.apache.jackrabbit.value.ValueFactoryImpl;
 import org.apache.sling.jcr.base.util.AccessControlUtil;
+import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
+import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
 import org.apache.sling.testing.mock.sling.ResourceResolverType;
 import org.apache.sling.testing.mock.sling.junit.SlingContext;
 import org.junit.Before;
@@ -95,7 +97,7 @@ public class LocalPrivilegeTest {
     }
 
     /**
-     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.post.LocalPrivilege#hashCode()}.
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege#hashCode()}.
      */
     @Test
     public void testHashCode() throws RepositoryException {
@@ -121,7 +123,7 @@ public class LocalPrivilegeTest {
     }
 
     /**
-     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.post.LocalPrivilege#getPrivilege()}.
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege#getPrivilege()}.
      */
     @Test
     public void testGetPrivilege() throws RepositoryException {
@@ -130,7 +132,7 @@ public class LocalPrivilegeTest {
     }
 
     /**
-     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.post.LocalPrivilege#getName()}.
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege#getName()}.
      */
     @Test
     public void testGetName() throws RepositoryException {
@@ -139,7 +141,7 @@ public class LocalPrivilegeTest {
     }
 
     /**
-     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.post.LocalPrivilege#isNone()}.
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege#isNone()}.
      */
     @Test
     public void testIsNone() throws RepositoryException {
@@ -160,7 +162,7 @@ public class LocalPrivilegeTest {
     }
 
     /**
-     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.post.LocalPrivilege#isAllow()}.
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege#isAllow()}.
      */
     @Test
     public void testIsAllow() throws RepositoryException {
@@ -172,7 +174,7 @@ public class LocalPrivilegeTest {
     }
 
     /**
-     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.post.LocalPrivilege#isDeny()}.
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege#isDeny()}.
      */
     @Test
     public void testIsDeny() throws RepositoryException {
@@ -184,7 +186,7 @@ public class LocalPrivilegeTest {
     }
 
     /**
-     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.post.LocalPrivilege#getAllowRestrictions()}.
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege#getAllowRestrictions()}.
      */
     @Test
     public void testGetAllowRestrictions() throws Exception {
@@ -203,7 +205,7 @@ public class LocalPrivilegeTest {
     }
 
     /**
-     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.post.LocalPrivilege#getDenyRestrictions()}.
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege#getDenyRestrictions()}.
      */
     @Test
     public void testGetDenyRestrictions() throws Exception {
@@ -222,63 +224,63 @@ public class LocalPrivilegeTest {
     }
 
     /**
-     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.post.LocalPrivilege#sameAllowRestrictions(org.apache.sling.jcr.jackrabbit.accessmanager.post.LocalPrivilege)}.
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege#sameAllowRestrictions(org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege)}.
      */
     @Test
     public void testSameAllowRestrictions() throws Exception {
         LocalPrivilege lp1 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
         LocalPrivilege lp2 = new LocalPrivilege(priv(PrivilegeConstants.JCR_WRITE));
-        assertTrue(lp1.sameAllowRestrictions(lp2));
+        assertTrue(lp1.sameAllowRestrictions(lp2.getAllowRestrictions()));
 
         Set<LocalRestriction> newAllowRestrictions1 = new HashSet<>();
         newAllowRestrictions1.add(new LocalRestriction(rd("rep:glob"), val("/hello")));
         newAllowRestrictions1.add(new LocalRestriction(rd("nt:itemNames"), vals("item1", "item2")));
         lp1.setAllowRestrictions(newAllowRestrictions1);
-        assertFalse(lp1.sameAllowRestrictions(lp2));
+        assertFalse(lp1.sameAllowRestrictions(lp2.getAllowRestrictions()));
 
         Set<LocalRestriction> newAllowRestrictions2 = new HashSet<>();
         newAllowRestrictions2.add(new LocalRestriction(rd("rep:glob"), val("/hello")));
         newAllowRestrictions2.add(new LocalRestriction(rd("nt:itemNames"), vals("item1", "item2")));
         lp2.setAllowRestrictions(newAllowRestrictions2);
-        assertTrue(lp1.sameAllowRestrictions(lp2));
+        assertTrue(lp1.sameAllowRestrictions(lp2.getAllowRestrictions()));
 
         Set<LocalRestriction> newAllowRestrictions3 = new HashSet<>();
         newAllowRestrictions3.add(new LocalRestriction(rd("rep:glob"), val("/hello")));
         newAllowRestrictions3.add(new LocalRestriction(rd("nt:itemNames"), vals("item1", "item2_changed")));
         lp2.setAllowRestrictions(newAllowRestrictions3);
-        assertFalse(lp1.sameAllowRestrictions(lp2));
+        assertFalse(lp1.sameAllowRestrictions(lp2.getAllowRestrictions()));
     }
 
     /**
-     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.post.LocalPrivilege#sameDenyRestrictions(org.apache.sling.jcr.jackrabbit.accessmanager.post.LocalPrivilege)}.
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege#sameDenyRestrictions(org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege)}.
      */
     @Test
     public void testSameDenyRestrictions() throws Exception {
         LocalPrivilege lp1 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
         LocalPrivilege lp2 = new LocalPrivilege(priv(PrivilegeConstants.JCR_WRITE));
-        assertTrue(lp1.sameDenyRestrictions(lp2));
+        assertTrue(lp1.sameDenyRestrictions(lp2.getDenyRestrictions()));
 
         Set<LocalRestriction> newDenyRestrictions1 = new HashSet<>();
         newDenyRestrictions1.add(new LocalRestriction(rd("rep:glob"), val("/hello")));
         newDenyRestrictions1.add(new LocalRestriction(rd("nt:itemNames"), vals("item1", "item2")));
         lp1.setDenyRestrictions(newDenyRestrictions1);
-        assertFalse(lp1.sameDenyRestrictions(lp2));
+        assertFalse(lp1.sameDenyRestrictions(lp2.getDenyRestrictions()));
 
         Set<LocalRestriction> newDenyRestrictions2 = new HashSet<>();
         newDenyRestrictions2.add(new LocalRestriction(rd("rep:glob"), val("/hello")));
         newDenyRestrictions2.add(new LocalRestriction(rd("nt:itemNames"), vals("item1", "item2")));
         lp2.setDenyRestrictions(newDenyRestrictions2);
-        assertTrue(lp1.sameDenyRestrictions(lp2));
+        assertTrue(lp1.sameDenyRestrictions(lp2.getDenyRestrictions()));
 
         Set<LocalRestriction> newDenyRestrictions3 = new HashSet<>();
         newDenyRestrictions3.add(new LocalRestriction(rd("rep:glob"), val("/hello")));
         newDenyRestrictions3.add(new LocalRestriction(rd("nt:itemNames"), vals("item1", "item2_changed")));
         lp2.setDenyRestrictions(newDenyRestrictions3);
-        assertFalse(lp1.sameDenyRestrictions(lp2));
+        assertFalse(lp1.sameDenyRestrictions(lp2.getDenyRestrictions()));
     }
 
     /**
-     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.post.LocalPrivilege#sameAllowAndDenyRestrictions()}.
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege#sameAllowAndDenyRestrictions()}.
      */
     @Test
     public void testSameAllowAndDenyRestrictions() throws Exception {
@@ -305,7 +307,7 @@ public class LocalPrivilegeTest {
     }
 
     /**
-     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.post.LocalPrivilege#toString()}.
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege#toString()}.
      */
     @Test
     public void testToString() throws RepositoryException {
@@ -314,7 +316,7 @@ public class LocalPrivilegeTest {
     }
 
     /**
-     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.post.LocalPrivilege#equals(java.lang.Object)}.
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege#equals(java.lang.Object)}.
      */
     @Test
     public void testEqualsObject() throws Exception {
