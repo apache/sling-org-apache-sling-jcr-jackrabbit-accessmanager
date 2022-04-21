@@ -23,15 +23,15 @@
     <parent>
         <groupId>org.apache.sling</groupId>
         <artifactId>sling-bundle-parent</artifactId>
-        <version>43</version>
+        <version>47</version>
         <relativePath />
     </parent>
 
     <artifactId>org.apache.sling.jcr.jackrabbit.accessmanager</artifactId>
     <version>3.0.11-SNAPSHOT</version>
-    <name>Apache Sling Jackrabbit JSR-283 Access Control Manager Support</name>
+    <name>Apache Sling JCR Jackrabbit Access Manager </name>
     <description>
-        Provides SlingPostOperations for the Jackrabbit JSR-283 Access Control Manager.
+        Provides POST operations for JCR Jackrabbit Access Management
     </description>
 
     <scm>
