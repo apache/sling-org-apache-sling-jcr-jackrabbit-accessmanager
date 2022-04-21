@@ -29,7 +29,7 @@
 
     <artifactId>org.apache.sling.jcr.jackrabbit.accessmanager</artifactId>
     <version>3.0.11-SNAPSHOT</version>
-    <name>Apache Sling JCR Jackrabbit Access Manager </name>
+    <name>Apache Sling JCR Jackrabbit Access Manager</name>
     <description>
         Provides POST operations for JCR Jackrabbit Access Management
     </description>

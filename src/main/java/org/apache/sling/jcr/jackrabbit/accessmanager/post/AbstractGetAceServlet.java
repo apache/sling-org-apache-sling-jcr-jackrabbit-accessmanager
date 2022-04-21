@@ -19,14 +19,10 @@ package org.apache.sling.jcr.jackrabbit.accessmanager.post;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.Principal;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
 import javax.jcr.AccessDeniedException;
@@ -37,7 +33,6 @@ import javax.jcr.security.AccessControlEntry;
 import javax.jcr.security.AccessControlManager;
 import javax.jcr.security.Privilege;
 import javax.json.Json;
-import javax.json.JsonArrayBuilder;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
 import javax.json.stream.JsonGenerator;
@@ -45,6 +40,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
+import org.apache.jackrabbit.api.security.principal.PrincipalManager;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionDefinition;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
@@ -60,23 +56,7 @@ import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrivilegesHelper;
 import org.jetbrains.annotations.NotNull;
 
 @SuppressWarnings("serial")
-public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
-
-    /**
-     * @deprecated since 3.0.12, To be removed when the exported package version goes to 4.0
-     *      use {@link JsonConvert#KEY_ORDER} instead
-     */
-    protected static final String KEY_ORDER = JsonConvert.KEY_ORDER;
-    /**
-     * @deprecated since 3.0.12, To be removed when the exported package version goes to 4.0
-     */
-    @Deprecated
-    protected static final String KEY_DENIED = "denied";
-    /**
-     * @deprecated since 3.0.12, To be removed when the exported package version goes to 4.0
-     */
-    @Deprecated
-    protected static final String KEY_GRANTED = "granted";
+public abstract class AbstractGetAceServlet extends SlingAllMethodsServlet {
 
     private transient RestrictionProvider restrictionProvider;
 
@@ -103,8 +83,9 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
         try {
             Session session = request.getResourceResolver().adaptTo(Session.class);
             String resourcePath = request.getResource().getPath();
+            String principalId = request.getParameter("pid");
 
-            JsonObject acl = internalGetAcl(session, resourcePath);
+            JsonObject ace = internalGetAce(session, resourcePath, principalId);
             response.setContentType("application/json");
             response.setCharacterEncoding(StandardCharsets.UTF_8.name());
 
@@ -122,7 +103,7 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
             Map<String, Object> options = new HashMap<>();
             options.put(JsonGenerator.PRETTY_PRINTING, isTidy);
             try (JsonGenerator generator = Json.createGeneratorFactory(options).createGenerator(response.getWriter())) {
-                generator.write(acl).flush();
+                generator.write(ace).flush();
             }
         } catch (AccessDeniedException ade) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
@@ -135,7 +116,7 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
         }
     }
 
-    protected JsonObject internalGetAcl(Session jcrSession, String resourcePath) throws RepositoryException {
+    protected JsonObject internalGetAce(Session jcrSession, String resourcePath, String principalId) throws RepositoryException {
 
         if (jcrSession == null) {
             throw new RepositoryException("JCR Session not found");
@@ -148,6 +129,21 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
             throw new ResourceNotFoundException("Resource is not a JCR Node");
         }
 
+        if (principalId == null) {
+            throw new RepositoryException("principalId was not submitted.");
+        }
+        // validate that the submitted name is valid
+        PrincipalManager principalManager = AccessControlUtil.getPrincipalManager(jcrSession);
+        Principal principal = principalManager.getPrincipal(principalId);
+        if (principal == null) {
+            throw new RepositoryException("Invalid principalId was submitted.");
+        }
+
+        AccessControlEntry[] accessControlEntries = getAccessControlEntries(jcrSession, resourcePath, principal);
+        if (accessControlEntries == null || accessControlEntries.length == 0) {
+            throw new ResourceNotFoundException(resourcePath, "No access control entries were found");
+        }
+
         //make a temp map for quick lookup below
         Set<RestrictionDefinition> supportedRestrictions = getRestrictionProvider().getSupportedRestrictions(resourcePath);
         Map<String, RestrictionDefinition> srMap = new HashMap<>();
@@ -155,9 +151,7 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
             srMap.put(restrictionDefinition.getName(), restrictionDefinition);
         }
 
-        AccessControlEntry[] accessControlEntries = getAccessControlEntries(jcrSession, resourcePath);
-        Map<Principal, Integer> principalToOrderMap = new HashMap<>();
-        Map<Principal, Map<Privilege, LocalPrivilege>> principalToPrivilegesMap = new HashMap<>();
+        Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap = new HashMap<>();
         //evaluate these in reverse order so the entries with highest specificity are processed last
         for (int i = accessControlEntries.length - 1; i >= 0; i--) {
             AccessControlEntry accessControlEntry = accessControlEntries[i];
@@ -166,9 +160,6 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
                 Privilege[] privileges = jrAccessControlEntry.getPrivileges();
                 if (privileges != null) {
                     boolean isAllow = jrAccessControlEntry.isAllow();
-                    Principal principal = accessControlEntry.getPrincipal();
-                    principalToOrderMap.put(principal, i);
-                    Map<Privilege, LocalPrivilege> map = principalToPrivilegesMap.computeIfAbsent(principal, k -> new HashMap<>());
                     // populate the declared restrictions
                     @NotNull
                     String[] restrictionNames = jrAccessControlEntry.getRestrictionNames();
@@ -184,9 +175,9 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
                     }
 
                     if (isAllow) {
-                        PrivilegesHelper.allow(map, restrictionItems, Arrays.asList(privileges));
+                        PrivilegesHelper.allow(privilegeToLocalPrivilegesMap, restrictionItems, Arrays.asList(privileges));
                     } else {
-                        PrivilegesHelper.deny(map, restrictionItems, Arrays.asList(privileges));
+                        PrivilegesHelper.deny(privilegeToLocalPrivilegesMap, restrictionItems, Arrays.asList(privileges));
                     }
                 }
             }
@@ -195,57 +186,13 @@ public abstract class AbstractGetAclServlet extends SlingAllMethodsServlet {
         // combine any aggregates that are still valid
         AccessControlManager acm = AccessControlUtil.getAccessControlManager(jcrSession);
         Map<Privilege, Integer> privilegeLongestDepthMap = PrivilegesHelper.buildPrivilegeLongestDepthMap(acm.privilegeFromName(PrivilegeConstants.JCR_ALL));
-        for (Entry<Principal, Map<Privilege, LocalPrivilege>> entry : principalToPrivilegesMap.entrySet()) {
-            Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap = entry.getValue();
-
-            PrivilegesHelper.consolidateAggregates(acm, resourcePath, privilegeToLocalPrivilegesMap, privilegeLongestDepthMap);
-        }
-
-        // sort the entries by the order value for readability
-        List<Entry<Principal, Map<Privilege, LocalPrivilege>>> entrySetList = new ArrayList<>(principalToPrivilegesMap.entrySet());
-        Collections.sort(entrySetList, (e1, e2) -> principalToOrderMap.get(e1.getKey()).compareTo(principalToOrderMap.get(e2.getKey())));
+        PrivilegesHelper.consolidateAggregates(acm, resourcePath, privilegeToLocalPrivilegesMap, privilegeLongestDepthMap);
 
         // convert the data to JSON
-        JsonObjectBuilder jsonObj = convertToJson(entrySetList);
+        JsonObjectBuilder jsonObj = JsonConvert.convertToJson(principal, privilegeToLocalPrivilegesMap, -1);
         return jsonObj.build();
     }
 
-
-    protected JsonObjectBuilder convertToJson(List<Entry<Principal, Map<Privilege, LocalPrivilege>>> entrySetList) {
-        JsonObjectBuilder jsonObj = Json.createObjectBuilder();
-        for (int i = 0; i < entrySetList.size(); i++) {
-            Entry<Principal, Map<Privilege, LocalPrivilege>> entry = entrySetList.get(i);
-            Principal principal = entry.getKey();
-            JsonObjectBuilder principalObj = JsonConvert.convertToJson(entry.getKey(), entry.getValue(), i);
-            jsonObj.add(principal.getName(), principalObj);
-        }
-        return jsonObj;
-    }
-
-    /**
-     * @deprecated use {@link JsonConvert#addRestrictions(JsonObjectBuilder, String, Set)} instead
-     */
-    @Deprecated
-    protected void addRestrictions(JsonObjectBuilder privilegeObj, String key, Set<LocalRestriction> restrictions) {
-        JsonConvert.addRestrictions(privilegeObj, key, restrictions);
-    }
-
-    /**
-     * @deprecated use {@link JsonConvert#addTo(javax.json.JsonArrayBuilder, Object)} instead
-     */
-    @Deprecated
-    protected JsonObjectBuilder addTo(JsonObjectBuilder builder, String key, Object value) {
-        return JsonConvert.addTo(builder, key, value);
-    }
-
-    /**
-     * @deprecated use {@link JsonConvert#addTo(JsonObjectBuilder, String, Object)} instead
-     */
-    @Deprecated
-    protected JsonArrayBuilder addTo(JsonArrayBuilder builder, Object value) {
-        return JsonConvert.addTo(builder, value);
-    }
-
-    protected abstract AccessControlEntry[] getAccessControlEntries(Session session, String absPath) throws RepositoryException;
+    protected abstract AccessControlEntry[] getAccessControlEntries(Session session, String absPath, Principal principal) throws RepositoryException;
 
 }
