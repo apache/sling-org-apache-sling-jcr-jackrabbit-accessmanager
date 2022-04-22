@@ -112,4 +112,27 @@ public class GetAceIT extends AccessManagerClientTestSupport {
         assertAuthenticatedHttpStatus(creds, getUrl, HttpServletResponse.SC_NOT_FOUND, "Did not expect an ace to be returned");
     }
 
+    /**
+     * ACE servlet returns 404 when no read access rights permissions
+     */
+    @Test
+    public void testNoAccessToDeclaredAceForUser() throws IOException, JsonException {
+        testUserId = createTestUser();
+        testFolderUrl = createTestFolder(null, "sling-tests",
+                "{ \"jcr:primaryType\": \"nt:unstructured\", \"child\" : { \"childPropOne\" : true } }");
+
+        //1. create an initial set of privileges
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.JCR_READ_ACCESS_CONTROL, PrivilegeValues.DENY)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+
+        Credentials creds = new UsernamePasswordCredentials(testUserId, "testPwd");
+
+        //fetch the JSON for the ace to verify the settings.
+        String getUrl = testFolderUrl + "/child.ace.json?pid=" + testUserId;
+        // no declared access control entry returns a 404
+        assertAuthenticatedHttpStatus(creds, getUrl, HttpServletResponse.SC_NOT_FOUND, "Did not expect an ace to be returned");
+    }
+
 }

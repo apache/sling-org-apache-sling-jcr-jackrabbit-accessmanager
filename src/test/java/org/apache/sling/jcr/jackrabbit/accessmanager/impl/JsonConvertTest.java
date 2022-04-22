@@ -114,10 +114,23 @@ public class JsonConvertTest {
     @Test
     public void testConvertToJson() throws RepositoryException {
         Principal principal = new PrincipalImpl("testuser");
-        Privilege priv = priv(PrivilegeConstants.JCR_READ);
-        LocalPrivilege lp = new LocalPrivilege(priv);
-        lp.setAllow(true);
-        Map<Privilege, LocalPrivilege> entry = Collections.singletonMap(priv, lp);
+        LocalPrivilege lp1 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
+        lp1.setAllow(true);
+        LocalPrivilege lp2 = new LocalPrivilege(priv(PrivilegeConstants.JCR_WRITE));
+        lp2.setDeny(true);
+        LocalPrivilege lp3 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ_ACCESS_CONTROL));
+        LocalPrivilege lp4 = new LocalPrivilege(priv(PrivilegeConstants.JCR_NODE_TYPE_MANAGEMENT));
+        lp4.setAllow(true);
+        lp4.setAllowRestrictions(Collections.singleton(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello"))));
+        LocalPrivilege lp5 = new LocalPrivilege(priv(PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL));
+        lp5.setDeny(true);
+        lp5.setDenyRestrictions(Collections.singleton(new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2"))));
+        Map<Privilege, LocalPrivilege> entry = new HashMap<>();
+        entry.put(lp1.getPrivilege(), lp1);
+        entry.put(lp2.getPrivilege(), lp2);
+        entry.put(lp3.getPrivilege(), lp3);
+        entry.put(lp4.getPrivilege(), lp4);
+        entry.put(lp5.getPrivilege(), lp5);
         int order = 1;
         JsonObjectBuilder principalObj = JsonConvert.convertToJson(principal, entry, order);
         assertNotNull(principalObj);
@@ -126,9 +139,32 @@ public class JsonConvertTest {
         assertEquals(1, build.getInt(JsonConvert.KEY_ORDER));
         JsonObject privilegesObj = build.getJsonObject(JsonConvert.KEY_PRIVILEGES);
         assertNotNull(privilegesObj);
-        JsonValue jsonValue = privilegesObj.get(PrivilegeConstants.JCR_READ);
-        assertTrue(jsonValue instanceof JsonObject);
-        assertTrue(((JsonObject)jsonValue).getBoolean(JsonConvert.KEY_ALLOW));
+        assertEquals(4, privilegesObj.size());
+
+        JsonValue jsonValue1 = privilegesObj.get(PrivilegeConstants.JCR_READ);
+        assertTrue(jsonValue1 instanceof JsonObject);
+        assertTrue(((JsonObject)jsonValue1).getBoolean(JsonConvert.KEY_ALLOW));
+
+        JsonValue jsonValue2 = privilegesObj.get(PrivilegeConstants.JCR_WRITE);
+        assertTrue(jsonValue2 instanceof JsonObject);
+        assertTrue(((JsonObject)jsonValue2).getBoolean(JsonConvert.KEY_DENY));
+
+        JsonValue jsonValue4 = privilegesObj.get(PrivilegeConstants.JCR_NODE_TYPE_MANAGEMENT);
+        assertTrue(jsonValue4 instanceof JsonObject);
+        JsonObject allowObj4 = ((JsonObject)jsonValue4).getJsonObject(JsonConvert.KEY_ALLOW);
+        assertNotNull(allowObj4);
+        Object globRestrictionObj4 = allowObj4.get(AccessControlConstants.REP_GLOB);
+        assertTrue(globRestrictionObj4 instanceof JsonString);
+        assertEquals("/hello", ((JsonString)globRestrictionObj4).getString());
+
+        JsonValue jsonValue5 = privilegesObj.get(PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL);
+        assertTrue(jsonValue5 instanceof JsonObject);
+        JsonObject allowObj5 = ((JsonObject)jsonValue5).getJsonObject(JsonConvert.KEY_DENY);
+        assertNotNull(allowObj5);
+        Object itemNamesRestrictionObj5 = allowObj5.get(AccessControlConstants.REP_ITEM_NAMES);
+        assertTrue(itemNamesRestrictionObj5 instanceof JsonArray);
+        assertEquals("item1", ((JsonArray)itemNamesRestrictionObj5).getString(0));
+        assertEquals("item2", ((JsonArray)itemNamesRestrictionObj5).getString(1));
     }
 
     /**
