@@ -43,11 +43,7 @@ import org.ops4j.pax.exam.spi.reactors.PerClass;
 @ExamReactorStrategy(PerClass.class)
 public class GetAceIT extends AccessManagerClientTestSupport {
 
-    /**
-     * ACE servlet returns correct information
-     */
-    @Test
-    public void testDeclaredAceForUser() throws IOException, JsonException {
+    protected void commonDeclaredAceForUser(String selector) throws IOException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder(null, "sling-tests",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"child\" : { \"childPropOne\" : true } }");
@@ -61,7 +57,7 @@ public class GetAceIT extends AccessManagerClientTestSupport {
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
 
         //fetch the JSON for the ace to verify the settings.
-        String getUrl = testFolderUrl + ".ace.json?pid=" + testUserId;
+        String getUrl = testFolderUrl + "." + selector + ".json?pid=" + testUserId;
 
         String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
         assertNotNull(json);
@@ -75,6 +71,22 @@ public class GetAceIT extends AccessManagerClientTestSupport {
         assertEquals(1, privilegesObject.size());
         //allow privilege
         assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE);
+    }
+
+    /**
+     * ACE servlet returns correct information
+     */
+    @Test
+    public void testDeclaredAceForUser() throws IOException, JsonException {
+        commonDeclaredAceForUser("ace");
+    }
+
+    /**
+     * ACE servlet returns correct information
+     */
+    @Test
+    public void testTidyDeclaredAceForUser() throws IOException, JsonException {
+        commonDeclaredAceForUser("tidy.ace");
     }
 
     /**

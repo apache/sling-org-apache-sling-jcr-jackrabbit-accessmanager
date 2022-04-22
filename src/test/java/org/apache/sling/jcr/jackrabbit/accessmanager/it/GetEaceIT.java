@@ -43,11 +43,7 @@ import org.ops4j.pax.exam.spi.reactors.PerClass;
 @ExamReactorStrategy(PerClass.class)
 public class GetEaceIT extends AccessManagerClientTestSupport {
 
-    /**
-     * Effective ACE servlet returns correct information
-     */
-    @Test
-    public void testEffectiveAceForUser() throws IOException, JsonException {
+    protected void commonEffectiveAceForUser(String selector) throws IOException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder(null, "sling-tests1",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"child\" : { \"childPropOne\" : true } }");
@@ -61,7 +57,7 @@ public class GetEaceIT extends AccessManagerClientTestSupport {
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
 
         //fetch the JSON for the ace to verify the settings.
-        String getUrl = testFolderUrl + "/child.eace.json?pid=" + testUserId;
+        String getUrl = testFolderUrl + "/child." + selector + ".json?pid=" + testUserId;
 
         String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
         assertNotNull(json);
@@ -75,6 +71,22 @@ public class GetEaceIT extends AccessManagerClientTestSupport {
         assertEquals(1, privilegesObject.size());
         //allow privilege
         assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE);
+    }
+
+    /**
+     * Effective ACE servlet returns correct information
+     */
+    @Test
+    public void testEffectiveAceForUser() throws IOException, JsonException {
+        commonEffectiveAceForUser("eace");
+    }
+
+    /**
+     * Effective ACE servlet returns correct information
+     */
+    @Test
+    public void testTidyEffectiveAceForUser() throws IOException, JsonException {
+        commonEffectiveAceForUser("tidy.eace");
     }
 
     /**

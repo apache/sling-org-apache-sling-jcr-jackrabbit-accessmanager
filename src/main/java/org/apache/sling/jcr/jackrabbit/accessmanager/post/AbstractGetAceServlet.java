@@ -17,9 +17,7 @@
 package org.apache.sling.jcr.jackrabbit.accessmanager.post;
 
 import java.security.Principal;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -37,10 +35,8 @@ import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
 import org.apache.sling.api.resource.ResourceNotFoundException;
 import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
-import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.JsonConvert;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrivilegesHelper;
-import org.jetbrains.annotations.NotNull;
 
 @SuppressWarnings("serial")
 public abstract class AbstractGetAceServlet extends AbstractAccessGetServlet {
@@ -73,26 +69,7 @@ public abstract class AbstractGetAceServlet extends AbstractAccessGetServlet {
                 JackrabbitAccessControlEntry jrAccessControlEntry = (JackrabbitAccessControlEntry)accessControlEntry;
                 Privilege[] privileges = jrAccessControlEntry.getPrivileges();
                 if (privileges != null) {
-                    boolean isAllow = jrAccessControlEntry.isAllow();
-                    // populate the declared restrictions
-                    @NotNull
-                    String[] restrictionNames = jrAccessControlEntry.getRestrictionNames();
-                    Set<LocalRestriction> restrictionItems = new HashSet<>();
-                    for (String restrictionName : restrictionNames) {
-                        RestrictionDefinition rd = srMap.get(restrictionName);
-                        boolean isMulti = rd.getRequiredType().isArray();
-                        if (isMulti) {
-                            restrictionItems.add(new LocalRestriction(rd, jrAccessControlEntry.getRestrictions(restrictionName)));
-                        } else {
-                            restrictionItems.add(new LocalRestriction(rd, jrAccessControlEntry.getRestriction(restrictionName)));
-                        }
-                    }
-
-                    if (isAllow) {
-                        PrivilegesHelper.allow(privilegeToLocalPrivilegesMap, restrictionItems, Arrays.asList(privileges));
-                    } else {
-                        PrivilegesHelper.deny(privilegeToLocalPrivilegesMap, restrictionItems, Arrays.asList(privileges));
-                    }
+                    processACE(srMap, jrAccessControlEntry, privileges, privilegeToLocalPrivilegesMap);
                 }
             }
         }

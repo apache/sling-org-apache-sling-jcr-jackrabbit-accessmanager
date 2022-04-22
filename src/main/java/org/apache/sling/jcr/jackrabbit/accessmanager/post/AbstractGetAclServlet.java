@@ -18,10 +18,8 @@ package org.apache.sling.jcr.jackrabbit.accessmanager.post;
 
 import java.security.Principal;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -45,7 +43,6 @@ import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.JsonConvert;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrivilegesHelper;
-import org.jetbrains.annotations.NotNull;
 
 @SuppressWarnings("serial")
 public abstract class AbstractGetAclServlet extends AbstractAccessGetServlet {
@@ -92,29 +89,11 @@ public abstract class AbstractGetAclServlet extends AbstractAccessGetServlet {
                 JackrabbitAccessControlEntry jrAccessControlEntry = (JackrabbitAccessControlEntry)accessControlEntry;
                 Privilege[] privileges = jrAccessControlEntry.getPrivileges();
                 if (privileges != null) {
-                    boolean isAllow = jrAccessControlEntry.isAllow();
                     Principal principal = accessControlEntry.getPrincipal();
                     principalToOrderMap.put(principal, i);
                     Map<Privilege, LocalPrivilege> map = principalToPrivilegesMap.computeIfAbsent(principal, k -> new HashMap<>());
-                    // populate the declared restrictions
-                    @NotNull
-                    String[] restrictionNames = jrAccessControlEntry.getRestrictionNames();
-                    Set<LocalRestriction> restrictionItems = new HashSet<>();
-                    for (String restrictionName : restrictionNames) {
-                        RestrictionDefinition rd = srMap.get(restrictionName);
-                        boolean isMulti = rd.getRequiredType().isArray();
-                        if (isMulti) {
-                            restrictionItems.add(new LocalRestriction(rd, jrAccessControlEntry.getRestrictions(restrictionName)));
-                        } else {
-                            restrictionItems.add(new LocalRestriction(rd, jrAccessControlEntry.getRestriction(restrictionName)));
-                        }
-                    }
 
-                    if (isAllow) {
-                        PrivilegesHelper.allow(map, restrictionItems, Arrays.asList(privileges));
-                    } else {
-                        PrivilegesHelper.deny(map, restrictionItems, Arrays.asList(privileges));
-                    }
+                    processACE(srMap, jrAccessControlEntry, privileges, map);
                 }
             }
         }
@@ -136,7 +115,6 @@ public abstract class AbstractGetAclServlet extends AbstractAccessGetServlet {
         JsonObjectBuilder jsonObj = convertToJson(entrySetList);
         return jsonObj.build();
     }
-
 
     protected JsonObjectBuilder convertToJson(List<Entry<Principal, Map<Privilege, LocalPrivilege>>> entrySetList) {
         JsonObjectBuilder jsonObj = Json.createObjectBuilder();

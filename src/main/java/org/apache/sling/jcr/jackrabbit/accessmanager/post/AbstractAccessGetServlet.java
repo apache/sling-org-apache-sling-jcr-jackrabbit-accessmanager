@@ -19,25 +19,35 @@ package org.apache.sling.jcr.jackrabbit.accessmanager.post;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.Principal;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import javax.jcr.AccessDeniedException;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
+import javax.jcr.ValueFormatException;
+import javax.jcr.security.Privilege;
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.stream.JsonGenerator;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
 import org.apache.jackrabbit.api.security.principal.PrincipalManager;
+import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionDefinition;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.resource.ResourceNotFoundException;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 import org.apache.sling.jcr.base.util.AccessControlUtil;
+import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
+import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
+import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrivilegesHelper;
 import org.jetbrains.annotations.NotNull;
 
 @SuppressWarnings("serial")
@@ -147,6 +157,31 @@ public abstract class AbstractAccessGetServlet extends SlingAllMethodsServlet {
 
         if (!jcrSession.nodeExists(resourcePath)) {
             throw new ResourceNotFoundException("Resource is not a JCR Node");
+        }
+    }
+
+    protected void processACE(Map<String, RestrictionDefinition> srMap,
+            JackrabbitAccessControlEntry jrAccessControlEntry, Privilege[] privileges,
+            Map<Privilege, LocalPrivilege> map) throws RepositoryException, ValueFormatException {
+        boolean isAllow = jrAccessControlEntry.isAllow();
+        // populate the declared restrictions
+        @NotNull
+        String[] restrictionNames = jrAccessControlEntry.getRestrictionNames();
+        Set<LocalRestriction> restrictionItems = new HashSet<>();
+        for (String restrictionName : restrictionNames) {
+            RestrictionDefinition rd = srMap.get(restrictionName);
+            boolean isMulti = rd.getRequiredType().isArray();
+            if (isMulti) {
+                restrictionItems.add(new LocalRestriction(rd, jrAccessControlEntry.getRestrictions(restrictionName)));
+            } else {
+                restrictionItems.add(new LocalRestriction(rd, jrAccessControlEntry.getRestriction(restrictionName)));
+            }
+        }
+
+        if (isAllow) {
+            PrivilegesHelper.allow(map, restrictionItems, Arrays.asList(privileges));
+        } else {
+            PrivilegesHelper.deny(map, restrictionItems, Arrays.asList(privileges));
         }
     }
 
