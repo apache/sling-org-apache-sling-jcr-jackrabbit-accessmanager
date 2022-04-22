@@ -42,12 +42,10 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
 import org.apache.jackrabbit.api.security.principal.PrincipalManager;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionDefinition;
-import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.resource.ResourceNotFoundException;
-import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
@@ -56,21 +54,7 @@ import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrivilegesHelper;
 import org.jetbrains.annotations.NotNull;
 
 @SuppressWarnings("serial")
-public abstract class AbstractGetAceServlet extends SlingAllMethodsServlet {
-
-    private transient RestrictionProvider restrictionProvider;
-
-    // @Reference
-    protected void bindRestrictionProvider(RestrictionProvider rp) {
-        this.restrictionProvider = rp;
-    }
-
-    /**
-     * Return the RestrictionProvider service
-     */
-    protected RestrictionProvider getRestrictionProvider() {
-        return restrictionProvider;
-    }
+public abstract class AbstractGetAceServlet extends AbstractAccessGetServlet {
 
     /* (non-Javadoc)
      * @see org.apache.sling.api.servlets.SlingSafeMethodsServlet#doGet(org.apache.sling.api.SlingHttpServletRequest, org.apache.sling.api.SlingHttpServletResponse)
