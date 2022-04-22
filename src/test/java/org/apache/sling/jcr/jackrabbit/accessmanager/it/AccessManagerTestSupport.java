@@ -82,6 +82,23 @@ public abstract class AccessManagerTestSupport extends TestSupport {
             jacocoCommand = new VMOption(jacocoOpt);
         }
 
+        // switch to the minimum oak version that supports principalbased access control
+        versionResolver.setVersion("org.apache.jackrabbit", "oak-api", "1.16.0");
+        versionResolver.setVersion("org.apache.jackrabbit", "oak-blob", "1.16.0");
+        versionResolver.setVersion("org.apache.jackrabbit", "oak-blob-plugins", "1.16.0");
+        versionResolver.setVersion("org.apache.jackrabbit", "oak-commons", "1.16.0");
+        versionResolver.setVersion("org.apache.jackrabbit", "oak-core", "1.16.0");
+        versionResolver.setVersion("org.apache.jackrabbit", "oak-core-spi", "1.16.0");
+        versionResolver.setVersion("org.apache.jackrabbit", "oak-jcr", "1.16.0");
+        versionResolver.setVersion("org.apache.jackrabbit", "oak-lucene", "1.16.0");
+        versionResolver.setVersion("org.apache.jackrabbit", "oak-query-spi", "1.16.0");
+        versionResolver.setVersion("org.apache.jackrabbit", "oak-security-spi", "1.16.0");
+        versionResolver.setVersion("org.apache.jackrabbit", "oak-segment-tar", "1.16.0");
+        versionResolver.setVersion("org.apache.jackrabbit", "oak-store-composite", "1.16.0");
+        versionResolver.setVersion("org.apache.jackrabbit", "oak-store-document", "1.16.0");
+        versionResolver.setVersion("org.apache.jackrabbit", "oak-store-spi", "1.16.0");
+        versionResolver.setVersion("org.apache.jackrabbit", "oak-jackrabbit-api", "1.16.0");
+
         // newer version of sling.api and dependencies for SLING-10034
         //   may remove at a later date if the superclass includes these versions or later
         versionResolver.setVersionFromProject("org.apache.sling", "org.apache.sling.api");
@@ -103,12 +120,16 @@ public abstract class AccessManagerTestSupport extends TestSupport {
                 awaitility()
             ).add(
                 // needed by latest version of org.apache.sling.api
-                mavenBundle().groupId("org.apache.felix").artifactId("org.apache.felix.converter").version("1.0.14")
+                mavenBundle().groupId("org.apache.felix").artifactId("org.apache.felix.converter").version("1.0.14"),
+                // switch to the oak variation of jackrabbit-api
+                mavenBundle().groupId("org.apache.jackrabbit").artifactId("oak-jackrabbit-api").version(versionResolver)
             ).add(
                 additionalOptions()
             ).remove(
                 // remove our bundle under test to avoid duplication
-                mavenBundle().groupId("org.apache.sling").artifactId("org.apache.sling.jcr.jackrabbit.accessmanager").version(versionResolver)
+                mavenBundle().groupId("org.apache.sling").artifactId("org.apache.sling.jcr.jackrabbit.accessmanager").version(versionResolver),
+                // switch to the oak variation of jackrabbit-api
+                mavenBundle().groupId("org.apache.jackrabbit").artifactId("jackrabbit-api").version(versionResolver)
             )
         );
     }

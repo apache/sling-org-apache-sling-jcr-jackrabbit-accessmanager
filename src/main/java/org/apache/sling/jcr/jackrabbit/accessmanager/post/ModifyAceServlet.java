@@ -51,6 +51,7 @@ import javax.servlet.Servlet;
 
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlList;
+import org.apache.jackrabbit.api.security.authorization.PrincipalAccessControlList;
 import org.apache.jackrabbit.api.security.principal.PrincipalManager;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionDefinition;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
@@ -240,7 +241,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
         String principalId = request.getParameter("principalId");
         String order = request.getParameter("order");
 
-        validateArgs(session, resourcePath, principalId);
+        Principal principal = validateArgs(session, resourcePath, principalId);
 
         // Calculate a map of restriction names to the restriction definition.
         // Use for fast lookup during the calls below.
@@ -249,7 +250,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
         Map<Privilege, Integer> privilegeLongestDepthMap = PrivilegesHelper.buildPrivilegeLongestDepthMap(acm.privilegeFromName(PrivilegeConstants.JCR_ALL));
 
         // first calculate what is currently stored in the ace
-        Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap = loadStoredAce(acm, resourcePath, principalId, srMap);
+        Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap = loadStoredAce(acm, resourcePath, principal, srMap);
 
         // and now merge the changes from the request parameters
         processPostedPrivilegeDeleteParams(acm, request, privilegeToLocalPrivilegesMap);
@@ -300,6 +301,12 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             throw new ResourceNotFoundException("Resource is not a JCR Node");
         }
 
+        AccessControlManager acm = AccessControlUtil.getAccessControlManager(jcrSession);
+        JackrabbitAccessControlList acl = getAcl(acm, resourcePath, principal);
+        if (acl == null) {
+            throw new IllegalStateException("No access control list is available so unable to process");
+        }
+
         return principal;
     }
 
@@ -330,16 +337,15 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
      *          and the value is the LocalPrivilege that encapsulates the state
      */
     protected @NotNull Map<Privilege, LocalPrivilege> loadStoredAce(@NotNull AccessControlManager acm, @NotNull String resourcePath,
-            @NotNull String forPrincipal, @NotNull Map<String, RestrictionDefinition> srMap) throws RepositoryException {
+            @NotNull Principal forPrincipal, @NotNull Map<String, RestrictionDefinition> srMap) throws RepositoryException {
         Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap = new HashMap<>();
-        JackrabbitAccessControlList acl = getAcl(acm, resourcePath);
+        JackrabbitAccessControlList acl = getAcl(acm, resourcePath, forPrincipal);
         AccessControlEntry[] accessControlEntries = acl.getAccessControlEntries();
         //evaluate these in reverse order so the entries with highest specificity are processed last
         for (int i = accessControlEntries.length - 1; i >= 0; i--) {
             AccessControlEntry accessControlEntry = accessControlEntries[i];
-            if (accessControlEntry instanceof JackrabbitAccessControlEntry &&
-                    accessControlEntry.getPrincipal().getName().equals(forPrincipal)) {
-                JackrabbitAccessControlEntry jrAccessControlEntry = (JackrabbitAccessControlEntry)accessControlEntry;
+            JackrabbitAccessControlEntry jrAccessControlEntry = getJackrabbitAccessControlEntry(accessControlEntry, resourcePath, forPrincipal);
+            if (jrAccessControlEntry != null) {
                 Privilege[] privileges = jrAccessControlEntry.getPrivileges();
                 if (privileges != null) {
                     boolean isAllow = jrAccessControlEntry.isAllow();
@@ -368,6 +374,16 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             }
         }
         return privilegeToLocalPrivilegesMap;
+    }
+
+    protected @Nullable JackrabbitAccessControlEntry getJackrabbitAccessControlEntry(@NotNull AccessControlEntry entry, @NotNull String resourcePath,
+            @NotNull Principal forPrincipal) {
+        JackrabbitAccessControlEntry jrEntry = null;
+        if (entry instanceof JackrabbitAccessControlEntry &&
+                entry.getPrincipal().equals(forPrincipal)) {
+            jrEntry = (JackrabbitAccessControlEntry)entry;
+        }
+        return jrEntry;
     }
 
     /**
@@ -667,9 +683,10 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
      * 
      * @param acm the access control manager
      * @param resourcePath the resource path
+     * @param principal the principal for principalbased ACL
      * @return the found ACL object
      */
-    protected JackrabbitAccessControlList getAcl(@NotNull AccessControlManager acm, String resourcePath)
+    protected JackrabbitAccessControlList getAcl(@NotNull AccessControlManager acm, String resourcePath, Principal principal)
             throws RepositoryException {
         AccessControlPolicy[] policies = acm.getPolicies(resourcePath);
         JackrabbitAccessControlList acl = null;
@@ -700,7 +717,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
      * @param acl the access control list to update
      * @return the original order if it was supplied, otherwise the order of the first ACE 
      */
-    protected String removeAces(@Nullable String order, @NotNull Principal principal, @NotNull JackrabbitAccessControlList acl)
+    protected String removeAces(@NotNull String resourcePath, @Nullable String order, @NotNull Principal principal, @NotNull JackrabbitAccessControlList acl)
             throws RepositoryException {
         AccessControlEntry[] existingAccessControlEntries = acl.getAccessControlEntries();
         for (int j = 0; j < existingAccessControlEntries.length; j++) {
@@ -721,12 +738,13 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
      * Add ACEs for the specified principal to the ACL.  One ACE is added for each unique
      * restriction set.
      * 
+     * @param resourcePath the path of the resource
      * @param principal the principal whose aces should be added
      * @param restrictionsToLocalPrivilegesMap the map containing the restrictions mapped to the LocalPrivlege items with those resrictions
      * @param isAllow true for 'allow' ACE, false for 'deny' ACE
      * @param acl the access control list to update
      */
-    protected void addAces(@NotNull Principal principal,
+    protected void addAces(@NotNull String resourcePath, @NotNull Principal principal,
             @NotNull Map<Set<LocalRestriction>, List<LocalPrivilege>> restrictionsToLocalPrivilegesMap,
             boolean isAllow,
             @NotNull JackrabbitAccessControlList acl) throws RepositoryException {
@@ -754,7 +772,11 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             }
 
             if (!privilegesSet.isEmpty()) {
-                acl.addEntry(principal, privilegesSet.toArray(new Privilege[privilegesSet.size()]), isAllow, restrictions, mvRestrictions);
+                if (acl instanceof PrincipalAccessControlList) {
+                    ((PrincipalAccessControlList)acl).addEntry(resourcePath, privilegesSet.toArray(new Privilege[privilegesSet.size()]), restrictions, mvRestrictions);
+                } else {
+                    acl.addEntry(principal, privilegesSet.toArray(new Privilege[privilegesSet.size()]), isAllow, restrictions, mvRestrictions);
+                }
             }
         }
     }
@@ -928,6 +950,8 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             String order, Map<String, Value> restrictions, Map<String, Value[]> mvRestrictions,
             Set<String> removeRestrictionNames, boolean autoSave, List<Modification> changes) throws RepositoryException {
 
+        Principal principal = validateArgs(jcrSession, resourcePath, principalId);
+
         // Calculate a map of restriction names to the restriction definition.
         // Use for fast lookup during the calls below.
         AccessControlManager acm = AccessControlUtil.getAccessControlManager(jcrSession);
@@ -935,7 +959,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
         Map<Privilege, Integer> privilegeLongestDepthMap = PrivilegesHelper.buildPrivilegeLongestDepthMap(acm.privilegeFromName(PrivilegeConstants.JCR_ALL));
 
         // first calculate what is currently stored in the ace
-        Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap = loadStoredAce(acm, resourcePath, principalId, srMap);
+        Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap = loadStoredAce(acm, resourcePath, principal, srMap);
 
         //process the restrictions to remove
         for (LocalPrivilege lp : privilegeToLocalPrivilegesMap.values()) {
@@ -1048,20 +1072,20 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
         try {
             // Get or create the ACL for the node.
             AccessControlManager acm = AccessControlUtil.getAccessControlManager(jcrSession);
-            JackrabbitAccessControlList acl = getAcl(acm, resourcePath);
+            JackrabbitAccessControlList acl = getAcl(acm, resourcePath, principal);
 
             // remove all the old aces for the principal
-            order = removeAces(order, principal, acl);
+            order = removeAces(resourcePath, order, principal, acl);
 
             // now add all the new aces that we have collected
-            addAces(principal, denyRestrictionsToLocalPrivilegesMap, false, acl);
-            addAces(principal, allowRestrictionsToLocalPrivilegesMap, true, acl);
+            addAces(resourcePath, principal, denyRestrictionsToLocalPrivilegesMap, false, acl);
+            addAces(resourcePath, principal, allowRestrictionsToLocalPrivilegesMap, true, acl);
 
             // reorder the aces
             reorderAccessControlEntries(acl, principal, order);
 
             // Store the actual changes.
-            acm.setPolicy(resourcePath, acl);
+            acm.setPolicy(acl.getPath(), acl);
 
             if (changes != null) {
                 changes.add(Modification.onModified(principal.getName()));

@@ -640,6 +640,17 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         return aclObject;
     }
 
+    protected JsonObject getEffectiveAcl(String folderUrl) throws IOException, JsonException {
+        String getUrl = testFolderUrl + ".eacl.json";
+
+        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
+        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
+        assertNotNull(json);
+
+        JsonObject aclObject = parseJson(json);
+        return aclObject;
+    }
+
     protected JsonObject getAce(String folderUrl, String principalId) throws IOException, JsonException {
         JsonObject aclObject = getAcl(folderUrl);
         assertNotNull(aclObject);

@@ -1,0 +1,224 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.sling.jcr.jackrabbit.accessmanager.post;
+
+import java.security.Principal;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import javax.jcr.Item;
+import javax.jcr.RepositoryException;
+import javax.jcr.Session;
+import javax.jcr.security.AccessControlEntry;
+import javax.jcr.security.AccessControlPolicy;
+import javax.servlet.Servlet;
+
+import org.apache.jackrabbit.api.security.JackrabbitAccessControlManager;
+import org.apache.jackrabbit.api.security.authorization.PrincipalAccessControlList;
+import org.apache.jackrabbit.api.security.principal.PrincipalManager;
+import org.apache.sling.api.resource.ResourceNotFoundException;
+import org.apache.sling.jcr.base.util.AccessControlUtil;
+import org.apache.sling.jcr.jackrabbit.accessmanager.DeletePrincipalAces;
+import org.apache.sling.servlets.post.Modification;
+import org.apache.sling.servlets.post.PostResponseCreator;
+import org.osgi.service.component.annotations.Component;
+import org.osgi.service.component.annotations.Reference;
+import org.osgi.service.component.annotations.ReferenceCardinality;
+import org.osgi.service.component.annotations.ReferencePolicy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * <p>
+ * Sling Post Servlet implementation for deleting the principal ACE for a set of principals on a JCR
+ * resource.
+ * </p>
+ * <h2>Rest Service Description</h2>
+ * <p>
+ * Delete a set of Ace's from a node, the node is identified as a resource by the request
+ * url &gt;resource&lt;.deletePrincipalAce.html
+ * </p>
+ * <h3>Transport Details:</h3>
+ * <h4>Methods</h4>
+ * <ul>
+ * <li>POST</li>
+ * </ul>
+ * <h4>Post Parameters</h4>
+ * <dl>
+ * <dt>:applyTo</dt>
+ * <dd>An array of ace principal names to delete. Note the principal name is the primary
+ * key of the Ace in the Acl</dd>
+ * </dl>
+ *
+ * <h4>Response</h4>
+ * <dl>
+ * <dt>200</dt>
+ * <dd>Success.</dd>
+ * <dt>404</dt>
+ * <dd>The resource was not found.</dd>
+ * <dt>500</dt>
+ * <dd>Failure. HTML explains the failure.</dd>
+ * </dl>
+ */
+
+@Component(service = {Servlet.class, DeletePrincipalAces.class},
+    property= {
+            "sling.servlet.resourceTypes=sling/servlet/default",
+            "sling.servlet.methods=POST",
+            "sling.servlet.selectors=deletePrincipalAce",
+            "sling.servlet.prefix:Integer=-1"
+    })
+public class DeletePrincipalAcesServlet extends DeleteAcesServlet implements DeletePrincipalAces {
+    private static final long serialVersionUID = 3784866802938282971L;
+
+    /**
+     * default log
+     */
+    private final transient Logger log = LoggerFactory.getLogger(getClass());
+
+    /**
+     * Overridden since the @Reference annotation is not inherited from the super method
+     */
+    @Override
+    @Reference(service = PostResponseCreator.class,
+        cardinality = ReferenceCardinality.MULTIPLE,
+        policy = ReferencePolicy.DYNAMIC)
+    protected void bindPostResponseCreator(PostResponseCreator creator, Map<String, Object> properties) {
+        super.bindPostResponseCreator(creator, properties);
+    }
+
+    @Override
+    protected void unbindPostResponseCreator(PostResponseCreator creator, Map<String, Object> properties) {
+        super.unbindPostResponseCreator(creator, properties);
+    }
+
+    
+    @Override
+    protected void deleteAces(Session jcrSession, String resourcePath, String[] principalNamesToDelete,
+            List<Modification> changes) throws RepositoryException {
+        if (principalNamesToDelete == null) {
+            throw new RepositoryException("principalIds were not sumitted.");
+        } else {
+            if (jcrSession == null) {
+                throw new RepositoryException("JCR Session not found");
+            }
+
+            if (resourcePath == null) {
+                throw new ResourceNotFoundException("Resource path was not supplied.");
+            }
+
+            Item item = jcrSession.getItem(resourcePath);
+            if (item != null) {
+                resourcePath = item.getPath();
+            } else {
+                throw new ResourceNotFoundException("Resource is not a JCR Node");
+            }
+
+            //load the principalIds array into a set for quick lookup below
+            Set<String> pidSet = new HashSet<>();
+            pidSet.addAll(Arrays.asList(principalNamesToDelete));
+
+            // validate that the submitted names are valid
+            Set<String> notFound = null;
+            Set<Principal> found = new HashSet<>();
+            PrincipalManager principalManager = AccessControlUtil.getPrincipalManager(jcrSession);
+            for (String pid : pidSet) {
+                Principal principal = principalManager.getPrincipal(pid);
+                if (principal == null) {
+                    if (notFound == null) {
+                        notFound = new HashSet<>();
+                    }
+                    notFound.add(pid);
+                } else {
+                    found.add(principal);
+                }
+            }
+            if (notFound != null && !notFound.isEmpty()) {
+                throw new RepositoryException("Invalid principalId was submitted.");
+            }
+
+            try {
+                JackrabbitAccessControlManager jacm = (JackrabbitAccessControlManager)AccessControlUtil.getAccessControlManager(jcrSession);
+
+                // track which of the submitted principals had an ACE removed
+                Set<Principal> removedPrincipalSet = new HashSet<>();
+
+                // log the warning about principals where no ACE was found
+                for (Principal principal : found) {
+                    PrincipalAccessControlList updatedAcl = getAccessControlListOrNull(jacm, principal);
+
+                    // if there is no AccessControlList, then there is nothing to be deleted
+                    if (updatedAcl == null) {
+                        // log the warning about principals where no ACE was found
+                        log.warn("No AccessControlEntry was found to be deleted for principal: {}", principal.getName());
+                    } else {
+                        //keep track of the existing Aces for the target principal
+                        AccessControlEntry[] accessControlEntries = updatedAcl.getAccessControlEntries();
+                        List<AccessControlEntry> oldAces = new ArrayList<>();
+                        for (AccessControlEntry ace : accessControlEntries) {
+                            if (pidSet.contains(ace.getPrincipal().getName())) {
+                                oldAces.add(ace);
+                            }
+                        }
+
+                        //remove the old aces
+                        if (!oldAces.isEmpty()) {
+                            for (AccessControlEntry ace : oldAces) {
+                                updatedAcl.removeAccessControlEntry(ace);
+
+                                // remove from the candidate set
+                                removedPrincipalSet.add(ace.getPrincipal());
+                            }
+                        }
+
+                        // log the warning about principals where no ACE was found
+                        if (removedPrincipalSet.contains(principal)) {
+                            if (changes != null) {
+                                changes.add(Modification.onDeleted(principal.getName()));
+                            }
+                        } else {
+                            log.warn("No AccessControlEntry was found to be deleted for principal: {}", principal.getName());
+                        }
+
+                        //apply the changed policy
+                        jacm.setPolicy(updatedAcl.getPath(), updatedAcl);
+                    }
+                }
+            } catch (RepositoryException re) {
+                throw new RepositoryException("Failed to delete access control.", re);
+            }
+        }
+    }
+
+    protected PrincipalAccessControlList getAccessControlListOrNull(JackrabbitAccessControlManager jacm,
+            Principal principal) throws RepositoryException {
+        PrincipalAccessControlList acl = null;
+        // check for an existing access control list to edit
+        AccessControlPolicy[] policies = jacm.getPolicies(principal);
+        for (AccessControlPolicy policy : policies) {
+            if (policy instanceof PrincipalAccessControlList) {
+                acl = (PrincipalAccessControlList) policy;
+            }
+        }
+        return acl;
+    }
+
+}
