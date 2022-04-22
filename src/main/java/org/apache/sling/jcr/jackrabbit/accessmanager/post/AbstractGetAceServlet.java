@@ -16,8 +16,6 @@
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager.post;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -25,26 +23,17 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import javax.jcr.AccessDeniedException;
-import javax.jcr.Item;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.jcr.security.AccessControlEntry;
 import javax.jcr.security.AccessControlManager;
 import javax.jcr.security.Privilege;
-import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
-import javax.json.stream.JsonGenerator;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletResponse;
 
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
-import org.apache.jackrabbit.api.security.principal.PrincipalManager;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionDefinition;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
-import org.apache.sling.api.SlingHttpServletRequest;
-import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.resource.ResourceNotFoundException;
 import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
@@ -56,72 +45,13 @@ import org.jetbrains.annotations.NotNull;
 @SuppressWarnings("serial")
 public abstract class AbstractGetAceServlet extends AbstractAccessGetServlet {
 
-    /* (non-Javadoc)
-     * @see org.apache.sling.api.servlets.SlingSafeMethodsServlet#doGet(org.apache.sling.api.SlingHttpServletRequest, org.apache.sling.api.SlingHttpServletResponse)
-     */
     @Override
-    protected void doGet(SlingHttpServletRequest request,
-            SlingHttpServletResponse response) throws ServletException,
-            IOException {
-
-        try {
-            Session session = request.getResourceResolver().adaptTo(Session.class);
-            String resourcePath = request.getResource().getPath();
-            String principalId = request.getParameter("pid");
-
-            JsonObject ace = internalGetAce(session, resourcePath, principalId);
-            response.setContentType("application/json");
-            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-
-            boolean isTidy = false;
-            final String[] selectors = request.getRequestPathInfo().getSelectors();
-            if (selectors.length > 0) {
-                for (final String level : selectors) {
-                    if("tidy".equals(level)) {
-                        isTidy = true;
-                        break;
-                    }
-                }
-            }
-
-            Map<String, Object> options = new HashMap<>();
-            options.put(JsonGenerator.PRETTY_PRINTING, isTidy);
-            try (JsonGenerator generator = Json.createGeneratorFactory(options).createGenerator(response.getWriter())) {
-                generator.write(ace).flush();
-            }
-        } catch (AccessDeniedException ade) {
-            response.sendError(HttpServletResponse.SC_NOT_FOUND);
-        } catch (ResourceNotFoundException rnfe) {
-            response.sendError(HttpServletResponse.SC_NOT_FOUND, rnfe.getMessage());
-        } catch (Exception throwable) {
-            throw new ServletException(String.format("Exception while handling GET %s with %s",
-                                            request.getResource().getPath(), getClass().getName()),
-                                        throwable);
-        }
+    protected JsonObject internalJson(Session session, String resourcePath, String principalId) throws RepositoryException {
+        return internalGetAce(session, resourcePath, principalId);
     }
 
     protected JsonObject internalGetAce(Session jcrSession, String resourcePath, String principalId) throws RepositoryException {
-
-        if (jcrSession == null) {
-            throw new RepositoryException("JCR Session not found");
-        }
-
-        Item item = jcrSession.getItem(resourcePath);
-        if (item != null) {
-            resourcePath = item.getPath();
-        } else {
-            throw new ResourceNotFoundException("Resource is not a JCR Node");
-        }
-
-        if (principalId == null) {
-            throw new RepositoryException("principalId was not submitted.");
-        }
-        // validate that the submitted name is valid
-        PrincipalManager principalManager = AccessControlUtil.getPrincipalManager(jcrSession);
-        Principal principal = principalManager.getPrincipal(principalId);
-        if (principal == null) {
-            throw new RepositoryException("Invalid principalId was submitted.");
-        }
+        Principal principal = validateArgs(jcrSession, resourcePath, principalId);
 
         AccessControlEntry[] accessControlEntries = getAccessControlEntries(jcrSession, resourcePath, principal);
         if (accessControlEntries == null || accessControlEntries.length == 0) {
