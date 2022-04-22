@@ -28,7 +28,6 @@ import java.util.Set;
 import javax.jcr.AccessDeniedException;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
-import javax.jcr.ValueFormatException;
 import javax.jcr.security.Privilege;
 import javax.json.Json;
 import javax.json.JsonObject;
@@ -162,7 +161,7 @@ public abstract class AbstractAccessGetServlet extends SlingAllMethodsServlet {
 
     protected void processACE(Map<String, RestrictionDefinition> srMap,
             JackrabbitAccessControlEntry jrAccessControlEntry, Privilege[] privileges,
-            Map<Privilege, LocalPrivilege> map) throws RepositoryException, ValueFormatException {
+            Map<Privilege, LocalPrivilege> map) throws RepositoryException {
         boolean isAllow = jrAccessControlEntry.isAllow();
         // populate the declared restrictions
         @NotNull
