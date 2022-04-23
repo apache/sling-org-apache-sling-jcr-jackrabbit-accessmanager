@@ -169,22 +169,14 @@ public class PrivilegesInfo {
      * @throws RepositoryException if any errors reading the information
      */
     public Map<Principal, AccessRights> getDeclaredAccessRights(Session session, String absPath) throws RepositoryException {
-        JsonObject aclJson = useGetAcl(json -> {
-            try {
-                return json.getAcl(session, absPath);
-            } catch (RepositoryException e) {
-                logger.warn("Failed to load Acl", e);
-            }
-            return null;
-        });
-
-        Map<Principal, AccessRights> map;
-        if (aclJson == null) {
-            map = Collections.emptyMap();
-        } else {
-            map = toMap(session, aclJson);
-        }
-        return map;
+        return toMap(session, useGetAcl(json -> {
+                try {
+                    return json.getAcl(session, absPath);
+                } catch (RepositoryException e) {
+                    logger.warn("Failed to load Acl", e);
+                }
+                return null;
+            }));
     }
 
     /**
@@ -195,6 +187,10 @@ public class PrivilegesInfo {
      */
     protected Map<Principal, AccessRights> toMap(Session session, JsonObject aclJson)
             throws RepositoryException {
+        if (aclJson == null) {
+            return Collections.emptyMap();
+        }
+
         Map<Principal, AccessRights> map;
         AccessControlManager acm = session.getAccessControlManager();
         PrincipalManager principalManager = AccessControlUtil.getPrincipalManager(session);
@@ -383,22 +379,14 @@ public class PrivilegesInfo {
      * @throws RepositoryException if any errors reading the information
      */
     public Map<Principal, AccessRights> getEffectiveAccessRights(Session session, String absPath) throws RepositoryException {
-        JsonObject aclJson = useGetEffectiveAcl(json -> {
-            try {
-                return json.getEffectiveAcl(session, absPath);
-            } catch (RepositoryException e) {
-                logger.warn("Failed to load EffectiveAcl", e);
-            }
-            return null;
-        });
-
-        Map<Principal, AccessRights> map;
-        if (aclJson == null) {
-            map = Collections.emptyMap();
-        } else {
-            map = toMap(session, aclJson);
-        }
-        return map;
+        return toMap(session, useGetEffectiveAcl(json -> {
+                try {
+                    return json.getEffectiveAcl(session, absPath);
+                } catch (RepositoryException e) {
+                    logger.warn("Failed to load EffectiveAcl", e);
+                }
+                return null;
+            }));
     }
 
     /**
@@ -646,15 +634,24 @@ public class PrivilegesInfo {
         }
     }
 
-    private static <T> T useGetAcl(Function<GetAcl, T> fn) {
+    /**
+     * Utility to lookup a service and then run a function
+     * 
+     * @param <S> the service interface type
+     * @param <T> the return type of the fun
+     * @param svc the service class
+     * @param fn the function to invoke
+     * @return the value of invoking the fn
+     */
+    private static <S, T> T useSvc(Class<S> svc, Function<S, T> fn) {
         T value = null;
-        Bundle bundle = FrameworkUtil.getBundle(GetAcl.class);
+        Bundle bundle = FrameworkUtil.getBundle(PrivilegesInfo.class);
         if (bundle != null) {
             BundleContext bundleContext = bundle.getBundleContext();
             if (bundleContext != null) {
-                ServiceReference<GetAcl> serviceReference = bundleContext.getServiceReference(GetAcl.class);
+                ServiceReference<S> serviceReference = bundleContext.getServiceReference(svc);
                 if (serviceReference != null) {
-                    GetAcl service = null;
+                    S service = null;
                     try {
                         service = bundleContext.getService(serviceReference);
                         if (service != null) {
@@ -669,56 +666,18 @@ public class PrivilegesInfo {
             }
         }
         return value;
+    }
+
+    private static <T> T useGetAcl(Function<GetAcl, T> fn) {
+        return useSvc(GetAcl.class, fn);
     }
 
     private static <T> T useGetEffectiveAcl(Function<GetEffectiveAcl, T> fn) {
-        T value = null;
-        Bundle bundle = FrameworkUtil.getBundle(GetAcl.class);
-        if (bundle != null) {
-            BundleContext bundleContext = bundle.getBundleContext();
-            if (bundleContext != null) {
-                ServiceReference<GetEffectiveAcl> serviceReference = bundleContext.getServiceReference(GetEffectiveAcl.class);
-                if (serviceReference != null) {
-                    GetEffectiveAcl service = null;
-                    try {
-                        service = bundleContext.getService(serviceReference);
-                        if (service != null) {
-                            value = fn.apply(service);
-                        }
-                    } finally {
-                        if (service != null) {
-                            bundleContext.ungetService(serviceReference);
-                        }
-                    }
-                }
-            }
-        }
-        return value;
+        return useSvc(GetEffectiveAcl.class, fn);
     }
 
     private static <T> T useRestrictionProvider(Function<RestrictionProvider, T> fn) {
-        T value = null;
-        Bundle bundle = FrameworkUtil.getBundle(GetAcl.class);
-        if (bundle != null) {
-            BundleContext bundleContext = bundle.getBundleContext();
-            if (bundleContext != null) {
-                ServiceReference<RestrictionProvider> serviceReference = bundleContext.getServiceReference(RestrictionProvider.class);
-                if (serviceReference != null) {
-                    RestrictionProvider service = null;
-                    try {
-                        service = bundleContext.getService(serviceReference);
-                        if (service != null) {
-                            value = fn.apply(service);
-                        }
-                    } finally {
-                        if (service != null) {
-                            bundleContext.ungetService(serviceReference);
-                        }
-                    }
-                }
-            }
-        }
-        return value;
+        return useSvc(RestrictionProvider.class, fn);
     }
 
 }

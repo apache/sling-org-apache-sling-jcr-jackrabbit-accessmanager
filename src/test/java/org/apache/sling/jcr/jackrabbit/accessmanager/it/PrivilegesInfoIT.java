@@ -23,6 +23,8 @@ import static org.junit.Assert.assertTrue;
 
 import java.security.Principal;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -135,10 +137,13 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
 
     protected void setupEveryoneAce() throws RepositoryException {
         assertNotNull(modifyAce);
+        Map<String, String> privilegesMap = new HashMap<>();
+        privilegesMap.put(PrivilegeConstants.JCR_READ, "allow");
+        privilegesMap.put(PrivilegeConstants.JCR_WRITE, "deny");
         modifyAce.modifyAce(adminSession,
                 testNode.getPath(),
                 "everyone",
-                Collections.singletonMap(PrivilegeConstants.JCR_READ, "allow"),
+                privilegesMap,
                 "first",
                 Collections.singletonMap(AccessControlConstants.REP_GLOB, val(PropertyType.STRING, "/hello")),
                 Collections.singletonMap(AccessControlConstants.REP_ITEM_NAMES, vals(PropertyType.NAME, "child1", "child2")),
@@ -398,6 +403,66 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
     public void testCanModifyAccessControlSessionString() throws RepositoryException {
         PrivilegesInfo pi = new PrivilegesInfo();
         assertTrue(pi.canModifyAccessControl(adminSession, testNode.getPath()));
+    }
+
+    protected AccessRights setupAccessRights() throws RepositoryException {
+        AccessRights rights = new AccessRights();
+        Privilege jcrReadPrivilege = adminSession.getAccessControlManager().privilegeFromName(PrivilegeConstants.JCR_READ);
+        rights.getGranted().add(jcrReadPrivilege);
+        Privilege jcrWritePrivilege = adminSession.getAccessControlManager().privilegeFromName(PrivilegeConstants.JCR_WRITE);
+        rights.getDenied().add(jcrWritePrivilege);
+        return rights;
+    }
+
+    /**
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.PrivilegesInfo.AccessRights#getGranted()}.
+     */
+    @Test
+    public void testGetGranted() throws RepositoryException {
+        AccessRights rights = setupAccessRights();
+        assertTrue(rights.getGranted().contains(adminSession.getAccessControlManager().privilegeFromName(PrivilegeConstants.JCR_READ)));
+    }
+
+    /**
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.PrivilegesInfo.AccessRights#getDenied()}.
+     */
+    @Test
+    public void testGetDenied() throws RepositoryException {
+        AccessRights rights = setupAccessRights();
+        assertTrue(rights.getDenied().contains(adminSession.getAccessControlManager().privilegeFromName(PrivilegeConstants.JCR_WRITE)));
+    }
+
+    /**
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.PrivilegesInfo.AccessRights#getPrivilegeSetDisplayName(java.util.Locale)}.
+     */
+    @Test
+    public void testGetPrivilegeSetDisplayName() throws RepositoryException {
+        AccessRights rights = new AccessRights();
+        //none
+        assertEquals("None", rights.getPrivilegeSetDisplayName(Locale.getDefault()));
+
+        //all
+        rights.getGranted().add(adminSession.getAccessControlManager().privilegeFromName(PrivilegeConstants.JCR_ALL));
+        assertEquals("Full Control", rights.getPrivilegeSetDisplayName(Locale.getDefault()));
+
+        //read-only
+        rights.getGranted().clear();
+        rights.getGranted().add(adminSession.getAccessControlManager().privilegeFromName(PrivilegeConstants.JCR_READ));
+        assertEquals("Read Only", rights.getPrivilegeSetDisplayName(Locale.getDefault()));
+
+        //read-write
+        rights.getGranted().add(adminSession.getAccessControlManager().privilegeFromName(PrivilegeConstants.JCR_WRITE));
+        assertEquals("Read/Write", rights.getPrivilegeSetDisplayName(Locale.getDefault()));
+
+        //custom
+        rights.getGranted().clear();
+        rights.getGranted().add(adminSession.getAccessControlManager().privilegeFromName(PrivilegeConstants.JCR_READ_ACCESS_CONTROL));
+        assertEquals("Custom", rights.getPrivilegeSetDisplayName(Locale.getDefault()));
+
+        //custom
+        rights.getGranted().clear();
+        rights.getDenied().add(adminSession.getAccessControlManager().privilegeFromName(PrivilegeConstants.JCR_WRITE));
+        assertEquals("Custom", rights.getPrivilegeSetDisplayName(Locale.getDefault()));
     }
 
 }
