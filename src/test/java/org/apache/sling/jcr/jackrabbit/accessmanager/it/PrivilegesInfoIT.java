@@ -18,9 +18,11 @@ package org.apache.sling.jcr.jackrabbit.accessmanager.it;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.IOException;
 import java.security.Principal;
 import java.util.Collections;
 import java.util.HashMap;
@@ -56,6 +58,8 @@ import org.ops4j.pax.exam.spi.reactors.PerClass;
 @ExamReactorStrategy(PerClass.class)
 public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
 
+    private static final String NOT_A_REAL_PATH = "/not_a_real_path";
+
     @Inject
     private ModifyAce modifyAce;
 
@@ -63,25 +67,48 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
     protected SlingRepository repository;
 
     protected Session adminSession;
+    protected Session testUserSession;
 
-    private Node testNode;
+    private Node testNodeForAdmin;
+    private Node testNodeForTestUser;
 
     @Before
-    public void setup() throws RepositoryException {
+    public void setup() throws RepositoryException, IOException {
+        testUserId = createTestUser();
         adminSession = repository.login(new SimpleCredentials("admin", "admin".toCharArray()));
         assertNotNull("Expected adminSession to not be null", adminSession);
-        testNode = adminSession.getRootNode().addNode("testNode");
+        testNodeForAdmin = adminSession.getRootNode().addNode("testNode");
+        setupTestUserAce();
         adminSession.save();
+
+        testUserSession = repository.login(new SimpleCredentials(testUserId, "testPwd".toCharArray()));
+        testNodeForTestUser = testUserSession.getNode(testNodeForAdmin.getPath());
+    }
+
+    protected void setupTestUserAce() throws RepositoryException {
+        assertNotNull(modifyAce);
+        Map<String, String> privilegesMap = new HashMap<>();
+        privilegesMap.put(PrivilegeConstants.JCR_READ, "allow");
+        modifyAce.modifyAce(adminSession,
+                testNodeForAdmin.getPath(),
+                testUserId,
+                privilegesMap,
+                "first",
+                Collections.emptyMap(),
+                Collections.emptyMap(),
+                Collections.emptySet(),
+                true);
     }
 
     @After
     public void teardown() throws RepositoryException {
         adminSession.refresh(false);
-        testNode.remove();
+        testNodeForAdmin.remove();
         if (adminSession.hasPendingChanges()) {
             adminSession.save();
         }
         adminSession.logout();
+        testUserSession.logout();
     }
 
     /**
@@ -90,7 +117,7 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
     @Test
     public void testGetSupportedPrivilegesNode() throws RepositoryException {
         PrivilegesInfo pi = new PrivilegesInfo();
-        Privilege[] supportedPrivileges = pi.getSupportedPrivileges(testNode);
+        Privilege[] supportedPrivileges = pi.getSupportedPrivileges(testNodeForAdmin);
         assertNotNull(supportedPrivileges);
     }
 
@@ -100,7 +127,7 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
     @Test
     public void testGetSupportedPrivilegesSessionString() throws RepositoryException {
         PrivilegesInfo pi = new PrivilegesInfo();
-        Privilege[] supportedPrivileges = pi.getSupportedPrivileges(adminSession, testNode.getPath());
+        Privilege[] supportedPrivileges = pi.getSupportedPrivileges(adminSession, testNodeForAdmin.getPath());
         assertNotNull(supportedPrivileges);
     }
 
@@ -112,7 +139,7 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
         setupEveryoneAce();
 
         PrivilegesInfo pi = new PrivilegesInfo();
-        Map<Principal, AccessRights> declaredAccessRights = pi.getDeclaredAccessRights(testNode);
+        Map<Principal, AccessRights> declaredAccessRights = pi.getDeclaredAccessRights(testNodeForAdmin);
         Optional<Principal> findFirst = declaredAccessRights.keySet().stream()
                 .filter(p -> "everyone".equals(p.getName()))
                 .findFirst();
@@ -141,7 +168,7 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
         privilegesMap.put(PrivilegeConstants.JCR_READ, "allow");
         privilegesMap.put(PrivilegeConstants.JCR_WRITE, "deny");
         modifyAce.modifyAce(adminSession,
-                testNode.getPath(),
+                testNodeForAdmin.getPath(),
                 "everyone",
                 privilegesMap,
                 "first",
@@ -160,7 +187,7 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
         setupEveryoneAce();
 
         PrivilegesInfo pi = new PrivilegesInfo();
-        Map<Principal, AccessRights> declaredAccessRights = pi.getDeclaredAccessRights(adminSession, testNode.getPath());
+        Map<Principal, AccessRights> declaredAccessRights = pi.getDeclaredAccessRights(adminSession, testNodeForAdmin.getPath());
         Optional<Principal> findFirst = declaredAccessRights.keySet().stream()
                 .filter(p -> "everyone".equals(p.getName()))
                 .findFirst();
@@ -179,7 +206,7 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
         setupEveryoneAce();
 
         PrivilegesInfo pi = new PrivilegesInfo();
-        AccessRights rights = pi.getDeclaredAccessRightsForPrincipal(testNode, "everyone");
+        AccessRights rights = pi.getDeclaredAccessRightsForPrincipal(testNodeForAdmin, "everyone");
         assertNotNull(rights);
         Privilege jcrReadPrivilege = adminSession.getAccessControlManager().privilegeFromName(PrivilegeConstants.JCR_READ);
         assertTrue(rights.getGranted().contains(jcrReadPrivilege));
@@ -193,7 +220,7 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
         setupEveryoneAce();
 
         PrivilegesInfo pi = new PrivilegesInfo();
-        AccessRights rights = pi.getDeclaredAccessRightsForPrincipal(adminSession, testNode.getPath(), "everyone");
+        AccessRights rights = pi.getDeclaredAccessRightsForPrincipal(adminSession, testNodeForAdmin.getPath(), "everyone");
         assertNotNull(rights);
         Privilege jcrReadPrivilege = adminSession.getAccessControlManager().privilegeFromName(PrivilegeConstants.JCR_READ);
         assertTrue(rights.getGranted().contains(jcrReadPrivilege));
@@ -209,7 +236,7 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
         setupEveryoneAce();
 
         PrivilegesInfo pi = new PrivilegesInfo();
-        Map<String, Object> restrictions = pi.getDeclaredRestrictionsForPrincipal(testNode, "everyone");
+        Map<String, Object> restrictions = pi.getDeclaredRestrictionsForPrincipal(testNodeForAdmin, "everyone");
         assertNotNull(restrictions);
         assertEquals(val(PropertyType.STRING, "/hello"), restrictions.get(AccessControlConstants.REP_GLOB));
         assertArrayEquals(vals(PropertyType.NAME, "child1", "child2"), (Value[])restrictions.get(AccessControlConstants.REP_ITEM_NAMES));
@@ -225,7 +252,7 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
         setupEveryoneAce();
 
         PrivilegesInfo pi = new PrivilegesInfo();
-        Map<String, Object> restrictions = pi.getDeclaredRestrictionsForPrincipal(adminSession, testNode.getPath(), "everyone");
+        Map<String, Object> restrictions = pi.getDeclaredRestrictionsForPrincipal(adminSession, testNodeForAdmin.getPath(), "everyone");
         assertNotNull(restrictions);
         assertEquals(val(PropertyType.STRING, "/hello"), restrictions.get(AccessControlConstants.REP_GLOB));
         assertArrayEquals(vals(PropertyType.NAME, "child1", "child2"), (Value[])restrictions.get(AccessControlConstants.REP_ITEM_NAMES));
@@ -239,7 +266,7 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
         setupEveryoneAce();
 
         PrivilegesInfo pi = new PrivilegesInfo();
-        Map<Principal, AccessRights> effectiveAccessRights = pi.getEffectiveAccessRights(adminSession, testNode.getPath());
+        Map<Principal, AccessRights> effectiveAccessRights = pi.getEffectiveAccessRights(adminSession, testNodeForAdmin.getPath());
         Optional<Principal> findFirst = effectiveAccessRights.keySet().stream()
                 .filter(p -> "everyone".equals(p.getName()))
                 .findFirst();
@@ -258,7 +285,7 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
         setupEveryoneAce();
 
         PrivilegesInfo pi = new PrivilegesInfo();
-        Map<Principal, AccessRights> effectiveAccessRights = pi.getEffectiveAccessRights(testNode);
+        Map<Principal, AccessRights> effectiveAccessRights = pi.getEffectiveAccessRights(testNodeForAdmin);
         Optional<Principal> findFirst = effectiveAccessRights.keySet().stream()
                 .filter(p -> "everyone".equals(p.getName()))
                 .findFirst();
@@ -277,7 +304,7 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
         setupEveryoneAce();
 
         PrivilegesInfo pi = new PrivilegesInfo();
-        AccessRights rights = pi.getEffectiveAccessRightsForPrincipal(testNode, "everyone");
+        AccessRights rights = pi.getEffectiveAccessRightsForPrincipal(testNodeForAdmin, "everyone");
         assertNotNull(rights);
         Privilege jcrReadPrivilege = adminSession.getAccessControlManager().privilegeFromName(PrivilegeConstants.JCR_READ);
         assertTrue(rights.getGranted().contains(jcrReadPrivilege));
@@ -291,7 +318,7 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
         setupEveryoneAce();
 
         PrivilegesInfo pi = new PrivilegesInfo();
-        AccessRights rights = pi.getEffectiveAccessRightsForPrincipal(adminSession, testNode.getPath(), "everyone");
+        AccessRights rights = pi.getEffectiveAccessRightsForPrincipal(adminSession, testNodeForAdmin.getPath(), "everyone");
         assertNotNull(rights);
         Privilege jcrReadPrivilege = adminSession.getAccessControlManager().privilegeFromName(PrivilegeConstants.JCR_READ);
         assertTrue(rights.getGranted().contains(jcrReadPrivilege));
@@ -303,7 +330,8 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
     @Test
     public void testCanAddChildrenNode() {
         PrivilegesInfo pi = new PrivilegesInfo();
-        assertTrue(pi.canAddChildren(testNode));
+        assertTrue(pi.canAddChildren(testNodeForAdmin));
+        assertFalse(pi.canAddChildren(testNodeForTestUser));
     }
 
     /**
@@ -312,7 +340,9 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
     @Test
     public void testCanAddChildrenSessionString() throws RepositoryException {
         PrivilegesInfo pi = new PrivilegesInfo();
-        assertTrue(pi.canAddChildren(adminSession, testNode.getPath()));
+        assertTrue(pi.canAddChildren(adminSession, testNodeForAdmin.getPath()));
+        assertFalse(pi.canAddChildren(testUserSession, testNodeForTestUser.getPath()));
+        assertFalse(pi.canAddChildren(testUserSession, NOT_A_REAL_PATH));
     }
 
     /**
@@ -321,7 +351,8 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
     @Test
     public void testCanDeleteChildrenNode() {
         PrivilegesInfo pi = new PrivilegesInfo();
-        assertTrue(pi.canDeleteChildren(testNode));
+        assertTrue(pi.canDeleteChildren(testNodeForAdmin));
+        assertFalse(pi.canDeleteChildren(testNodeForTestUser));
     }
 
     /**
@@ -330,7 +361,9 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
     @Test
     public void testCanDeleteChildrenSessionString() throws RepositoryException {
         PrivilegesInfo pi = new PrivilegesInfo();
-        assertTrue(pi.canDeleteChildren(adminSession, testNode.getPath()));
+        assertTrue(pi.canDeleteChildren(adminSession, testNodeForAdmin.getPath()));
+        assertFalse(pi.canDeleteChildren(testUserSession, testNodeForTestUser.getPath()));
+        assertFalse(pi.canDeleteChildren(testUserSession, NOT_A_REAL_PATH));
     }
 
     /**
@@ -339,7 +372,8 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
     @Test
     public void testCanDeleteNode() {
         PrivilegesInfo pi = new PrivilegesInfo();
-        assertTrue(pi.canDelete(testNode));
+        assertTrue(pi.canDelete(testNodeForAdmin));
+        assertFalse(pi.canDelete(testNodeForTestUser));
     }
 
     /**
@@ -348,7 +382,9 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
     @Test
     public void testCanDeleteSessionString() throws RepositoryException {
         PrivilegesInfo pi = new PrivilegesInfo();
-        assertTrue(pi.canDelete(adminSession, testNode.getPath()));
+        assertTrue(pi.canDelete(adminSession, testNodeForAdmin.getPath()));
+        assertFalse(pi.canDelete(testUserSession, testNodeForTestUser.getPath()));
+        assertFalse(pi.canDelete(testUserSession, NOT_A_REAL_PATH));
     }
 
     /**
@@ -357,7 +393,8 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
     @Test
     public void testCanModifyPropertiesNode() {
         PrivilegesInfo pi = new PrivilegesInfo();
-        assertTrue(pi.canModifyProperties(testNode));
+        assertTrue(pi.canModifyProperties(testNodeForAdmin));
+        assertFalse(pi.canModifyProperties(testNodeForTestUser));
     }
 
     /**
@@ -366,7 +403,9 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
     @Test
     public void testCanModifyPropertiesSessionString() throws RepositoryException {
         PrivilegesInfo pi = new PrivilegesInfo();
-        assertTrue(pi.canModifyProperties(adminSession, testNode.getPath()));
+        assertTrue(pi.canModifyProperties(adminSession, testNodeForAdmin.getPath()));
+        assertFalse(pi.canModifyProperties(testUserSession, testNodeForTestUser.getPath()));
+        assertFalse(pi.canModifyProperties(testUserSession, NOT_A_REAL_PATH));
     }
 
     /**
@@ -375,7 +414,8 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
     @Test
     public void testCanReadAccessControlNode() {
         PrivilegesInfo pi = new PrivilegesInfo();
-        assertTrue(pi.canReadAccessControl(testNode));
+        assertTrue(pi.canReadAccessControl(testNodeForAdmin));
+        assertFalse(pi.canReadAccessControl(testNodeForTestUser));
     }
 
     /**
@@ -384,7 +424,9 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
     @Test
     public void testCanReadAccessControlSessionString() throws RepositoryException {
         PrivilegesInfo pi = new PrivilegesInfo();
-        assertTrue(pi.canReadAccessControl(adminSession, testNode.getPath()));
+        assertTrue(pi.canReadAccessControl(adminSession, testNodeForAdmin.getPath()));
+        assertFalse(pi.canReadAccessControl(testUserSession, testNodeForTestUser.getPath()));
+        assertFalse(pi.canReadAccessControl(testUserSession, NOT_A_REAL_PATH));
     }
 
     /**
@@ -393,7 +435,8 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
     @Test
     public void testCanModifyAccessControlNode() {
         PrivilegesInfo pi = new PrivilegesInfo();
-        assertTrue(pi.canModifyAccessControl(testNode));
+        assertTrue(pi.canModifyAccessControl(testNodeForAdmin));
+        assertFalse(pi.canModifyAccessControl(testNodeForTestUser));
     }
 
     /**
@@ -402,7 +445,9 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
     @Test
     public void testCanModifyAccessControlSessionString() throws RepositoryException {
         PrivilegesInfo pi = new PrivilegesInfo();
-        assertTrue(pi.canModifyAccessControl(adminSession, testNode.getPath()));
+        assertTrue(pi.canModifyAccessControl(adminSession, testNodeForAdmin.getPath()));
+        assertFalse(pi.canModifyAccessControl(testUserSession, testNodeForTestUser.getPath()));
+        assertFalse(pi.canModifyAccessControl(testUserSession, NOT_A_REAL_PATH));
     }
 
     protected AccessRights setupAccessRights() throws RepositoryException {
@@ -456,6 +501,12 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
 
         //custom
         rights.getGranted().clear();
+        rights.getGranted().add(adminSession.getAccessControlManager().privilegeFromName(PrivilegeConstants.JCR_READ_ACCESS_CONTROL));
+        assertEquals("Custom", rights.getPrivilegeSetDisplayName(Locale.getDefault()));
+
+        //custom
+        rights.getGranted().clear();
+        rights.getGranted().add(adminSession.getAccessControlManager().privilegeFromName(PrivilegeConstants.JCR_READ));
         rights.getGranted().add(adminSession.getAccessControlManager().privilegeFromName(PrivilegeConstants.JCR_READ_ACCESS_CONTROL));
         assertEquals("Custom", rights.getPrivilegeSetDisplayName(Locale.getDefault()));
 
