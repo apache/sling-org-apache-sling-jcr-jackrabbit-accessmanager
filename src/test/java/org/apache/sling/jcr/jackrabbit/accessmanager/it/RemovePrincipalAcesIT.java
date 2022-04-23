@@ -315,5 +315,23 @@ public class RemovePrincipalAcesIT extends PrincipalAceTestSupport {
         testRemovePrincipalAceRedirect("https://", SC_UNPROCESSABLE_ENTITY);
     }
 
+    @Test
+    public void testRemovePrincipalAceDoesNothingOnNotEffectivePath() throws IOException, JsonException {
+        String folderUrl = createFolderWithPrincipalAces(false);
+        String childUrl = createTestFolder(folderUrl.substring(baseServerUri.toString().length()), "child");
+
+        //remove the ace for the testUser principal using the wrong path
+        String postUrl = childUrl + ".deletePrincipalAce.html";
+        List<NameValuePair> postParams = new ArrayList<>();
+        postParams.add(new BasicNameValuePair(":applyTo", "pacetestuser"));
+        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
+        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
+
+        //fetch the JSON for the acl to verify the settings were not removed.
+        JsonObject aclObj = getEffectiveAcl(folderUrl);
+        assertNotNull(aclObj);
+        assertTrue(aclObj.containsKey("pacetestuser"));
+    }
+
 }
 

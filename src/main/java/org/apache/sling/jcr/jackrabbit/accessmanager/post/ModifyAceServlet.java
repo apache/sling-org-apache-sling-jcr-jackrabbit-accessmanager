@@ -717,7 +717,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
      * @param acl the access control list to update
      * @return the original order if it was supplied, otherwise the order of the first ACE 
      */
-    protected String removeAces(@NotNull String resourcePath, @Nullable String order, @NotNull Principal principal, @NotNull JackrabbitAccessControlList acl)
+    protected String removeAces(@NotNull String resourcePath, @Nullable String order, @NotNull Principal principal, @NotNull JackrabbitAccessControlList acl) // NOSONAR
             throws RepositoryException {
         AccessControlEntry[] existingAccessControlEntries = acl.getAccessControlEntries();
         for (int j = 0; j < existingAccessControlEntries.length; j++) {
