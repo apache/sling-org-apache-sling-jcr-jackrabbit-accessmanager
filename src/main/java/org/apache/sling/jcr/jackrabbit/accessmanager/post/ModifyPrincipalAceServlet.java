@@ -17,11 +17,14 @@
 package org.apache.sling.jcr.jackrabbit.accessmanager.post;
 
 import java.security.Principal;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import javax.jcr.RepositoryException;
+import javax.jcr.Session;
+import javax.jcr.Value;
 import javax.jcr.security.AccessControlEntry;
 import javax.jcr.security.AccessControlManager;
 import javax.jcr.security.AccessControlPolicy;
@@ -48,7 +51,7 @@ import org.osgi.service.component.annotations.Reference;
  * <h2>Rest Service Description</h2>
  * <p>
  * Modify a principal's ACEs for the node identified as a resource by the request
- * URL &gt;resource&lt;.modifyPrincipalAce.html
+ * URL &gt;resource&lt;.modifyPAce.html
  * </p>
  * <h3>Transport Details:</h3>
  * <h4>Methods</h4>
@@ -98,7 +101,7 @@ import org.osgi.service.component.annotations.Reference;
 property= {
         "sling.servlet.resourceTypes=sling/servlet/default",
         "sling.servlet.methods=POST",
-        "sling.servlet.selectors=modifyPrincipalAce",
+        "sling.servlet.selectors=modifyPAce",
         "sling.servlet.prefix:Integer=-1"
 },
 reference = {
@@ -110,6 +113,30 @@ reference = {
 public class ModifyPrincipalAceServlet extends ModifyAceServlet implements ModifyPrincipalAce {
 
     private static final long serialVersionUID = -4152308935573740745L;
+
+    @Override
+    public void modifyPrincipalAce(Session jcrSession, String resourcePath, String principalId,
+            Map<String, String> privileges, String order, boolean autoSave) throws RepositoryException {
+        modifyPrincipalAce(jcrSession, resourcePath, principalId, privileges, order,
+                null, null, null, autoSave);
+    }
+
+    @Override
+    public void modifyPrincipalAce(Session jcrSession, String resourcePath, String principalId,
+            Map<String, String> privileges, String order, Map<String, Value> restrictions,
+            Map<String, Value[]> mvRestrictions, Set<String> removeRestrictionNames, boolean autoSave)
+            throws RepositoryException {
+        modifyAce(jcrSession, resourcePath, principalId, privileges, order,
+                restrictions, mvRestrictions, removeRestrictionNames, autoSave, null);
+    }
+
+    @Override
+    public void modifyPrincipalAce(Session jcrSession, String resourcePath, String principalId,
+            Collection<LocalPrivilege> localPrivileges, String order, boolean autoSave) throws RepositoryException {
+        modifyAce(jcrSession, resourcePath, principalId,
+                localPrivileges, order,
+                autoSave, null);
+    }
 
     /**
      * Override to ensure that we get the policy that implements {@link PrincipalAccessControlList}

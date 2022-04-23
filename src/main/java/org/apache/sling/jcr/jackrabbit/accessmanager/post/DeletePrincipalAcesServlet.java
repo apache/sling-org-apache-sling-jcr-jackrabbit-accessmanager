@@ -51,7 +51,7 @@ import org.slf4j.LoggerFactory;
  * <h2>Rest Service Description</h2>
  * <p>
  * Delete a set of Ace's from a node, the node is identified as a resource by the request
- * url &gt;resource&lt;.deletePrincipalAce.html
+ * url &gt;resource&lt;.deletePAce.html
  * </p>
  * <h3>Transport Details:</h3>
  * <h4>Methods</h4>
@@ -80,7 +80,7 @@ import org.slf4j.LoggerFactory;
     property= {
             "sling.servlet.resourceTypes=sling/servlet/default",
             "sling.servlet.methods=POST",
-            "sling.servlet.selectors=deletePrincipalAce",
+            "sling.servlet.selectors=deletePAce",
             "sling.servlet.prefix:Integer=-1"
     },
     reference = {
@@ -98,6 +98,12 @@ public class DeletePrincipalAcesServlet extends DeleteAcesServlet implements Del
      * default log
      */
     private final transient Logger log = LoggerFactory.getLogger(getClass());
+
+    @Override
+    public void deletePrincipalAces(Session jcrSession, String resourcePath, String[] principalNamesToDelete)
+            throws RepositoryException {
+        deleteAces(jcrSession, resourcePath, principalNamesToDelete, null);
+    }
 
     @Override
     protected void deleteAces(Session jcrSession, String resourcePath, String[] principalNamesToDelete,

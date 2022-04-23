@@ -156,7 +156,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
     }
 
     @Before
-    public void before() throws IOException, URISyntaxException {
+    public void before() throws Exception {
         // wait for the health checks to be OK
         waitForServerReady(Duration.ofMinutes(1).toMillis(), 500);
 
@@ -181,7 +181,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
     }
 
     @After
-    public void after() throws IOException {
+    public void after() throws Exception {
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
 
         if (testFolderUrl != null) {

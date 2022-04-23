@@ -111,6 +111,7 @@ reference = {
                 service = RestrictionProvider.class)
 }
 )
+@SuppressWarnings("java:S110")
 public class GetAclServlet extends AbstractGetAclServlet implements GetAcl {
     private static final long serialVersionUID = 3391376559396223185L;
 

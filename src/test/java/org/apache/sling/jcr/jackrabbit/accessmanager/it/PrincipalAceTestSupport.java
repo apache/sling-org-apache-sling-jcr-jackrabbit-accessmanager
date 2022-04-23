@@ -71,7 +71,7 @@ public abstract class PrincipalAceTestSupport extends AccessManagerClientTestSup
         addOrUpdatePrincipalAce(folderUrl, postParams, HttpServletResponse.SC_OK);
     }
     protected void addOrUpdatePrincipalAce(String folderUrl, List<NameValuePair> postParams, int expectedStatus) throws IOException, JsonException {
-        String postUrl = folderUrl + ".modifyPrincipalAce.html";
+        String postUrl = folderUrl + ".modifyPAce.html";
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
         assertAuthenticatedPostStatus(creds, postUrl, expectedStatus, postParams, null);
@@ -81,7 +81,7 @@ public abstract class PrincipalAceTestSupport extends AccessManagerClientTestSup
     }
 
     protected String addOrUpdatePrincipalAce(String folderUrl, List<NameValuePair> postParams, String contentType, int expectedStatus) throws IOException, JsonException {
-        String postUrl = folderUrl + ".modifyPrincipalAce." + (CONTENT_TYPE_JSON.equals(contentType) ? "json" : "html");
+        String postUrl = folderUrl + ".modifyPAce." + (CONTENT_TYPE_JSON.equals(contentType) ? "json" : "html");
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
         return getAuthenticatedPostContent(creds, postUrl, contentType, postParams, expectedStatus);

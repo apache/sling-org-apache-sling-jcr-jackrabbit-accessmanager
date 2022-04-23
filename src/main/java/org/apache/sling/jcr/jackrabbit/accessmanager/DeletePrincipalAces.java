@@ -18,6 +18,9 @@
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager;
 
+import javax.jcr.RepositoryException;
+import javax.jcr.Session;
+
 /**
  * The <code>DeletePrincipalAces</code> service api.
  * <p>
@@ -25,6 +28,19 @@ package org.apache.sling.jcr.jackrabbit.accessmanager;
  * implemented by this bundle and may be used by client bundles.
  * </p>
  */
-public interface DeletePrincipalAces extends DeleteAces {
+public interface DeletePrincipalAces {
+
+    /**
+     * Deletes one or more pricipal ACEs from the access control list of a resource.
+     * 
+     * @param jcrSession the JCR session of the user updating the user
+     * @param resourcePath The path of the resource to update the ACL for (required)
+     * @param principalNamesToDelete An array of ace principal names to delete.. (required)
+     * @throws RepositoryException if any errors applying the changes 
+     */
+    void deletePrincipalAces(Session jcrSession,
+                            String resourcePath,
+                            String [] principalNamesToDelete
+                ) throws RepositoryException;
 
 }

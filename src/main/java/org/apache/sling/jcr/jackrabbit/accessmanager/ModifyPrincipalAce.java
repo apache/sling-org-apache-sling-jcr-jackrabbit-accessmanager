@@ -16,6 +16,14 @@
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager;
 
+import java.util.Collection;
+import java.util.Map;
+import java.util.Set;
+
+import javax.jcr.RepositoryException;
+import javax.jcr.Session;
+import javax.jcr.Value;
+
 /**
  * The <code>ModifyPrincipalAce</code> service api.
  * <p>
@@ -23,6 +31,100 @@ package org.apache.sling.jcr.jackrabbit.accessmanager;
  * implemented by this bundle and may be used by client bundles.
  * </p>
  */
-public interface ModifyPrincipalAce extends ModifyAce {
+public interface ModifyPrincipalAce {
+
+    /**
+     * Add or modify the access control entry for the specified user 
+     * or group.
+     * 
+     * @param jcrSession the JCR session of the user updating the user
+     * @param resourcePath The absolute path of the resource to apply the ACE to (required)
+     * @param principalId The name of the user/group to provision (required)
+     * @param privileges Map of privileges to apply. (optional)
+     * @param order where the access control entry should go in the list.
+     *         <table style='margin-left: 30px;' border="1">
+     *          <caption>The value should be one of these:</caption>
+     *          <tbody>
+     *            <tr><td>null</td><td>If the ACE for the principal doesn't exist add at the end, otherwise leave the ACE at it's current position.</td></tr>
+     *               <tr><td>first</td><td>Place the target ACE as the first amongst its siblings</td></tr>
+     *              <tr><td>last</td><td>Place the target ACE as the last amongst its siblings</td></tr>
+     *               <tr><td>before xyz</td><td>Place the target ACE immediately before the sibling whose name is xyz</td></tr>
+     *               <tr><td>after xyz</td><td>Place the target ACE immediately after the sibling whose name is xyz</td></tr>
+     *               <tr><td>numeric</td><td>Place the target ACE at the specified numeric index</td></tr>
+     *          </tbody>
+     *         </table>
+     * @param autoSave true to automatically save changes to the JCR session, false otherwise
+     * @throws RepositoryException if any errors applying the changes 
+     */
+    void modifyPrincipalAce(Session jcrSession,
+                            String resourcePath,
+                            String principalId,
+                            Map<String, String> privileges,
+                            String order,
+                            boolean autoSave
+                ) throws RepositoryException;
+
+    /**
+     * Add or modify the access control entry for the specified user 
+     * or group.
+     * 
+     * @param jcrSession the JCR session of the user updating the user
+     * @param resourcePath The absolute path of the resource to apply the ACE to (required)
+     * @param principalId The name of the user/group to provision (required)
+     * @param privileges Map of privileges to apply. (optional)
+     * @param order where the access control entry should go in the list.
+     *         <table style='margin-left: 30px;' border="1">
+     *          <caption>The value should be one of these:</caption>
+     *          <tbody>
+     *            <tr><td>null</td><td>If the ACE for the principal doesn't exist add at the end, otherwise leave the ACE at it's current position.</td></tr>
+     *               <tr><td>first</td><td>Place the target ACE as the first amongst its siblings</td></tr>
+     *              <tr><td>last</td><td>Place the target ACE as the last amongst its siblings</td></tr>
+     *               <tr><td>before xyz</td><td>Place the target ACE immediately before the sibling whose name is xyz</td></tr>
+     *               <tr><td>after xyz</td><td>Place the target ACE immediately after the sibling whose name is xyz</td></tr>
+     *               <tr><td>numeric</td><td>Place the target ACE at the specified numeric index</td></tr>
+     *          </tbody>
+     *         </table>
+     * @param restrictions Map of single-value restrictions to apply. (optional)
+     * @param mvRestrictions Map of multi-value restrictions to apply. (optional)
+     * @param removeRestrictionNames Set of existing restriction names to remove (optional)
+     * @param autoSave true to automatically save changes to the JCR session, false otherwise
+     * @throws RepositoryException if any errors applying the changes 
+     */
+    void modifyPrincipalAce(Session jcrSession, // NOSONAR
+                            String resourcePath,
+                            String principalId,
+                            Map<String, String> privileges,
+                            String order,
+                            Map<String, Value> restrictions,
+                            Map<String, Value[]> mvRestrictions,
+                            Set<String> removeRestrictionNames,
+                            boolean autoSave
+                ) throws RepositoryException;
+
+    /**
+     * Add or modify the access control entry for the specified user 
+     * or group.
+     * 
+     * @param jcrSession the JCR session of the user updating the user
+     * @param resourcePath The absolute path of the resource to apply the ACE to (required)
+     * @param principalId The name of the user/group to provision (required)
+     * @param localPrivileges collection of privileges to apply.
+     * @param order where the access control entry should go in the list.
+     *         <table style='margin-left: 30px;' border="1">
+     *          <caption>The value should be one of these:</caption>
+     *          <tbody>
+     *            <tr><td>null</td><td>If the ACE for the principal doesn't exist add at the end, otherwise leave the ACE at it's current position.</td></tr>
+     *               <tr><td>first</td><td>Place the target ACE as the first amongst its siblings</td></tr>
+     *              <tr><td>last</td><td>Place the target ACE as the last amongst its siblings</td></tr>
+     *               <tr><td>before xyz</td><td>Place the target ACE immediately before the sibling whose name is xyz</td></tr>
+     *               <tr><td>after xyz</td><td>Place the target ACE immediately after the sibling whose name is xyz</td></tr>
+     *               <tr><td>numeric</td><td>Place the target ACE at the specified numeric index</td></tr>
+     *          </tbody>
+     *         </table>
+     * @param autoSave true to automatically save changes to the JCR session, false otherwise
+     * @throws RepositoryException if any errors applying the changes 
+     */
+    void modifyPrincipalAce(Session jcrSession, String resourcePath, String principalId, Collection<LocalPrivilege> localPrivileges, String order, boolean autoSave)
+            throws RepositoryException;
 
 }

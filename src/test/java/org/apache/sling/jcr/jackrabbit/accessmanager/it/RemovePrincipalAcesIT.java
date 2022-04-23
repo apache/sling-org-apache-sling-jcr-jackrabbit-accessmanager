@@ -22,7 +22,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Dictionary;
 import java.util.Hashtable;
@@ -62,7 +61,7 @@ public class RemovePrincipalAcesIT extends PrincipalAceTestSupport {
 
     @Before
     @Override
-    public void before() throws IOException, URISyntaxException {
+    public void before() throws Exception {
         Bundle bundle = FrameworkUtil.getBundle(getClass());
         Dictionary<String, Object> props = new Hashtable<>(); // NOSONAR
         serviceReg = bundle.getBundleContext().registerService(PostResponseCreator.class,
@@ -73,7 +72,7 @@ public class RemovePrincipalAcesIT extends PrincipalAceTestSupport {
 
     @After
     @Override
-    public void after() throws IOException {
+    public void after() throws Exception {
         if (serviceReg != null) {
             serviceReg.unregister();
         }
@@ -142,7 +141,7 @@ public class RemovePrincipalAcesIT extends PrincipalAceTestSupport {
         String folderUrl = createFolderWithPrincipalAces(false);
 
         //remove the ace for the testUser principal
-        String postUrl = folderUrl + ".deletePrincipalAce.html";
+        String postUrl = folderUrl + ".deletePAce.html";
         List<NameValuePair> postParams = new ArrayList<>();
         postParams.add(new BasicNameValuePair(":applyTo", "pacetestuser"));
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
@@ -162,7 +161,7 @@ public class RemovePrincipalAcesIT extends PrincipalAceTestSupport {
         String folderUrl = createFolderWithPrincipalAces(false);
 
         //remove the ace for the testUser principal
-        String postUrl = folderUrl + ".deletePrincipalAce.html";
+        String postUrl = folderUrl + ".deletePAce.html";
         List<NameValuePair> postParams = new ArrayList<>();
         postParams.add(new BasicNameValuePair(":responseType", "custom"));
         postParams.add(new BasicNameValuePair(":applyTo", "pacetestuser"));
@@ -178,7 +177,7 @@ public class RemovePrincipalAcesIT extends PrincipalAceTestSupport {
         String folderUrl = createFolderWithPrincipalAces(true);
 
         //remove the ace for the testUser principal
-        String postUrl = folderUrl + ".deletePrincipalAce.html";
+        String postUrl = folderUrl + ".deletePAce.html";
         List<NameValuePair> postParams = new ArrayList<>();
         postParams.add(new BasicNameValuePair(":applyTo", "pacetestuser"));
         postParams.add(new BasicNameValuePair(":applyTo", "pacetestuser2"));
@@ -200,7 +199,7 @@ public class RemovePrincipalAcesIT extends PrincipalAceTestSupport {
         String folderUrl = createFolderWithPrincipalAces(true);
 
         //remove the ace for the testUser principal
-        String postUrl = folderUrl + ".deletePrincipalAce.json";
+        String postUrl = folderUrl + ".deletePAce.json";
         List<NameValuePair> postParams = new ArrayList<>();
         postParams.add(new BasicNameValuePair(":applyTo", "pacetestuser"));
         postParams.add(new BasicNameValuePair(":applyTo", "pacetestuser2"));
@@ -221,7 +220,7 @@ public class RemovePrincipalAcesIT extends PrincipalAceTestSupport {
     public void testRemovePrincipalAceWhenAccessControlListDoesNotExist() throws IOException, JsonException {
         testFolderUrl = createTestFolder();
 
-        String postUrl = testFolderUrl + ".deletePrincipalAce.json";
+        String postUrl = testFolderUrl + ".deletePAce.json";
 
         List<NameValuePair> postParams = new ArrayList<>();
         postParams.add(new BasicNameValuePair(":http-equiv-accept", JSONResponse.RESPONSE_CONTENT_TYPE));
@@ -247,7 +246,7 @@ public class RemovePrincipalAcesIT extends PrincipalAceTestSupport {
 
         String folderUrl = createFolderWithPrincipalAces(false);
 
-        String postUrl = folderUrl + ".deletePrincipalAce.json";
+        String postUrl = folderUrl + ".deletePAce.json";
 
         List<NameValuePair> postParams = new ArrayList<>();
         postParams.add(new BasicNameValuePair(":http-equiv-accept", JSONResponse.RESPONSE_CONTENT_TYPE));
@@ -269,7 +268,7 @@ public class RemovePrincipalAcesIT extends PrincipalAceTestSupport {
     public void testRemovePrincipalAceChangesInResponse() throws IOException, JsonException {
         String folderUrl = createFolderWithPrincipalAces(false);
 
-        String postUrl = folderUrl + ".deletePrincipalAce.json";
+        String postUrl = folderUrl + ".deletePAce.json";
 
         List<NameValuePair> postParams = new ArrayList<>();
         postParams.add(new BasicNameValuePair(":http-equiv-accept", JSONResponse.RESPONSE_CONTENT_TYPE));
@@ -292,7 +291,7 @@ public class RemovePrincipalAcesIT extends PrincipalAceTestSupport {
         String folderUrl = createFolderWithPrincipalAces(false);
 
         //remove the ace for the testUser principal
-        String postUrl = folderUrl + ".deletePrincipalAce.html";
+        String postUrl = folderUrl + ".deletePAce.html";
         List<NameValuePair> postParams = new ArrayList<>();
         postParams.add(new BasicNameValuePair(":applyTo", "pacetestuser"));
         postParams.add(new BasicNameValuePair(":redirect", redirectTo));
@@ -321,7 +320,7 @@ public class RemovePrincipalAcesIT extends PrincipalAceTestSupport {
         String childUrl = createTestFolder(folderUrl.substring(baseServerUri.toString().length()), "child");
 
         //remove the ace for the testUser principal using the wrong path
-        String postUrl = childUrl + ".deletePrincipalAce.html";
+        String postUrl = childUrl + ".deletePAce.html";
         List<NameValuePair> postParams = new ArrayList<>();
         postParams.add(new BasicNameValuePair(":applyTo", "pacetestuser"));
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
