@@ -20,7 +20,6 @@ import java.security.Principal;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import javax.jcr.RepositoryException;
@@ -43,7 +42,7 @@ import org.jetbrains.annotations.NotNull;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
-import org.osgi.service.component.annotations.ReferencePolicy;
+import org.osgi.service.component.annotations.ReferencePolicyOption;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,6 +85,13 @@ import org.slf4j.LoggerFactory;
             "sling.servlet.methods=POST",
             "sling.servlet.selectors=deleteAce",
             "sling.servlet.prefix:Integer=-1"
+    },
+    reference = {
+            @Reference(name = "PostResponseCreator",
+                    bind = "bindPostResponseCreator",
+                    cardinality = ReferenceCardinality.MULTIPLE,
+                    policyOption = ReferencePolicyOption.GREEDY,
+                    service = PostResponseCreator.class)
     })
 public class DeleteAcesServlet extends AbstractAccessPostServlet implements DeleteAces {
     private static final long serialVersionUID = 3784866802938282971L;
@@ -94,25 +100,6 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
      * default log
      */
     private final transient Logger log = LoggerFactory.getLogger(getClass());
-
-    /**
-     * Overridden since the @Reference annotation is not inherited from the super method
-     */
-    @Override
-    @Reference(service = PostResponseCreator.class,
-        cardinality = ReferenceCardinality.MULTIPLE,
-        policy = ReferencePolicy.DYNAMIC)
-    protected void bindPostResponseCreator(PostResponseCreator creator, Map<String, Object> properties) {
-        super.bindPostResponseCreator(creator, properties);
-    }
-
-    /* (non-Javadoc)
-     * @see org.apache.sling.jackrabbit.usermanager.impl.post.AbstractPostServlet#unbindPostResponseCreator(org.apache.sling.servlets.post.PostResponseCreator, java.util.Map)
-     */
-    @Override
-    protected void unbindPostResponseCreator(PostResponseCreator creator, Map<String, Object> properties) { //NOSONAR
-        super.unbindPostResponseCreator(creator, properties);
-    }
 
     /* (non-Javadoc)
      * @see org.apache.sling.jackrabbit.accessmanager.post.AbstractAccessPostServlet#handleOperation(org.apache.sling.api.SlingHttpServletRequest, org.apache.sling.servlets.post.PostResponse, java.util.List)
