@@ -135,37 +135,31 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
         Set<Principal> found = new HashSet<>();
         if (principalNamesToDelete == null) {
             throw new RepositoryException("principalIds were not sumitted.");
-        } else {
-            if (jcrSession == null) {
-                throw new RepositoryException("JCR Session not found");
-            }
+        }
 
-            if (resourcePath == null) {
-                throw new ResourceNotFoundException("Resource path was not supplied.");
-            }
+        if (jcrSession == null) {
+            throw new RepositoryException("JCR Session not found");
+        }
 
-            if (!jcrSession.nodeExists(resourcePath)) {
-                throw new ResourceNotFoundException("Resource is not a JCR Node");
-            }
+        if (resourcePath == null) {
+            throw new ResourceNotFoundException("Resource path was not supplied.");
+        }
 
-            // validate that the submitted names are valid
-            Set<String> notFound = null;
-            PrincipalManager principalManager = AccessControlUtil.getPrincipalManager(jcrSession);
-            for (String pid : principalNamesToDelete) {
-                Principal principal = principalManager.getPrincipal(pid);
-                if (principal == null) {
-                    if (notFound == null) {
-                        notFound = new HashSet<>();
-                    }
-                    notFound.add(pid);
-                } else {
-                    found.add(principal);
-                }
-            }
-            if (notFound != null && !notFound.isEmpty()) {
+        if (!jcrSession.nodeExists(resourcePath)) {
+            throw new ResourceNotFoundException("Resource is not a JCR Node");
+        }
+
+        // validate that the submitted names are valid
+        PrincipalManager principalManager = AccessControlUtil.getPrincipalManager(jcrSession);
+        for (String pid : principalNamesToDelete) {
+            Principal principal = principalManager.getPrincipal(pid);
+            if (principal == null) {
                 throw new RepositoryException("Invalid principalId was submitted.");
+            } else {
+                found.add(principal);
             }
         }
+
         return found;
     }
 

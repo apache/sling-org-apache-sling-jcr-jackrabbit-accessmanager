@@ -106,6 +106,7 @@ reference = {
                 bind = "bindRestrictionProvider",
                 service = RestrictionProvider.class)
 })
+@SuppressWarnings("java:S110")
 public class ModifyPrincipalAceServlet extends ModifyAceServlet implements ModifyPrincipalAce {
 
     private static final long serialVersionUID = -4152308935573740745L;
