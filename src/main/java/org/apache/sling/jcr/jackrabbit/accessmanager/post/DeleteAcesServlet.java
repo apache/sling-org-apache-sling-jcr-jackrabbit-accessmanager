@@ -31,7 +31,6 @@ import javax.servlet.Servlet;
 
 import org.apache.jackrabbit.api.security.principal.PrincipalManager;
 import org.apache.sling.api.SlingHttpServletRequest;
-import org.apache.sling.api.resource.ResourceNotFoundException;
 import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.apache.sling.jcr.jackrabbit.accessmanager.DeleteAces;
 import org.apache.sling.servlets.post.Modification;
@@ -110,7 +109,7 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
             throws RepositoryException {
 
         Session session = request.getResourceResolver().adaptTo(Session.class);
-        String resourcePath = request.getResource().getPath();
+        String resourcePath = getItemPath(request);
         String[] applyTo = request.getParameterValues(SlingPostConstants.RP_APPLY_TO);
         deleteAces(session, resourcePath, applyTo, changes);
     }
@@ -141,13 +140,7 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
             throw new RepositoryException("JCR Session not found");
         }
 
-        if (resourcePath == null) {
-            throw new ResourceNotFoundException("Resource path was not supplied.");
-        }
-
-        if (!jcrSession.nodeExists(resourcePath)) {
-            throw new ResourceNotFoundException("Resource is not a JCR Node");
-        }
+        validateResourcePath(jcrSession, resourcePath);
 
         // validate that the submitted names are valid
         PrincipalManager principalManager = AccessControlUtil.getPrincipalManager(jcrSession);

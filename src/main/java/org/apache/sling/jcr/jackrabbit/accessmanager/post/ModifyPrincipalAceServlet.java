@@ -35,9 +35,11 @@ import org.apache.jackrabbit.api.security.JackrabbitAccessControlList;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlManager;
 import org.apache.jackrabbit.api.security.authorization.PrincipalAccessControlList;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
+import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
 import org.apache.sling.jcr.jackrabbit.accessmanager.ModifyPrincipalAce;
+import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrincipalAceHelper;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.osgi.service.component.annotations.Component;
@@ -115,26 +117,53 @@ public class ModifyPrincipalAceServlet extends ModifyAceServlet implements Modif
     private static final long serialVersionUID = -4152308935573740745L;
 
     @Override
+    protected String externalizePath(SlingHttpServletRequest request, String path) {
+        if (path == null) {
+            path = PrincipalAceHelper.RESOURCE_PATH_REPOSITORY;
+        }
+        return super.externalizePath(request, path);
+    }
+
+    @Override
+    protected @Nullable String getParentPath(String path) {
+        if (path == null) {
+            // null path is ok for repository level privileges
+            return null;
+        }
+        return super.getParentPath(path);
+    }
+
+    @Override
+    protected String getItemPath(SlingHttpServletRequest request) {
+        return PrincipalAceHelper.getEffectivePath(request);
+    }
+
+    @Override
+    protected void validateResourcePath(Session jcrSession, String resourcePath) throws RepositoryException {
+        // path does not need to already exist for a principal ACE
+    }
+
+    @Override
     public void modifyPrincipalAce(Session jcrSession, String resourcePath, String principalId,
-            Map<String, String> privileges, String order, boolean autoSave) throws RepositoryException {
-        modifyPrincipalAce(jcrSession, resourcePath, principalId, privileges, order,
+            Map<String, String> privileges, boolean autoSave) throws RepositoryException {
+        modifyPrincipalAce(jcrSession, resourcePath, principalId, privileges,
                 null, null, null, autoSave);
     }
 
     @Override
     public void modifyPrincipalAce(Session jcrSession, String resourcePath, String principalId,
-            Map<String, String> privileges, String order, Map<String, Value> restrictions,
+            Map<String, String> privileges, Map<String, Value> restrictions,
             Map<String, Value[]> mvRestrictions, Set<String> removeRestrictionNames, boolean autoSave)
             throws RepositoryException {
-        modifyAce(jcrSession, resourcePath, principalId, privileges, order,
+        modifyAce(jcrSession, resourcePath, principalId, privileges, null,
                 restrictions, mvRestrictions, removeRestrictionNames, autoSave, null);
     }
 
     @Override
     public void modifyPrincipalAce(Session jcrSession, String resourcePath, String principalId,
-            Collection<LocalPrivilege> localPrivileges, String order, boolean autoSave) throws RepositoryException {
+            Collection<LocalPrivilege> localPrivileges, boolean autoSave) throws RepositoryException {
         modifyAce(jcrSession, resourcePath, principalId,
-                localPrivileges, order,
+                localPrivileges, null,
                 autoSave, null);
     }
 
@@ -177,8 +206,9 @@ public class ModifyPrincipalAceServlet extends ModifyAceServlet implements Modif
         AccessControlEntry[] existingAccessControlEntries = acl.getAccessControlEntries();
         for (int j = 0; j < existingAccessControlEntries.length; j++) {
             AccessControlEntry ace = existingAccessControlEntries[j];
-            if (ace.getPrincipal().equals(principal) &&
-                    resourcePath.equals(((PrincipalAccessControlList.Entry)ace).getEffectivePath())) {
+            @Nullable
+            JackrabbitAccessControlEntry jrEntry = getJackrabbitAccessControlEntry(ace, resourcePath, principal);
+            if (jrEntry != null) {
                 if (order == null || order.length() == 0) {
                     //order not specified, so keep track of the original ACE position.
                     order = String.valueOf(j);
@@ -214,7 +244,7 @@ public class ModifyPrincipalAceServlet extends ModifyAceServlet implements Modif
         JackrabbitAccessControlEntry jrEntry = null;
         if (entry instanceof PrincipalAccessControlList.Entry &&
                 entry.getPrincipal().equals(forPrincipal) &&
-                resourcePath.equals(((PrincipalAccessControlList.Entry)entry).getEffectivePath())) {
+                PrincipalAceHelper.matchesResourcePath(resourcePath, entry)) {
             jrEntry = (JackrabbitAccessControlEntry)entry;
         }
         return jrEntry;

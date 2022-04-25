@@ -62,9 +62,9 @@ public class RemovePrincipalAceServiceIT extends PrincipalAceServiceTestSupport 
             deletePrincipalAces.deletePrincipalAces(adminSession,
                     null,
                     new String [] {"everyone"});
-            fail("Expected ResourceNotFoundException");
         } catch (ResourceNotFoundException rnfe) {
             //expected
+            fail("Did not expect ResourceNotFoundException");
         }
     }
 
@@ -75,9 +75,9 @@ public class RemovePrincipalAceServiceIT extends PrincipalAceServiceTestSupport 
             deletePrincipalAces.deletePrincipalAces(adminSession,
                     "/not_a_real_path",
                     new String [] {"everyone"});
-            fail("Expected ResourceNotFoundException");
         } catch (ResourceNotFoundException rnfe) {
             //expected
+            fail("Did not expect ResourceNotFoundException");
         }
     }
 

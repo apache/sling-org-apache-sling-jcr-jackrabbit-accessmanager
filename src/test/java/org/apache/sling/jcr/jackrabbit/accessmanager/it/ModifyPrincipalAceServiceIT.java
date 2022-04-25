@@ -55,9 +55,8 @@ public class ModifyPrincipalAceServiceIT extends PrincipalAceServiceTestSupport 
         try {
             modifyPrincipalAce.modifyPrincipalAce(null,
                     resourcePath,
-                    "everyone",
+                    "pacetestuser",
                     Collections.singleton(localPrivilege),
-                    "first",
                     false);
             fail("Expected RepositoryException");
         } catch (RepositoryException re) {
@@ -74,13 +73,11 @@ public class ModifyPrincipalAceServiceIT extends PrincipalAceServiceTestSupport 
         try {
             modifyPrincipalAce.modifyPrincipalAce(adminSession,
                     null,
-                    "everyone",
+                    "pacetestuser",
                     privileges,
-                    "first",
                     false);
-            fail("Expected ResourceNotFoundException");
         } catch (ResourceNotFoundException rnfe) {
-            //expected
+            fail("Did not expect ResourceNotFoundException");
         }
     }
 
@@ -93,13 +90,11 @@ public class ModifyPrincipalAceServiceIT extends PrincipalAceServiceTestSupport 
         try {
             modifyPrincipalAce.modifyPrincipalAce(adminSession,
                     "/not_a_real_path",
-                    "everyone",
+                    "pacetestuser",
                     privileges,
-                    "first",
                     false);
-            fail("Expected ResourceNotFoundException");
         } catch (ResourceNotFoundException rnfe) {
-            //expected
+            fail("Did not expect ResourceNotFoundException");
         }
     }
 
@@ -115,7 +110,6 @@ public class ModifyPrincipalAceServiceIT extends PrincipalAceServiceTestSupport 
                     resourcePath,
                     null,
                     privileges,
-                    "first",
                     false);
             fail("Expected RepositoryException");
         } catch (RepositoryException re) {
@@ -134,7 +128,6 @@ public class ModifyPrincipalAceServiceIT extends PrincipalAceServiceTestSupport 
                     resourcePath,
                     "not_a_real_principalid",
                     Collections.singleton(localPrivilege),
-                    "first",
                     false);
             fail("Expected RepositoryException");
         } catch (RepositoryException re) {

@@ -640,15 +640,21 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         return aclObject;
     }
 
-    protected JsonObject getEffectiveAcl(String folderUrl) throws IOException, JsonException {
-        String getUrl = testFolderUrl + ".eacl.json";
+    protected JsonObject getPrincipalAce(String folderUrl, String principalId) throws IOException, JsonException {
+        return getPrincipalAce(folderUrl, principalId, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
+    }
+    protected JsonObject getPrincipalAce(String folderUrl, String principalId, String expectedContentType, int expectedStatus) throws IOException, JsonException {
+        String getUrl = folderUrl + ".pace.json?pid=" + principalId;
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json);
+        String json = getAuthenticatedContent(creds, getUrl, expectedContentType, expectedStatus);
+        JsonObject aceObject = null;
+        if (expectedStatus == HttpServletResponse.SC_OK) {
+            assertNotNull(json);
 
-        JsonObject aclObject = parseJson(json);
-        return aclObject;
+            aceObject = parseJson(json);
+        }
+        return aceObject;
     }
 
     protected JsonObject getAce(String folderUrl, String principalId) throws IOException, JsonException {

@@ -48,6 +48,7 @@ import org.apache.sling.servlets.post.Modification;
 import org.apache.sling.servlets.post.PostResponse;
 import org.apache.sling.servlets.post.PostResponseCreator;
 import org.apache.sling.servlets.post.SlingPostConstants;
+import org.jetbrains.annotations.Nullable;
 import org.osgi.framework.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,7 +90,7 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
         response.setLocation(externalizePath(request, path));
 
         // parent location
-        path = ResourceUtil.getParent(path);
+        path = getParentPath(path);
         if (path != null) {
             response.setParentLocation(externalizePath(request, path));
         }
@@ -158,6 +159,19 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
 
         // create a html response and send if unsuccessful or no redirect
         response.send(httpResponse, isSetStatus(request));
+    }
+
+    /**
+     * Override if the path does not need to exist
+     */
+    protected void validateResourcePath(Session jcrSession, String resourcePath) throws RepositoryException {
+        if (resourcePath == null) {
+            throw new ResourceNotFoundException("Resource path was not supplied.");
+        }
+
+        if (!jcrSession.nodeExists(resourcePath)) {
+            throw new ResourceNotFoundException("Resource is not a JCR Node");
+        }
     }
 
     /**
@@ -364,7 +378,7 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
      * @param path the path to externalize
      * @return the url
      */
-    protected final String externalizePath(SlingHttpServletRequest request,
+    protected String externalizePath(SlingHttpServletRequest request,
             String path) {
         StringBuilder ret = new StringBuilder();
         ret.append(SlingRequestPaths.getContextPath(request));
@@ -380,6 +394,15 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
         }
 
         return ret.toString();
+    }
+
+    /**
+     * Returns an external form of the parent path
+     * @param path the resource path
+     * @return parent path
+     */
+    protected @Nullable String getParentPath(String path) {
+        return ResourceUtil.getParent(path);
     }
 
     /**

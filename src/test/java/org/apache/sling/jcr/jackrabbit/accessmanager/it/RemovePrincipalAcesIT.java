@@ -17,9 +17,8 @@
 package org.apache.sling.jcr.jackrabbit.accessmanager.it;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNull;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -80,34 +79,35 @@ public class RemovePrincipalAcesIT extends PrincipalAceTestSupport {
         super.after();
     }
 
-
     private String createFolderWithPrincipalAces(boolean addSecondUserAce) throws IOException, JsonException {
         testFolderUrl = createTestFolder();
+        createPrincipalAces(testFolderUrl, addSecondUserAce);
+        return testFolderUrl;
+    }
+    private String createPrincipalAces(String targetUrl, boolean addSecondUserAce) throws IOException, JsonException {
 
         // update the ACE
         List<NameValuePair> postParams = new AcePostParamsBuilder("pacetestuser")
                 .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
                 .build();
-        addOrUpdatePrincipalAce(testFolderUrl, postParams);
+        addOrUpdatePrincipalAce(targetUrl, postParams);
 
         if (addSecondUserAce) {
             postParams = new AcePostParamsBuilder("pacetestuser2")
                     .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
                     .build();
-            addOrUpdatePrincipalAce(testFolderUrl, postParams);
+            addOrUpdatePrincipalAce(targetUrl, postParams);
         }
 
         //fetch the JSON for the eacl to verify the settings.
-        JsonObject jsonObject = getEffectiveAcl(testFolderUrl);
-
-        if (addSecondUserAce) {
-            assertTrue(jsonObject.size() >= 2);
-        } else {
-            assertTrue(jsonObject.size() >= 1);
-        }
-
-        JsonObject aceObject = jsonObject.getJsonObject("pacetestuser");
+        JsonObject aceObject = getPrincipalAce(targetUrl, "pacetestuser");
         assertNotNull(aceObject);
+
+        JsonObject aceObject2 = null;
+        if (addSecondUserAce) {
+            aceObject2 = getPrincipalAce(targetUrl, "pacetestuser2");
+            assertNotNull(aceObject2);
+        }
 
         String principalString = aceObject.getString("principal");
         assertEquals("pacetestuser", principalString);
@@ -119,20 +119,17 @@ public class RemovePrincipalAcesIT extends PrincipalAceTestSupport {
         assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ);
 
         if (addSecondUserAce) {
-            aceObject = jsonObject.getJsonObject("pacetestuser2");
-            assertNotNull(aceObject);
-
-            principalString = aceObject.getString("principal");
+            principalString = aceObject2.getString("principal");
             assertEquals("pacetestuser2", principalString);
 
-            privilegesObject = aceObject.getJsonObject("privileges");
+            privilegesObject = aceObject2.getJsonObject("privileges");
             assertNotNull(privilegesObject);
             assertEquals(1, privilegesObject.size());
             //allow privileges
             assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ);
         }
 
-        return testFolderUrl;
+        return targetUrl;
     }
 
     //test removing a single ace
@@ -147,10 +144,9 @@ public class RemovePrincipalAcesIT extends PrincipalAceTestSupport {
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
         assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
 
-        //fetch the JSON for the acl to verify the settings.
-        JsonObject aclObj = getEffectiveAcl(folderUrl);
-        assertNotNull(aclObj);
-        assertFalse(aclObj.containsKey("pacetestuser"));
+        //fetch the JSON for the ace to verify the settings.
+        JsonObject aceObj = getPrincipalAce(folderUrl, "pacetestuser", CONTENT_TYPE_HTML, HttpServletResponse.SC_NOT_FOUND);
+        assertNull(aceObj);
     }
 
     /**
@@ -185,10 +181,10 @@ public class RemovePrincipalAcesIT extends PrincipalAceTestSupport {
         assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
 
         //fetch the JSON for the acl to verify the settings.
-        JsonObject aclObj = getEffectiveAcl(folderUrl);
-        assertNotNull(aclObj);
-        assertFalse(aclObj.containsKey("pacetestuser"));
-        assertFalse(aclObj.containsKey("pacetestuser2"));
+        JsonObject aceObj = getPrincipalAce(folderUrl, "pacetestuser", CONTENT_TYPE_HTML, HttpServletResponse.SC_NOT_FOUND);
+        assertNull(aceObj);
+        JsonObject aceObj2 = getPrincipalAce(folderUrl, "pacetestuser2", CONTENT_TYPE_HTML, HttpServletResponse.SC_NOT_FOUND);
+        assertNull(aceObj2);
     }
 
     /**
@@ -327,9 +323,35 @@ public class RemovePrincipalAcesIT extends PrincipalAceTestSupport {
         assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
 
         //fetch the JSON for the acl to verify the settings were not removed.
-        JsonObject aclObj = getEffectiveAcl(folderUrl);
-        assertNotNull(aclObj);
-        assertTrue(aclObj.containsKey("pacetestuser"));
+        JsonObject aceObj = getPrincipalAce(folderUrl, "pacetestuser");
+        assertNotNull(aceObj);
+    }
+
+    protected void commonRemovePrincipalAce(String targetUrl) throws IOException {
+        createPrincipalAces(targetUrl, false);
+
+        //remove the ace for the testUser principal
+        String postUrl = targetUrl + ".deletePAce.html";
+        List<NameValuePair> postParams = new ArrayList<>();
+        postParams.add(new BasicNameValuePair(":applyTo", "pacetestuser"));
+        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
+        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
+
+        //fetch the JSON for the acl to verify the settings.
+        JsonObject aceObj = getPrincipalAce(targetUrl, "pacetestuser", CONTENT_TYPE_HTML, HttpServletResponse.SC_NOT_FOUND);
+        assertNull(aceObj);
+    }
+
+    @Test
+    public void testRemovePrincipalAceOnNullPath() throws IOException, JsonException {
+        String targetUrl = String.format("%s/:repository", baseServerUri);
+        commonRemovePrincipalAce(targetUrl);
+    }
+
+    @Test
+    public void testRemovePrincipalAceOnNotExistingPath() throws IOException, JsonException {
+        String targetUrl = String.format("%s/not_existing_path", baseServerUri);
+        commonRemovePrincipalAce(targetUrl);
     }
 
 }

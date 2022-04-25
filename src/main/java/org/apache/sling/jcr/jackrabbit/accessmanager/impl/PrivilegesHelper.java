@@ -29,12 +29,16 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.jcr.RepositoryException;
-import javax.jcr.security.AccessControlManager;
+import javax.jcr.Session;
+import javax.jcr.Workspace;
 import javax.jcr.security.Privilege;
 
+import org.apache.jackrabbit.api.JackrabbitWorkspace;
+import org.apache.jackrabbit.api.security.authorization.PrivilegeManager;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Contains utility methods related to handling privileges 
@@ -522,20 +526,46 @@ public final class PrivilegesHelper {
     }
 
     /**
+     * Calculates the supported privileges in the resource path exists, or the registered
+     * privileges if the resource path does not exist
+     * 
+     * @param jcrSession the current session
+     * @param resourcePath the resource path to consider
+     * @return
+     * @throws RepositoryException
+     */
+    private static @NotNull Privilege[] getSupportedOrRegisteredPrivileges(@NotNull Session jcrSession, @Nullable String resourcePath) 
+            throws RepositoryException {
+        Privilege[] supportedPrivileges = null;
+        if (resourcePath != null && jcrSession.nodeExists(resourcePath)) {
+            supportedPrivileges = jcrSession.getAccessControlManager().getSupportedPrivileges(resourcePath);
+        } else {
+            // non-existing path. We can't determine what is supported there, so consider all registered privileges
+            Workspace workspace = jcrSession.getWorkspace();
+            if (workspace instanceof JackrabbitWorkspace) {
+                PrivilegeManager privilegeManager = ((JackrabbitWorkspace)workspace).getPrivilegeManager();
+                supportedPrivileges = privilegeManager.getRegisteredPrivileges();
+            }
+        }
+        return supportedPrivileges == null ? new Privilege[0] : supportedPrivileges;
+    }
+
+    /**
      * Process the supplied privileges and consolidate each aggregate whenever the state of all the
      * aggregated direct child privileges are allow or deny
      * 
-     * @param acm the access control manager
+     * @param jcrSession the current session
      * @param resourcePath the path of the resource
      * @param privilegeToLocalPrivilegesMap map of privileges to process. The map entry key is the
      *          privilege and value is the associated LocalPrivilege.
      * @param privilegeLongestDepthMap map of privileges to the longest depth.  See {@link #buildPrivilegeLongestDepthMap(Privilege)}
      */
-    public static void consolidateAggregates(AccessControlManager acm, String resourcePath, 
+    public static void consolidateAggregates(Session jcrSession, String resourcePath, 
             Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
             Map<Privilege, Integer> privilegeLongestDepthMap) throws RepositoryException {
+        Privilege[] supportedPrivileges = getSupportedOrRegisteredPrivileges(jcrSession, resourcePath);
         // sort the aggregates to process the deepest first
-        Privilege[] supportedAggregatePrivileges = Stream.of(acm.getSupportedPrivileges(resourcePath))
+        Privilege[] supportedAggregatePrivileges = Stream.of(supportedPrivileges)
                 .filter(Privilege::isAggregate)
                 .sorted((p1, p2) -> privilegeLongestDepthMap.get(p2).compareTo(privilegeLongestDepthMap.get(p1)))
                 .toArray(size -> new Privilege[size]);

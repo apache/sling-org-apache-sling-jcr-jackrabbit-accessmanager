@@ -27,8 +27,6 @@ import javax.json.JsonObject;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.http.NameValuePair;
-import org.apache.http.auth.Credentials;
-import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -46,35 +44,10 @@ public class ModifyPrincipalAceIT extends PrincipalAceTestSupport {
     /**
      * Privilege ACE servlet returns correct information
      */
+    @SuppressWarnings("java:S2699")
     @Test
     public void testModifyPrivilegeAceForServiceUser() throws IOException, JsonException {
-        String testServiceUserId = "pacetestuser";
-        testFolderUrl = createTestFolder(null, "sling-tests",
-                "{ \"jcr:primaryType\": \"nt:unstructured\", \"child\" : { \"childPropOne\" : true } }");
-
-        //1. create an initial set of privileges
-        List<NameValuePair> postParams = new AcePostParamsBuilder(testServiceUserId)
-                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.ALLOW)
-                .build();
-        addOrUpdatePrincipalAce(testFolderUrl, postParams);
-
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-
-        //fetch the JSON for the principal ace to verify the settings.
-        String getUrl = testFolderUrl + ".pace.json?pid=" + testServiceUserId;
-
-        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
-        assertNotNull(json);
-        JsonObject aceObject = parseJson(json);
-
-        String principalString = aceObject.getString("principal");
-        assertEquals(testServiceUserId, principalString);
-
-        JsonObject privilegesObject = aceObject.getJsonObject("privileges");
-        assertNotNull(privilegesObject);
-        assertEquals(1, privilegesObject.size());
-        //allow privilege
-        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE);
+        commonPrivilegeAceForServiceUser("pace");
     }
 
     /**
@@ -116,6 +89,26 @@ public class ModifyPrincipalAceIT extends PrincipalAceTestSupport {
 
         JsonObject jsonObject = parseJson(json);
         assertEquals("java.lang.IllegalStateException: No access control list is available so unable to process", jsonObject.getString("status.message"));
+    }
+
+    /**
+     * Privilege ACE servlet returns correct information
+     */
+    @SuppressWarnings("java:S2699")
+    @Test
+    public void testModifyPrivilegeAceForServiceUserOnNullPath() throws IOException, JsonException {
+        String targetUrl = String.format("%s/:repository", baseServerUri);
+        commonPrivilegeAceForServiceUser(targetUrl, "pace");
+    }
+
+    /**
+     * Privilege ACE servlet returns correct information
+     */
+    @SuppressWarnings("java:S2699")
+    @Test
+    public void testModifyPrivilegeAceForServiceUserOnNotExistingPath() throws IOException, JsonException {
+        String targetUrl = String.format("%s/not_existing_path", baseServerUri);
+        commonPrivilegeAceForServiceUser(targetUrl, "pace");
     }
 
 }

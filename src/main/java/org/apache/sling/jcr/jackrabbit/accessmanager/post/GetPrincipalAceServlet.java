@@ -35,9 +35,12 @@ import org.apache.jackrabbit.api.security.JackrabbitAccessControlManager;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlPolicy;
 import org.apache.jackrabbit.api.security.authorization.PrincipalAccessControlList;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
+import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.apache.sling.jcr.jackrabbit.accessmanager.GetPrincipalAce;
+import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrincipalAceHelper;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 
@@ -92,6 +95,16 @@ public class GetPrincipalAceServlet extends AbstractGetAceServlet implements Get
     private static final long serialVersionUID = 1654062732084983394L;
 
     @Override
+    protected @Nullable String getItemPath(SlingHttpServletRequest request) {
+        return PrincipalAceHelper.getEffectivePath(request);
+    }
+
+    @Override
+    protected void validateResourcePath(Session jcrSession, String resourcePath) throws RepositoryException {
+        // path does not need to already exist for a principal ACE
+    }
+
+    @Override
     public JsonObject getPrincipalAce(Session jcrSession, String resourcePath, String principalId)
             throws RepositoryException {
         return internalGetAce(jcrSession, resourcePath, principalId);
@@ -131,7 +144,7 @@ public class GetPrincipalAceServlet extends AbstractGetAceServlet implements Get
         JackrabbitAccessControlEntry jrEntry = null;
         if (entry instanceof PrincipalAccessControlList.Entry &&
                 entry.getPrincipal().equals(forPrincipal) &&
-                resourcePath.equals(((PrincipalAccessControlList.Entry)entry).getEffectivePath())) {
+                PrincipalAceHelper.matchesResourcePath(resourcePath, entry)) {
             jrEntry = (JackrabbitAccessControlEntry)entry;
         }
         return jrEntry != null;

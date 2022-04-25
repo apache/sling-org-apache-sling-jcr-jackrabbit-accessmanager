@@ -16,6 +16,8 @@
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager.it;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.ops4j.pax.exam.CoreOptions.composite;
 import static org.ops4j.pax.exam.CoreOptions.mavenBundle;
 import static org.ops4j.pax.exam.cm.ConfigurationAdminOptions.factoryConfiguration;
@@ -25,11 +27,13 @@ import java.io.IOException;
 import java.util.List;
 
 import javax.json.JsonException;
+import javax.json.JsonObject;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.http.NameValuePair;
 import org.apache.http.auth.Credentials;
 import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
 import org.ops4j.pax.exam.Option;
 
 /**
@@ -85,6 +89,40 @@ public abstract class PrincipalAceTestSupport extends AccessManagerClientTestSup
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
         return getAuthenticatedPostContent(creds, postUrl, contentType, postParams, expectedStatus);
+    }
+
+    protected void commonPrivilegeAceForServiceUser(String selector) throws IOException {
+        testFolderUrl = createTestFolder(null, "sling-tests1",
+                "{ \"jcr:primaryType\": \"nt:unstructured\", \"child\" : { \"childPropOne\" : true } }");
+        commonPrivilegeAceForServiceUser(testFolderUrl, selector);
+    }
+
+    protected void commonPrivilegeAceForServiceUser(String testUrl, String selector) throws IOException {
+        String testServiceUserId = "pacetestuser";
+
+        //1. create an initial set of privileges
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testServiceUserId)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.ALLOW)
+                .build();
+        addOrUpdatePrincipalAce(testUrl, postParams);
+
+        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
+
+        //fetch the JSON for the principal ace to verify the settings.
+        String getUrl = testUrl + "." + selector + ".json?pid=" + testServiceUserId;
+
+        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
+        assertNotNull(json);
+        JsonObject aceObject = parseJson(json);
+
+        String principalString = aceObject.getString("principal");
+        assertEquals(testServiceUserId, principalString);
+
+        JsonObject privilegesObject = aceObject.getJsonObject("privileges");
+        assertNotNull(privilegesObject);
+        assertEquals(1, privilegesObject.size());
+        //allow privilege
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE);
     }
 
 }

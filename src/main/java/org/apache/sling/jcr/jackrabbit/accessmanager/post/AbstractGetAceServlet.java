@@ -77,7 +77,7 @@ public abstract class AbstractGetAceServlet extends AbstractAccessGetServlet {
         // combine any aggregates that are still valid
         AccessControlManager acm = AccessControlUtil.getAccessControlManager(jcrSession);
         Map<Privilege, Integer> privilegeLongestDepthMap = PrivilegesHelper.buildPrivilegeLongestDepthMap(acm.privilegeFromName(PrivilegeConstants.JCR_ALL));
-        PrivilegesHelper.consolidateAggregates(acm, resourcePath, privilegeToLocalPrivilegesMap, privilegeLongestDepthMap);
+        PrivilegesHelper.consolidateAggregates(jcrSession, resourcePath, privilegeToLocalPrivilegesMap, privilegeLongestDepthMap);
 
         // convert the data to JSON
         JsonObjectBuilder jsonObj = JsonConvert.convertToJson(principal, privilegeToLocalPrivilegesMap, -1);

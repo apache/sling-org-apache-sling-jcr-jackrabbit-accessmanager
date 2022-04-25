@@ -57,7 +57,6 @@ import org.apache.jackrabbit.oak.spi.security.authorization.restriction.Restrict
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
 import org.apache.sling.api.SlingHttpServletRequest;
-import org.apache.sling.api.resource.ResourceNotFoundException;
 import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
@@ -237,7 +236,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             PostResponse response, List<Modification> changes)
             throws RepositoryException {
         Session session = request.getResourceResolver().adaptTo(Session.class);
-        String resourcePath = request.getResource().getPath();
+        String resourcePath = getItemPath(request);
         String principalId = request.getParameter("principalId");
         String order = request.getParameter("order");
 
@@ -259,7 +258,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
         processPostedRestrictionParams(acm, request, srMap, privilegeToLocalPrivilegesMap, privilegeLongestDepthMap);
 
         // consolidate any aggregates that are still valid
-        PrivilegesHelper.consolidateAggregates(acm, resourcePath, privilegeToLocalPrivilegesMap, privilegeLongestDepthMap);
+        PrivilegesHelper.consolidateAggregates(session, resourcePath, privilegeToLocalPrivilegesMap, privilegeLongestDepthMap);
 
         // and then store it
         modifyAce(session, resourcePath, principalId, privilegeToLocalPrivilegesMap.values(), order, false, changes);
@@ -293,13 +292,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             throw new RepositoryException("Invalid principalId was submitted.");
         }
 
-        if (resourcePath == null) {
-            throw new ResourceNotFoundException("Resource path was not supplied.");
-        }
-
-        if (!jcrSession.nodeExists(resourcePath)) {
-            throw new ResourceNotFoundException("Resource is not a JCR Node");
-        }
+        validateResourcePath(jcrSession, resourcePath);
 
         AccessControlManager acm = AccessControlUtil.getAccessControlManager(jcrSession);
         JackrabbitAccessControlList acl = getAcl(acm, resourcePath, principal);
@@ -1028,7 +1021,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
         }
 
         // combine any aggregates that are still valid
-        PrivilegesHelper.consolidateAggregates(acm, resourcePath, privilegeToLocalPrivilegesMap, privilegeLongestDepthMap);
+        PrivilegesHelper.consolidateAggregates(jcrSession, resourcePath, privilegeToLocalPrivilegesMap, privilegeLongestDepthMap);
 
         modifyAce(jcrSession, resourcePath, principalId, 
                 privilegeToLocalPrivilegesMap.values(), order, 
