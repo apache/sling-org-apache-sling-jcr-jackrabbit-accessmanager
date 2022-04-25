@@ -31,14 +31,12 @@ import javax.servlet.Servlet;
 
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlManager;
 import org.apache.jackrabbit.api.security.authorization.PrincipalAccessControlList;
-import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.apache.sling.jcr.jackrabbit.accessmanager.DeletePrincipalAces;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrincipalAceHelper;
 import org.apache.sling.servlets.post.Modification;
 import org.apache.sling.servlets.post.PostResponseCreator;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
@@ -103,30 +101,8 @@ public class DeletePrincipalAcesServlet extends DeleteAcesServlet implements Del
     private final transient Logger log = LoggerFactory.getLogger(getClass());
 
     @Override
-    protected String externalizePath(SlingHttpServletRequest request, String path) {
-        if (path == null) {
-            path = PrincipalAceHelper.RESOURCE_PATH_REPOSITORY;
-        }
-        return super.externalizePath(request, path);
-    }
-
-    @Override
-    protected @Nullable String getParentPath(String path) {
-        if (path == null) {
-            // null path is ok for repository level privileges
-            return null;
-        }
-        return super.getParentPath(path);
-    }
-
-    @Override
-    protected String getItemPath(SlingHttpServletRequest request) {
-        return PrincipalAceHelper.getEffectivePath(request);
-    }
-
-    @Override
-    protected void validateResourcePath(Session jcrSession, String resourcePath) throws RepositoryException {
-        // path does not need to already exist for a principal ACE
+    protected boolean allowNonExistingPaths() {
+        return true;
     }
 
     @Override

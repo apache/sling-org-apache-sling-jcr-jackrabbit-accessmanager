@@ -35,7 +35,6 @@ import org.apache.jackrabbit.api.security.JackrabbitAccessControlList;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlManager;
 import org.apache.jackrabbit.api.security.authorization.PrincipalAccessControlList;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
-import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
 import org.apache.sling.jcr.jackrabbit.accessmanager.ModifyPrincipalAce;
@@ -117,30 +116,8 @@ public class ModifyPrincipalAceServlet extends ModifyAceServlet implements Modif
     private static final long serialVersionUID = -4152308935573740745L;
 
     @Override
-    protected String externalizePath(SlingHttpServletRequest request, String path) {
-        if (path == null) {
-            path = PrincipalAceHelper.RESOURCE_PATH_REPOSITORY;
-        }
-        return super.externalizePath(request, path);
-    }
-
-    @Override
-    protected @Nullable String getParentPath(String path) {
-        if (path == null) {
-            // null path is ok for repository level privileges
-            return null;
-        }
-        return super.getParentPath(path);
-    }
-
-    @Override
-    protected String getItemPath(SlingHttpServletRequest request) {
-        return PrincipalAceHelper.getEffectivePath(request);
-    }
-
-    @Override
-    protected void validateResourcePath(Session jcrSession, String resourcePath) throws RepositoryException {
-        // path does not need to already exist for a principal ACE
+    protected boolean allowNonExistingPaths() {
+        return true;
     }
 
     @Override

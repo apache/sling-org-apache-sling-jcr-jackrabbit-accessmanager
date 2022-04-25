@@ -41,6 +41,7 @@ import org.apache.sling.api.resource.ResourceNotFoundException;
 import org.apache.sling.api.resource.ResourceUtil;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 import org.apache.sling.api.wrappers.SlingRequestPaths;
+import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrincipalAceHelper;
 import org.apache.sling.servlets.post.AbstractPostResponse;
 import org.apache.sling.servlets.post.HtmlResponse;
 import org.apache.sling.servlets.post.JSONResponse;
@@ -165,12 +166,14 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
      * Override if the path does not need to exist
      */
     protected void validateResourcePath(Session jcrSession, String resourcePath) throws RepositoryException {
-        if (resourcePath == null) {
-            throw new ResourceNotFoundException("Resource path was not supplied.");
-        }
+        if (!allowNonExistingPaths()) {
+            if (resourcePath == null) {
+                throw new ResourceNotFoundException("Resource path was not supplied.");
+            }
 
-        if (!jcrSession.nodeExists(resourcePath)) {
-            throw new ResourceNotFoundException("Resource is not a JCR Node");
+            if (!jcrSession.nodeExists(resourcePath)) {
+                throw new ResourceNotFoundException("Resource is not a JCR Node");
+            }
         }
     }
 
@@ -367,7 +370,11 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
      * @return the resolved path of the found item
      */
     protected String getItemPath(SlingHttpServletRequest request) {
-        return request.getResource().getPath();
+        if (allowNonExistingPaths()) {
+            return PrincipalAceHelper.getEffectivePath(request);
+        } else {
+            return request.getResource().getPath();
+        }
     }
 
     /**
@@ -380,6 +387,9 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
      */
     protected String externalizePath(SlingHttpServletRequest request,
             String path) {
+        if (path == null && allowNonExistingPaths()) {
+            path = PrincipalAceHelper.RESOURCE_PATH_REPOSITORY;
+        }
         StringBuilder ret = new StringBuilder();
         ret.append(SlingRequestPaths.getContextPath(request));
         ret.append(request.getResourceResolver().map(path));
@@ -397,11 +407,26 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
     }
 
     /**
+     * Returns whether this operation can operate on paths that do
+     * not exist yet
+     * 
+     * @return true if the resourcePath must exist, false otherwise
+     */
+    protected boolean allowNonExistingPaths() {
+        return false;
+    }
+
+    /**
      * Returns an external form of the parent path
      * @param path the resource path
      * @return parent path
      */
     protected @Nullable String getParentPath(String path) {
+        if (path == null && allowNonExistingPaths()) {
+            // null path is ok for repository level privileges
+            return null;
+        }
+
         return ResourceUtil.getParent(path);
     }
 
