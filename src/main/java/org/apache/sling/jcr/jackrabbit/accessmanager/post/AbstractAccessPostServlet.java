@@ -387,8 +387,12 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
      */
     protected String externalizePath(SlingHttpServletRequest request,
             String path) {
-        if (path == null && allowNonExistingPaths()) {
-            path = PrincipalAceHelper.RESOURCE_PATH_REPOSITORY;
+        if (path == null) {
+            if (allowNonExistingPaths()) {
+                path = PrincipalAceHelper.RESOURCE_PATH_REPOSITORY;
+            } else {
+                return null;
+            }
         }
         StringBuilder ret = new StringBuilder();
         ret.append(SlingRequestPaths.getContextPath(request));
@@ -422,7 +426,7 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
      * @return parent path
      */
     protected @Nullable String getParentPath(String path) {
-        if (path == null && allowNonExistingPaths()) {
+        if (path == null) {
             // null path is ok for repository level privileges
             return null;
         }
