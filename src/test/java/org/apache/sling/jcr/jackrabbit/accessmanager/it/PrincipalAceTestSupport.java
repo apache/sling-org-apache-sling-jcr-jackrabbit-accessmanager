@@ -81,7 +81,7 @@ public abstract class PrincipalAceTestSupport extends AccessManagerClientTestSup
         assertAuthenticatedPostStatus(creds, postUrl, expectedStatus, postParams, null);
     }
     protected String addOrUpdatePrincipalAce(String folderUrl, List<NameValuePair> postParams, String contentType) throws IOException, JsonException {
-        return addOrUpdateAce(folderUrl, postParams, contentType, HttpServletResponse.SC_OK);
+        return addOrUpdatePrincipalAce(folderUrl, postParams, contentType, HttpServletResponse.SC_OK);
     }
 
     protected String addOrUpdatePrincipalAce(String folderUrl, List<NameValuePair> postParams, String contentType, int expectedStatus) throws IOException, JsonException {

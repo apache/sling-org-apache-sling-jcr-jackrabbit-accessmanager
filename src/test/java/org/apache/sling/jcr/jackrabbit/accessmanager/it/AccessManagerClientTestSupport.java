@@ -630,7 +630,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
     }
 
     protected JsonObject getAcl(String folderUrl) throws IOException, JsonException {
-        String getUrl = testFolderUrl + ".acl.json";
+        String getUrl = folderUrl + ".acl.json";
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
         String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);

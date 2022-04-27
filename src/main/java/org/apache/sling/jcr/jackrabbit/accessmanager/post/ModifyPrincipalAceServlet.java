@@ -39,10 +39,13 @@ import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
 import org.apache.sling.jcr.jackrabbit.accessmanager.ModifyPrincipalAce;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrincipalAceHelper;
+import org.apache.sling.servlets.post.PostResponseCreator;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
+import org.osgi.service.component.annotations.ReferenceCardinality;
+import org.osgi.service.component.annotations.ReferencePolicyOption;
 
 /**
  * <p>
@@ -108,7 +111,12 @@ property= {
 reference = {
         @Reference(name="RestrictionProvider",
                 bind = "bindRestrictionProvider",
-                service = RestrictionProvider.class)
+                service = RestrictionProvider.class),
+        @Reference(name = "PostResponseCreator",
+                bind = "bindPostResponseCreator",
+                cardinality = ReferenceCardinality.MULTIPLE,
+                policyOption = ReferencePolicyOption.GREEDY,
+                service = PostResponseCreator.class)
 })
 @SuppressWarnings("java:S110")
 public class ModifyPrincipalAceServlet extends ModifyAceServlet implements ModifyPrincipalAce {
