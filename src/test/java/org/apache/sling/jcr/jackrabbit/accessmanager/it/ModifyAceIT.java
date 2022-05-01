@@ -23,7 +23,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.lang.reflect.Array;
-import java.net.URISyntaxException;
 import java.util.Dictionary;
 import java.util.Hashtable;
 import java.util.List;
@@ -68,7 +67,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
     @Before
     @Override
-    public void before() throws IOException, URISyntaxException {
+    public void before() throws Exception {
         Bundle bundle = FrameworkUtil.getBundle(getClass());
         Dictionary<String, Object> props = new Hashtable<>(); // NOSONAR
         serviceReg = bundle.getBundleContext().registerService(PostResponseCreator.class,
@@ -79,7 +78,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
     @After
     @Override
-    public void after() throws IOException {
+    public void after() throws Exception {
         if (serviceReg != null) {
             serviceReg.unregister();
         }

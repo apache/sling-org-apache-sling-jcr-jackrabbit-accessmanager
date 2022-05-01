@@ -41,6 +41,7 @@ import org.apache.sling.api.resource.ResourceNotFoundException;
 import org.apache.sling.api.resource.ResourceUtil;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 import org.apache.sling.api.wrappers.SlingRequestPaths;
+import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrincipalAceHelper;
 import org.apache.sling.servlets.post.AbstractPostResponse;
 import org.apache.sling.servlets.post.HtmlResponse;
 import org.apache.sling.servlets.post.JSONResponse;
@@ -48,6 +49,7 @@ import org.apache.sling.servlets.post.Modification;
 import org.apache.sling.servlets.post.PostResponse;
 import org.apache.sling.servlets.post.PostResponseCreator;
 import org.apache.sling.servlets.post.SlingPostConstants;
+import org.jetbrains.annotations.Nullable;
 import org.osgi.framework.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,7 +91,7 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
         response.setLocation(externalizePath(request, path));
 
         // parent location
-        path = ResourceUtil.getParent(path);
+        path = getParentPath(path);
         if (path != null) {
             response.setParentLocation(externalizePath(request, path));
         }
@@ -158,6 +160,21 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
 
         // create a html response and send if unsuccessful or no redirect
         response.send(httpResponse, isSetStatus(request));
+    }
+
+    /**
+     * Override if the path does not need to exist
+     */
+    protected void validateResourcePath(Session jcrSession, String resourcePath) throws RepositoryException {
+        if (!allowNonExistingPaths()) {
+            if (resourcePath == null) {
+                throw new ResourceNotFoundException("Resource path was not supplied.");
+            }
+
+            if (!jcrSession.nodeExists(resourcePath)) {
+                throw new ResourceNotFoundException("Resource is not a JCR Node");
+            }
+        }
     }
 
     /**
@@ -353,7 +370,11 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
      * @return the resolved path of the found item
      */
     protected String getItemPath(SlingHttpServletRequest request) {
-        return request.getResource().getPath();
+        if (allowNonExistingPaths()) {
+            return PrincipalAceHelper.getEffectivePath(request);
+        } else {
+            return request.getResource().getPath();
+        }
     }
 
     /**
@@ -364,8 +385,15 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
      * @param path the path to externalize
      * @return the url
      */
-    protected final String externalizePath(SlingHttpServletRequest request,
+    protected String externalizePath(SlingHttpServletRequest request,
             String path) {
+        if (path == null) {
+            if (allowNonExistingPaths()) {
+                path = PrincipalAceHelper.RESOURCE_PATH_REPOSITORY;
+            } else {
+                return null;
+            }
+        }
         StringBuilder ret = new StringBuilder();
         ret.append(SlingRequestPaths.getContextPath(request));
         ret.append(request.getResourceResolver().map(path));
@@ -380,6 +408,30 @@ public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
         }
 
         return ret.toString();
+    }
+
+    /**
+     * Returns whether this operation can operate on paths that do
+     * not exist yet
+     * 
+     * @return true if the resourcePath must exist, false otherwise
+     */
+    protected boolean allowNonExistingPaths() {
+        return false;
+    }
+
+    /**
+     * Returns an external form of the parent path
+     * @param path the resource path
+     * @return parent path
+     */
+    protected @Nullable String getParentPath(String path) {
+        if (path == null) {
+            // null path is ok for repository level privileges
+            return null;
+        }
+
+        return ResourceUtil.getParent(path);
     }
 
     /**

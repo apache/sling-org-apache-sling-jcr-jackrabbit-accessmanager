@@ -104,7 +104,7 @@ public abstract class AbstractGetAclServlet extends AbstractAccessGetServlet {
         for (Entry<Principal, Map<Privilege, LocalPrivilege>> entry : principalToPrivilegesMap.entrySet()) {
             Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap = entry.getValue();
 
-            PrivilegesHelper.consolidateAggregates(acm, resourcePath, privilegeToLocalPrivilegesMap, privilegeLongestDepthMap);
+            PrivilegesHelper.consolidateAggregates(jcrSession, resourcePath, privilegeToLocalPrivilegesMap, privilegeLongestDepthMap);
         }
 
         // sort the entries by the order value for readability

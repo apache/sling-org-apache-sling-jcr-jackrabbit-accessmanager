@@ -48,6 +48,7 @@ import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrivilegesHelper;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 @SuppressWarnings("serial")
 public abstract class AbstractAccessGetServlet extends SlingAllMethodsServlet {
@@ -76,7 +77,7 @@ public abstract class AbstractAccessGetServlet extends SlingAllMethodsServlet {
 
         try {
             Session session = request.getResourceResolver().adaptTo(Session.class);
-            String resourcePath = request.getResource().getPath();
+            String resourcePath = getItemPath(request);
             String principalId = request.getParameter("pid");
 
             JsonObject jsonObj = internalJson(session, resourcePath, principalId);
@@ -108,6 +109,13 @@ public abstract class AbstractAccessGetServlet extends SlingAllMethodsServlet {
                                             request.getResource().getPath(), getClass().getName()),
                                         throwable);
         }
+    }
+
+    /**
+     * Return the path where the action should be applied
+     */
+    protected @Nullable String getItemPath(SlingHttpServletRequest request) {
+        return request.getResource().getPath();
     }
 
     protected abstract JsonObject internalJson(Session session, String resourcePath, String principalId) throws RepositoryException;
@@ -150,6 +158,13 @@ public abstract class AbstractAccessGetServlet extends SlingAllMethodsServlet {
             throw new RepositoryException("JCR Session not found");
         }
 
+        validateResourcePath(jcrSession, resourcePath);
+    }
+
+    /**
+     * Override if the path does not need to exist
+     */
+    protected void validateResourcePath(Session jcrSession, String resourcePath) throws RepositoryException {
         if (resourcePath == null) {
             throw new ResourceNotFoundException("Resource path was not supplied.");
         }

@@ -51,6 +51,7 @@ import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
 import org.apache.sling.testing.mock.sling.ResourceResolverType;
 import org.apache.sling.testing.mock.sling.junit.SlingContext;
+import org.jetbrains.annotations.Nullable;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -117,7 +118,9 @@ public class PrivilegesHelperTest {
         PrivilegesHelper.allow(merged, Collections.emptySet(),
                 Collections.singleton(priv(PrivilegeConstants.REP_READ_PROPERTIES)));
 
-        PrivilegesHelper.consolidateAggregates(acm, "/", merged, privilegeLongestDepthMap);
+        @Nullable
+        Session jcrSession = context.resourceResolver().adaptTo(Session.class);
+        PrivilegesHelper.consolidateAggregates(jcrSession, "/", merged, privilegeLongestDepthMap);
 
         Set<Privilege> allowSet = merged.values().stream()
                 .filter(lp -> lp.isAllow())
@@ -164,7 +167,9 @@ public class PrivilegesHelperTest {
         PrivilegesHelper.deny(merged, Collections.emptySet(),
                 Collections.singleton(priv(PrivilegeConstants.JCR_READ)));
 
-        PrivilegesHelper.consolidateAggregates(acm, "/", merged, privilegeLongestDepthMap);
+        @Nullable
+        Session jcrSession = context.resourceResolver().adaptTo(Session.class);
+        PrivilegesHelper.consolidateAggregates(jcrSession, "/", merged, privilegeLongestDepthMap);
 
         Set<Privilege> allowSet = merged.values().stream()
                 .filter(lp -> lp.isAllow())

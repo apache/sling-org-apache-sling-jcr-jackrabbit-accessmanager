@@ -111,8 +111,9 @@ reference = {
                 service = RestrictionProvider.class)
 }
 )
-@SuppressWarnings("serial")
+@SuppressWarnings("java:S110")
 public class GetEffectiveAclServlet extends AbstractGetAclServlet implements GetEffectiveAcl {
+    private static final long serialVersionUID = 1929547523002363145L;
 
     /* (non-Javadoc)
      * @see org.apache.sling.jcr.jackrabbit.accessmanager.GetEffectiveAcl#getEffectiveAcl(javax.jcr.Session, java.lang.String)

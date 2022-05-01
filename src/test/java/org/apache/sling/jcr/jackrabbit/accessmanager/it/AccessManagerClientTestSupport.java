@@ -156,7 +156,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
     }
 
     @Before
-    public void before() throws IOException, URISyntaxException {
+    public void before() throws Exception {
         // wait for the health checks to be OK
         waitForServerReady(Duration.ofMinutes(1).toMillis(), 500);
 
@@ -181,7 +181,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
     }
 
     @After
-    public void after() throws IOException {
+    public void after() throws Exception {
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
 
         if (testFolderUrl != null) {
@@ -630,7 +630,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
     }
 
     protected JsonObject getAcl(String folderUrl) throws IOException, JsonException {
-        String getUrl = testFolderUrl + ".acl.json";
+        String getUrl = folderUrl + ".acl.json";
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
         String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
@@ -638,6 +638,23 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
 
         JsonObject aclObject = parseJson(json);
         return aclObject;
+    }
+
+    protected JsonObject getPrincipalAce(String folderUrl, String principalId) throws IOException, JsonException {
+        return getPrincipalAce(folderUrl, principalId, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
+    }
+    protected JsonObject getPrincipalAce(String folderUrl, String principalId, String expectedContentType, int expectedStatus) throws IOException, JsonException {
+        String getUrl = folderUrl + ".pace.json?pid=" + principalId;
+
+        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
+        String json = getAuthenticatedContent(creds, getUrl, expectedContentType, expectedStatus);
+        JsonObject aceObject = null;
+        if (expectedStatus == HttpServletResponse.SC_OK) {
+            assertNotNull(json);
+
+            aceObject = parseJson(json);
+        }
+        return aceObject;
     }
 
     protected JsonObject getAce(String folderUrl, String principalId) throws IOException, JsonException {

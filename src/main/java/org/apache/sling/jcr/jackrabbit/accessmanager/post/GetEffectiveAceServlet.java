@@ -84,6 +84,7 @@ reference = {
                 service = RestrictionProvider.class)
 }
 )
+@SuppressWarnings("java:S110")
 public class GetEffectiveAceServlet extends AbstractGetAceServlet implements GetEffectiveAce {
     private static final long serialVersionUID = 1654062732084983394L;
 
