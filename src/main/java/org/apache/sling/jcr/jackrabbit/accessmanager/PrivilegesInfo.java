@@ -17,36 +17,49 @@
 package org.apache.sling.jcr.jackrabbit.accessmanager;
 
 import java.security.Principal;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import javax.jcr.Node;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.jcr.Value;
+import javax.jcr.ValueFactory;
 import javax.jcr.ValueFormatException;
-import javax.jcr.security.AccessControlEntry;
-import javax.jcr.security.AccessControlList;
 import javax.jcr.security.AccessControlManager;
-import javax.jcr.security.AccessControlPolicy;
 import javax.jcr.security.Privilege;
+import javax.json.JsonArray;
+import javax.json.JsonObject;
+import javax.json.JsonString;
+import javax.json.JsonValue;
+import javax.json.JsonValue.ValueType;
 
-import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
+import org.apache.jackrabbit.api.security.principal.PrincipalManager;
+import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionDefinition;
+import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
 import org.apache.sling.jcr.base.util.AccessControlUtil;
+import org.apache.sling.jcr.jackrabbit.accessmanager.impl.JsonConvert;
+import org.osgi.framework.Bundle;
+import org.osgi.framework.BundleContext;
+import org.osgi.framework.FrameworkUtil;
+import org.osgi.framework.ServiceReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Helper class to assist in the usage of access control from scripts.
  */
 public class PrivilegesInfo {
+    private Logger logger = LoggerFactory.getLogger(getClass());
 
     /**
      * Return the supported Privileges for the specified node.
@@ -156,22 +169,66 @@ public class PrivilegesInfo {
      * @throws RepositoryException if any errors reading the information
      */
     public Map<Principal, AccessRights> getDeclaredAccessRights(Session session, String absPath) throws RepositoryException {
-        AccessControlEntry[] entries = getDeclaredAccessControlEntries(session, absPath);
-        return mergePrivilegesFromEntries(entries);
+        return toMap(session, useGetAcl(json -> {
+                try {
+                    return json.getAcl(session, absPath);
+                } catch (RepositoryException e) {
+                    logger.warn("Failed to load Acl", e);
+                }
+                return null;
+            }));
     }
 
-    private AccessControlEntry[] getDeclaredAccessControlEntries(Session session, String absPath) throws RepositoryException {
-        AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(session);
-        AccessControlPolicy[] policies = accessControlManager.getPolicies(absPath);
-
-        List<AccessControlEntry> allEntries = new ArrayList<>();
-        for (AccessControlPolicy accessControlPolicy : policies) {
-            if (accessControlPolicy instanceof AccessControlList) {
-                AccessControlEntry[] accessControlEntries = ((AccessControlList)accessControlPolicy).getAccessControlEntries();
-                allEntries.addAll(Arrays.asList(accessControlEntries));
-            }
+    /**
+     * Convert the JSON acl to a map of Principal to AccessRights
+     * @param session the jcr session
+     * @param aclJson the acl JSON object
+     * @return map of Principal to AccessRights
+     */
+    protected Map<Principal, AccessRights> toMap(Session session, JsonObject aclJson)
+            throws RepositoryException {
+        if (aclJson == null) {
+            return Collections.emptyMap();
         }
-        return allEntries.toArray(new AccessControlEntry[allEntries.size()]);
+
+        Map<Principal, AccessRights> map;
+        AccessControlManager acm = session.getAccessControlManager();
+        PrincipalManager principalManager = AccessControlUtil.getPrincipalManager(session);
+        Function<? super JsonValue, ? extends Principal> keyMapper = val -> {
+            String principalId = ((JsonObject)val).getString(JsonConvert.KEY_PRINCIPAL);
+            return principalManager.getPrincipal(principalId);
+        };
+        Function<? super JsonValue, ? extends AccessRights> valueMapper = val -> {
+            AccessRights rights = new AccessRights();
+            JsonObject privilegesObj = ((JsonObject)val).getJsonObject(JsonConvert.KEY_PRIVILEGES);
+            if (privilegesObj != null) {
+                privilegesObj.entrySet().stream()
+                    .forEach(entry -> {
+                        Privilege privilege = null;
+                        try {
+                            privilege = acm.privilegeFromName(entry.getKey());
+                        } catch (RepositoryException e) {
+                            logger.warn("Failed to resolve privilege", e);
+                        }
+                        if (privilege != null) {
+                            JsonValue value = entry.getValue();
+                            if (value instanceof JsonObject) {
+                                JsonObject privilegeObj = (JsonObject)value;
+                                if (privilegeObj.containsKey(JsonConvert.KEY_ALLOW)) {
+                                    rights.granted.add(privilege);
+                                }
+                                if (privilegeObj.containsKey(JsonConvert.KEY_DENY)) {
+                                    rights.denied.add(privilege);
+                                }
+                            }
+                        }
+                    });
+            }
+            return rights;
+        };
+        map = aclJson.values().stream()
+                .collect(Collectors.toMap(keyMapper, valueMapper));
+        return map;
     }
 
     /**
@@ -198,42 +255,10 @@ public class PrivilegesInfo {
      * @throws RepositoryException if any errors reading the information
      */
     public AccessRights getDeclaredAccessRightsForPrincipal(Session session, String absPath, String principalId) throws RepositoryException {
-        AccessRights rights = null;
-        if (principalId != null && principalId.length() > 0) {
-            AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(session);
-            AccessControlPolicy[] policies = accessControlManager.getPolicies(absPath);
-            rights = toAccessRights(principalId, policies);
-        }
-
-        return rights;
-    }
-
-    /**
-     * Populate and return an AccessRights object by iterating through each of the policies
-     * 
-     * @param principalId the user or group the get the rights for
-     * @param policies the access control policies to consider
-     * @throws RepositoryException
-     */
-    private AccessRights toAccessRights(String principalId, AccessControlPolicy[] policies)
-            throws RepositoryException {
-        AccessRights rights = new AccessRights();
-        for (AccessControlPolicy accessControlPolicy : policies) {
-            if (accessControlPolicy instanceof AccessControlList) {
-                AccessControlEntry[] accessControlEntries = ((AccessControlList)accessControlPolicy).getAccessControlEntries();
-                for (AccessControlEntry ace : accessControlEntries) {
-                    if (principalId.equals(ace.getPrincipal().getName())) {
-                        boolean isAllow = AccessControlUtil.isAllow(ace);
-                        if (isAllow) {
-                            rights.getGranted().addAll(Arrays.asList(ace.getPrivileges()));
-                        } else {
-                            rights.getDenied().addAll(Arrays.asList(ace.getPrivileges()));
-                        }
-                    }
-                }
-            }
-        }
-        return rights;
+        Map<Principal, AccessRights> declaredAccessRights = getDeclaredAccessRights(session, absPath);
+        PrincipalManager principalManager = AccessControlUtil.getPrincipalManager(session);
+        Principal principal = principalManager.getPrincipal(principalId);
+        return declaredAccessRights.get(principal);
     }
 
     /**
@@ -243,7 +268,9 @@ public class PrivilegesInfo {
      * @param principalId the principalId to get the access rights for
      * @return map of restrictions (key is restriction name, value is Value or Value[])
      * @throws RepositoryException if any errors reading the information
+     * @deprecated don't use this as it assumes that all the privileges have the same restrictions which may not be true
      */
+    @Deprecated
     public Map<String, Object> getDeclaredRestrictionsForPrincipal(Node node, String principalId) throws RepositoryException {
         return getDeclaredRestrictionsForPrincipal(node.getSession(), node.getPath(), principalId);
     }
@@ -256,36 +283,78 @@ public class PrivilegesInfo {
      * @param principalId the principalId to get the access rights for
      * @return map of restrictions (key is restriction name, value is Value or Value[])
      * @throws RepositoryException if any errors reading the information
+     * @deprecated don't use this as it assumes that all the privileges have the same restrictions which may not be true
      */
+    @Deprecated
     public Map<String, Object> getDeclaredRestrictionsForPrincipal(Session session, String absPath, String principalId) throws RepositoryException {
-        Map<String, Object> restrictions = new LinkedHashMap<>();
-        AccessControlEntry[] entries = getDeclaredAccessControlEntries(session, absPath);
-        if (entries != null) {
-            for (AccessControlEntry ace : entries) {
-                if (principalId.equals(ace.getPrincipal().getName()) &&
-                        ace instanceof JackrabbitAccessControlEntry) {
-                    JackrabbitAccessControlEntry jace = (JackrabbitAccessControlEntry)ace;
-                    String[] restrictionNames = jace.getRestrictionNames();
-                    if (restrictionNames != null) {
-                        for (String name : restrictionNames) {
-                            try {
-                                Value value = jace.getRestriction(name);
-                                if (value != null) {
-                                    restrictions.put(name, value);
-                                }
-                            } catch (ValueFormatException vfe) {
-                                //try multi-value restriction
-                                Value[] values = jace.getRestrictions(name);
-                                if (values != null && values.length > 0) {
-                                    restrictions.put(name,  values);
-                                }
-                            }
-                        }
-                    }
-                }
+        JsonObject aclJson = useGetAcl(json -> {
+            try {
+                return json.getAcl(session, absPath);
+            } catch (RepositoryException e) {
+                logger.warn("Failed to load Acl", e);
             }
+            return null;
+        });
+
+        Map<String, Object> map;
+        if (aclJson == null) {
+            map = Collections.emptyMap();
+        } else {
+            Map<String, RestrictionDefinition> srMap = new HashMap<>();
+            useRestrictionProvider(restrictionProvider -> {
+                Set<RestrictionDefinition> supportedRestrictions = restrictionProvider.getSupportedRestrictions(absPath);
+                for (RestrictionDefinition restrictionDefinition : supportedRestrictions) {
+                    srMap.put(restrictionDefinition.getName(), restrictionDefinition);
+                }
+                return null;
+            });
+
+            ValueFactory valueFactory = session.getValueFactory();
+            map = new HashMap<>();
+            aclJson.values().stream()
+                    .filter(val -> val instanceof JsonObject && ((JsonObject)val).getString(JsonConvert.KEY_PRINCIPAL).equals(principalId))
+                    .forEach(item -> {
+                        JsonObject privilegesObj = ((JsonObject)item).getJsonObject(JsonConvert.KEY_PRIVILEGES);
+                        if (privilegesObj != null) {
+                            privilegesObj.values()
+                                .forEach(privItem -> {
+                                    if (privItem instanceof JsonObject) {
+                                        JsonObject privilegeObj = (JsonObject)privItem;
+                                        JsonValue jsonValue = privilegeObj.get(JsonConvert.KEY_ALLOW);
+                                        if (jsonValue instanceof JsonObject) {
+                                            JsonObject restriction = (JsonObject)jsonValue;
+                                            restriction.entrySet().stream()
+                                                .forEach(restrictionItem -> {
+                                                    String restrictionName = restrictionItem.getKey();
+                                                    int type = srMap.get(restrictionName).getRequiredType().tag();
+                                                    JsonValue value = restrictionItem.getValue();
+                                                    if (ValueType.ARRAY.equals(value.getValueType())) {
+                                                        JsonArray jsonArray = ((JsonArray)value);
+                                                        Value [] restrictionValues = new Value[jsonArray.size()];
+                                                        for (int i=0; i < jsonArray.size(); i++) {
+                                                            try {
+                                                                restrictionValues[i] = valueFactory.createValue(jsonArray.getString(i), type);
+                                                            } catch (ValueFormatException e) {
+                                                                logger.warn("Failed to create restriction value", e);
+                                                            }
+                                                        }
+                                                        map.put(restrictionName, restrictionValues);
+                                                    } else if (value instanceof JsonString){
+                                                        try {
+                                                            Value restrictionValue = valueFactory.createValue(((JsonString)value).getString(), type);
+                                                            map.put(restrictionName, restrictionValue);
+                                                        } catch (ValueFormatException e) {
+                                                            logger.warn("Failed to create restriction value", e);
+                                                        }
+                                                    }
+                                                });
+                                        }
+                                    }
+                                });
+                        }
+                    });
         }
-        return restrictions;
+        return map;
     }
 
     /**
@@ -310,47 +379,14 @@ public class PrivilegesInfo {
      * @throws RepositoryException if any errors reading the information
      */
     public Map<Principal, AccessRights> getEffectiveAccessRights(Session session, String absPath) throws RepositoryException {
-        AccessControlEntry[] entries = getEffectiveAccessControlEntries(session, absPath);
-        return mergePrivilegesFromEntries(entries);
-    }
-
-    /**
-     * Loop through each of the entries to merge the granted and denied privileges into
-     * the map
-     *
-     * @param entries the entries to process
-     * @throws RepositoryException if any errors reading the information
-     */
-    private Map<Principal, AccessRights> mergePrivilegesFromEntries(AccessControlEntry[] entries)
-            throws RepositoryException {
-        Map<Principal, AccessRights> accessMap = new LinkedHashMap<>();
-        if (entries != null) {
-            for (AccessControlEntry ace : entries) {
-                Principal principal = ace.getPrincipal();
-                AccessRights accessPrivileges = accessMap.computeIfAbsent(principal, k -> new AccessRights());
-                boolean allow = AccessControlUtil.isAllow(ace);
-                if (allow) {
-                    accessPrivileges.getGranted().addAll(Arrays.asList(ace.getPrivileges()));
-                } else {
-                    accessPrivileges.getDenied().addAll(Arrays.asList(ace.getPrivileges()));
+        return toMap(session, useGetEffectiveAcl(json -> {
+                try {
+                    return json.getEffectiveAcl(session, absPath);
+                } catch (RepositoryException e) {
+                    logger.warn("Failed to load EffectiveAcl", e);
                 }
-            }
-        }
-        return accessMap;
-    }
-
-    private AccessControlEntry[] getEffectiveAccessControlEntries(Session session, String absPath) throws RepositoryException {
-        AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(session);
-        AccessControlPolicy[] policies = accessControlManager.getEffectivePolicies(absPath);
-
-        List<AccessControlEntry> allEntries = new ArrayList<>();
-        for (AccessControlPolicy accessControlPolicy : policies) {
-            if (accessControlPolicy instanceof AccessControlList) {
-                AccessControlEntry[] accessControlEntries = ((AccessControlList)accessControlPolicy).getAccessControlEntries();
-                allEntries.addAll(Arrays.asList(accessControlEntries));
-            }
-        }
-        return allEntries.toArray(new AccessControlEntry[allEntries.size()]);
+                return null;
+            }));
     }
 
     /**
@@ -377,14 +413,10 @@ public class PrivilegesInfo {
      * @throws RepositoryException if any errors reading the information
      */
     public AccessRights getEffectiveAccessRightsForPrincipal(Session session, String absPath, String principalId) throws RepositoryException {
-        AccessRights rights = null;
-        if (principalId != null && principalId.length() > 0) {
-            AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(session);
-            AccessControlPolicy[] policies = accessControlManager.getEffectivePolicies(absPath);
-            rights = toAccessRights(principalId, policies);
-        }
-
-        return rights;
+        Map<Principal, AccessRights> effectiveAccessRights = getEffectiveAccessRights(session, absPath);
+        PrincipalManager principalManager = AccessControlUtil.getPrincipalManager(session);
+        Principal principal = principalManager.getPrincipal(principalId);
+        return effectiveAccessRights.get(principal);
     }
 
     /**
@@ -600,6 +632,52 @@ public class PrivilegesInfo {
         } catch (RepositoryException e) {
             return false;
         }
+    }
+
+    /**
+     * Utility to lookup a service and then run a function
+     * 
+     * @param <S> the service interface type
+     * @param <T> the return type of the fun
+     * @param svc the service class
+     * @param fn the function to invoke
+     * @return the value of invoking the fn
+     */
+    private static <S, T> T useSvc(Class<S> svc, Function<S, T> fn) {
+        T value = null;
+        Bundle bundle = FrameworkUtil.getBundle(PrivilegesInfo.class);
+        if (bundle != null) {
+            BundleContext bundleContext = bundle.getBundleContext();
+            if (bundleContext != null) {
+                ServiceReference<S> serviceReference = bundleContext.getServiceReference(svc);
+                if (serviceReference != null) {
+                    S service = null;
+                    try {
+                        service = bundleContext.getService(serviceReference);
+                        if (service != null) {
+                            value = fn.apply(service);
+                        }
+                    } finally {
+                        if (service != null) {
+                            bundleContext.ungetService(serviceReference);
+                        }
+                    }
+                }
+            }
+        }
+        return value;
+    }
+
+    private static <T> T useGetAcl(Function<GetAcl, T> fn) {
+        return useSvc(GetAcl.class, fn);
+    }
+
+    private static <T> T useGetEffectiveAcl(Function<GetEffectiveAcl, T> fn) {
+        return useSvc(GetEffectiveAcl.class, fn);
+    }
+
+    private static <T> T useRestrictionProvider(Function<RestrictionProvider, T> fn) {
+        return useSvc(RestrictionProvider.class, fn);
     }
 
 }
