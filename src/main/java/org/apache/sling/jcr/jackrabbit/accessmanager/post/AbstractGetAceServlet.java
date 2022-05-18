@@ -50,7 +50,8 @@ public abstract class AbstractGetAceServlet extends AbstractAccessGetServlet {
     protected JsonObject internalGetAce(Session jcrSession, String resourcePath, String principalId) throws RepositoryException {
         Principal principal = validateArgs(jcrSession, resourcePath, principalId);
 
-        Map<String, List<AccessControlEntry>> effectivePathToEntriesMap = getAccessControlEntriesMap(jcrSession, resourcePath, principal);
+        Map<Principal, Map<DeclarationType, Set<String>>> principalToDeclaredAtPaths = new HashMap<>();
+        Map<String, List<AccessControlEntry>> effectivePathToEntriesMap = getAccessControlEntriesMap(jcrSession, resourcePath, principal, principalToDeclaredAtPaths);
         if (effectivePathToEntriesMap == null || effectivePathToEntriesMap.isEmpty()) {
             throw new ResourceNotFoundException(resourcePath, "No access control entries were found");
         }
@@ -81,18 +82,32 @@ public abstract class AbstractGetAceServlet extends AbstractAccessGetServlet {
         PrivilegesHelper.consolidateAggregates(jcrSession, resourcePath, privilegeToLocalPrivilegesMap, privilegeLongestDepthMap);
 
         // convert the data to JSON
-        JsonObjectBuilder jsonObj = JsonConvert.convertToJson(principal, privilegeToLocalPrivilegesMap, -1);
-        return jsonObj.build();
+        JsonObjectBuilder principalObj = JsonConvert.convertToJson(principal, privilegeToLocalPrivilegesMap, -1);
+        addExtraInfo(principalObj, principal, principalToDeclaredAtPaths);
+        return principalObj.build();
     }
 
-    protected abstract Map<String, List<AccessControlEntry>> getAccessControlEntriesMap(Session session, String absPath, Principal principal) throws RepositoryException;
+    /**
+     * Override to add additional data to the principal object
+     * 
+     * @param principalObj the current principal object
+     * @param principal the current principal
+     * @param principalToDeclaredAtPaths a map of principal the paths where ACEs are declared
+     */
+    protected void addExtraInfo(JsonObjectBuilder principalJson,
+            Principal principal, Map<Principal, Map<DeclarationType, Set<String>>> principalToDeclaredAtPaths) {
+        // no-op 
+    }
+
+    protected abstract Map<String, List<AccessControlEntry>> getAccessControlEntriesMap(Session session, String absPath, Principal principal,
+            Map<Principal, Map<DeclarationType, Set<String>>> declaredAtPaths) throws RepositoryException;
 
     /**
      * @deprecated use {@link #getAccessControlEntriesMap(Session, String, Principal, Map)} instead
      */
     @Deprecated
     protected AccessControlEntry[] getAccessControlEntries(Session session, String absPath, Principal principal) throws RepositoryException {
-        return getAccessControlEntriesMap(session, absPath, principal).values().stream()
+        return getAccessControlEntriesMap(session, absPath, principal, new HashMap<>()).values().stream()
             .toArray(size -> new AccessControlEntry[size]);
     }
 

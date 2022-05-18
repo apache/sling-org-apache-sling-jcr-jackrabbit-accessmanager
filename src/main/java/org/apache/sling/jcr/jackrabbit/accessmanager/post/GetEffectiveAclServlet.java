@@ -16,8 +16,10 @@
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager.post;
 
+import java.security.Principal;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
@@ -25,10 +27,12 @@ import javax.jcr.security.AccessControlEntry;
 import javax.jcr.security.AccessControlManager;
 import javax.jcr.security.AccessControlPolicy;
 import javax.json.JsonObject;
+import javax.json.JsonObjectBuilder;
 import javax.servlet.Servlet;
 
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.sling.jcr.jackrabbit.accessmanager.GetEffectiveAcl;
+import org.apache.sling.jcr.jackrabbit.accessmanager.impl.JsonConvert;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 
@@ -120,11 +124,22 @@ public class GetEffectiveAclServlet extends AbstractGetAclServlet implements Get
         return internalGetAcl(jcrSession, resourcePath);
     }
 
+    /**
+     * Overridden to add the declaredAt data to the json
+     */
     @Override
-    protected Map<String, List<AccessControlEntry>> getAccessControlEntriesMap(Session session, String absPath) throws RepositoryException {
+    protected void addExtraInfo(JsonObjectBuilder principalJson, Principal principal,
+            Map<Principal, Map<DeclarationType, Set<String>>> principalToDeclaredAtPaths) {
+        Map<DeclarationType, Set<String>> map = principalToDeclaredAtPaths.get(principal);
+        JsonConvert.addDeclaredAt(principalJson, map);
+    }
+
+    @Override
+    protected Map<String, List<AccessControlEntry>> getAccessControlEntriesMap(Session session, String absPath,
+            Map<Principal, Map<DeclarationType, Set<String>>> declaredAtPaths) throws RepositoryException {
         AccessControlManager accessControlManager = session.getAccessControlManager();
         AccessControlPolicy[] policies = accessControlManager.getEffectivePolicies(absPath);
-        return entriesSortedByEffectivePath(policies, ace -> true);
+        return entriesSortedByEffectivePath(policies, ace -> true, declaredAtPaths);
     }
 
 }

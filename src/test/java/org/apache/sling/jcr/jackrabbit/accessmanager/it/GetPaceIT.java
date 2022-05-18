@@ -21,8 +21,10 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.List;
 
+import javax.json.JsonArray;
 import javax.json.JsonException;
 import javax.json.JsonObject;
 import javax.json.JsonString;
@@ -187,5 +189,58 @@ public class GetPaceIT extends PrincipalAceTestSupport {
                 });
     }
 
+    /**
+     * Verify that when the effective ace is a merge of ACEs in multiple
+     * ancestor nodes, that an array of those node paths is returned in the
+     * declaredAt structure
+     */
+    @Test
+    public void testDeclaredAtArrayInEffectiveAceForServiceUser() throws IOException {
+        testFolderUrl = createTestFolder(null, "sling-tests5",
+                "{ \"jcr:primaryType\": \"nt:unstructured\", \"child\" : { \"childPropOne\" : true } }");
+        String testServiceUserId = "pacetestuser";
+
+        //1. create an initial set of privileges
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testServiceUserId)
+                .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.ALLOW)
+                .build();
+        addOrUpdatePrincipalAce(testFolderUrl, postParams);
+
+        List<NameValuePair> postParams2 = new AcePostParamsBuilder(testServiceUserId)
+                .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
+                .build();
+        addOrUpdatePrincipalAce(testFolderUrl + "/child", postParams2);
+
+        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
+
+        //fetch the JSON for the ace to verify the settings.
+        String getUrl = testFolderUrl + "/child.eace.json?pid=" + testServiceUserId;
+
+        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
+        assertNotNull(json);
+        JsonObject aceObject = parseJson(json);
+
+        String principalString = aceObject.getString("principal");
+        assertEquals(testServiceUserId, principalString);
+
+        JsonObject privilegesObject = aceObject.getJsonObject("privileges");
+        assertNotNull(privilegesObject);
+        assertEquals(2, privilegesObject.size());
+        //allow privilege
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ);
+
+        JsonObject declaredAtObj = aceObject.getJsonObject("declaredAt");
+        assertNotNull(declaredAtObj);
+        JsonValue nodeObj = declaredAtObj.get("principal");
+        assertTrue (nodeObj instanceof JsonArray);
+        JsonArray nodeArray = (JsonArray)nodeObj;
+        assertEquals(2, nodeArray.size());
+        String testFolderPath = URI.create(testFolderUrl).getPath();
+        assertTrue (nodeArray.get(0) instanceof JsonString);
+        assertEquals(testFolderPath + "/child", ((JsonString)nodeArray.get(0)).getString());
+        assertTrue (nodeArray.get(1) instanceof JsonString);
+        assertEquals(testFolderPath, ((JsonString)nodeArray.get(1)).getString());
+    }
 
 }

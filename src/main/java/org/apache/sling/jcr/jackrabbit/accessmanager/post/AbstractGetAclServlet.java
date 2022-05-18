@@ -79,7 +79,8 @@ public abstract class AbstractGetAclServlet extends AbstractAccessGetServlet {
             srMap.put(restrictionDefinition.getName(), restrictionDefinition);
         }
 
-        Map<String, List<AccessControlEntry>> effectivePathToEntriesMap = getAccessControlEntriesMap(jcrSession, resourcePath);
+        Map<Principal, Map<DeclarationType, Set<String>>> principalToDeclaredAtPaths = new HashMap<>();
+        Map<String, List<AccessControlEntry>> effectivePathToEntriesMap = getAccessControlEntriesMap(jcrSession, resourcePath, principalToDeclaredAtPaths);
         Map<Principal, Integer> principalToOrderMap = new HashMap<>();
         Map<Principal, Map<Privilege, LocalPrivilege>> principalToPrivilegesMap = new HashMap<>();
         for (Entry<String, List<AccessControlEntry>> entry : effectivePathToEntriesMap.entrySet()) {
@@ -115,20 +116,35 @@ public abstract class AbstractGetAclServlet extends AbstractAccessGetServlet {
         Collections.sort(entrySetList, (e1, e2) -> principalToOrderMap.get(e1.getKey()).compareTo(principalToOrderMap.get(e2.getKey())));
 
         // convert the data to JSON
-        JsonObjectBuilder jsonObj = convertToJson(entrySetList);
+        JsonObjectBuilder jsonObj = convertToJson(entrySetList, principalToDeclaredAtPaths);
         return jsonObj.build();
     }
 
-    protected JsonObjectBuilder convertToJson(List<Entry<Principal, Map<Privilege, LocalPrivilege>>> entrySetList) {
+    protected JsonObjectBuilder convertToJson(List<Entry<Principal, Map<Privilege, LocalPrivilege>>> entrySetList,
+            Map<Principal, Map<DeclarationType, Set<String>>> declaredAtPaths) {
         JsonObjectBuilder jsonObj = Json.createObjectBuilder();
         for (int i = 0; i < entrySetList.size(); i++) {
             Entry<Principal, Map<Privilege, LocalPrivilege>> entry = entrySetList.get(i);
             Principal principal = entry.getKey();
             JsonObjectBuilder principalObj = JsonConvert.convertToJson(entry.getKey(), entry.getValue(), i);
+            addExtraInfo(principalObj, principal, declaredAtPaths);
             jsonObj.add(principal.getName(), principalObj);
         }
         return jsonObj;
     }
+
+    /**
+     * Override to add additional data to the principal object
+     * 
+     * @param principalObj the current principal object
+     * @param principal the current principal
+     * @param principalToDeclaredAtPaths a map of principal the paths where ACEs are declared
+     */
+    protected void addExtraInfo(JsonObjectBuilder principalJson,
+            Principal principal, Map<Principal, Map<DeclarationType, Set<String>>> principalToDeclaredAtPaths) {
+        // no-op 
+    }
+
 
     /**
      * @deprecated use {@link JsonConvert#addRestrictions(JsonObjectBuilder, String, Set)} instead
@@ -154,14 +170,15 @@ public abstract class AbstractGetAclServlet extends AbstractAccessGetServlet {
         return JsonConvert.addTo(builder, value);
     }
 
-    protected abstract Map<String, List<AccessControlEntry>> getAccessControlEntriesMap(Session session, String absPath) throws RepositoryException;
+    protected abstract Map<String, List<AccessControlEntry>> getAccessControlEntriesMap(Session session, String absPath,
+            Map<Principal, Map<DeclarationType, Set<String>>> declaredAtPaths) throws RepositoryException;
 
     /**
      * @deprecated use {@link #getAccessControlEntriesMap(Session, String, Map)} instead
      */
     @Deprecated
     protected AccessControlEntry[] getAccessControlEntries(Session session, String absPath) throws RepositoryException {
-        return getAccessControlEntriesMap(session, absPath).values().stream()
+        return getAccessControlEntriesMap(session, absPath, new HashMap<>()).values().stream()
                 .toArray(size -> new AccessControlEntry[size]);
     }
 
