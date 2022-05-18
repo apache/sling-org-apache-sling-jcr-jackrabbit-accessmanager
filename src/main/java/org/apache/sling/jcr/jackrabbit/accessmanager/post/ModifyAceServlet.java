@@ -334,9 +334,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
         Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap = new HashMap<>();
         JackrabbitAccessControlList acl = getAcl(acm, resourcePath, forPrincipal);
         AccessControlEntry[] accessControlEntries = acl.getAccessControlEntries();
-        //evaluate these in reverse order so the entries with highest specificity are processed last
-        for (int i = accessControlEntries.length - 1; i >= 0; i--) {
-            AccessControlEntry accessControlEntry = accessControlEntries[i];
+        for (AccessControlEntry accessControlEntry : accessControlEntries) {
             JackrabbitAccessControlEntry jrAccessControlEntry = getJackrabbitAccessControlEntry(accessControlEntry, resourcePath, forPrincipal);
             if (jrAccessControlEntry != null) {
                 Privilege[] privileges = jrAccessControlEntry.getPrivileges();
@@ -713,14 +711,25 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
     protected String removeAces(@NotNull String resourcePath, @Nullable String order, @NotNull Principal principal, @NotNull JackrabbitAccessControlList acl) // NOSONAR
             throws RepositoryException {
         AccessControlEntry[] existingAccessControlEntries = acl.getAccessControlEntries();
+
+        if (order == null || order.length() == 0) {
+            //order not specified, so keep track of the original ACE position.
+            Set<Principal> processedPrincipals = new HashSet<>();
+            for (int j = 0; j < existingAccessControlEntries.length; j++) {
+                AccessControlEntry ace = existingAccessControlEntries[j];
+                Principal principal2 = ace.getPrincipal();
+                if (principal2.equals(principal)) {
+                    order = String.valueOf(processedPrincipals.size());
+                    break;
+                } else {
+                    processedPrincipals.add(principal2);
+                }
+            }
+        }
+
         for (int j = 0; j < existingAccessControlEntries.length; j++) {
             AccessControlEntry ace = existingAccessControlEntries[j];
             if (ace.getPrincipal().equals(principal)) {
-                if (order == null || order.length() == 0) {
-                    //order not specified, so keep track of the original ACE position.
-                    order = String.valueOf(j);
-                }
-
                 acl.removeAccessControlEntry(ace);
             }
         }
@@ -740,11 +749,28 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
     protected void addAces(@NotNull String resourcePath, @NotNull Principal principal,
             @NotNull Map<Set<LocalRestriction>, List<LocalPrivilege>> restrictionsToLocalPrivilegesMap,
             boolean isAllow,
-            @NotNull JackrabbitAccessControlList acl) throws RepositoryException {
+            @NotNull JackrabbitAccessControlList acl,
+            Map<Privilege, Integer> privilegeLongestDepthMap) throws RepositoryException {
 
         List<Entry<Set<LocalRestriction>, List<LocalPrivilege>>> sortedEntries = new ArrayList<>(restrictionsToLocalPrivilegesMap.entrySet());
-        // sort the entries to so the ACE without restrictions is last
-        Collections.sort(sortedEntries, (e1, e2) -> Integer.compare(e2.getKey().size(), e1.getKey().size()));
+        // sort the entries by the most shallow depth of the contained privileges
+        Collections.sort(sortedEntries, (e1, e2) -> {
+                        int shallowestDepth1 = Integer.MAX_VALUE;
+                        for (LocalPrivilege lp : e1.getValue()) {
+                            Integer depth = privilegeLongestDepthMap.get(lp.getPrivilege());
+                            if (depth != null && depth.intValue() < shallowestDepth1) {
+                                shallowestDepth1 = depth.intValue();
+                            }
+                        }
+                        int shallowestDepth2 = Integer.MAX_VALUE;
+                        for (LocalPrivilege lp : e2.getValue()) {
+                            Integer depth = privilegeLongestDepthMap.get(lp.getPrivilege());
+                            if (depth != null && depth.intValue() < shallowestDepth2) {
+                                shallowestDepth2 = depth.intValue();
+                            }
+                        }
+                        return Integer.compare(shallowestDepth1, shallowestDepth2);
+                    });
 
         for (Entry<Set<LocalRestriction>, List<LocalPrivilege>> entry: sortedEntries) {
             Set<Privilege> privilegesSet = new HashSet<>();
@@ -852,44 +878,43 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
                     throw new IllegalArgumentException("No ACE was found for the specified principal: " + afterPrincipalName);
                 }
             } else {
+                int index = -1;
                 try {
-                    int index = Integer.parseInt(order);
-                    if (index > accessControlEntries.length) {
-                        //invalid index
-                        throw new IndexOutOfBoundsException("Index value is too large: " + index);
-                    }
-
-                    if (index == 0) {
-                        beforeEntry = accessControlEntries[0];
-                    } else {
-                        //the index value is the index of the principal.  A principal may have more
-                        // than one ACEs (deny + grant), so we need to compensate.
-                        Set<Principal> processedPrincipals = new HashSet<>();
-                        for (int i = 0; i < accessControlEntries.length; i++) {
-                            Principal principal2 = accessControlEntries[i].getPrincipal();
-                            if (processedPrincipals.size() == index &&
-                                    !processedPrincipals.contains(principal2)) {
-                                //we are now at the correct position in the list
-                                beforeEntry = accessControlEntries[i];
-                                break;
-                            }
-
-                            processedPrincipals.add(principal2);
-                        }
-                    }
+                    index = Integer.parseInt(order);
                 } catch (NumberFormatException nfe) {
                     //not a number.
                     throw new IllegalArgumentException("Illegal value for the order parameter: " + order);
                 }
+                if (index > accessControlEntries.length) {
+                    //invalid index
+                    throw new IndexOutOfBoundsException("Index value is too large: " + index);
+                }
+
+                //the index value is the index of the principal.  A principal may have more
+                // than one ACEs (deny + grant), so we need to compensate.
+                Map<Principal, Integer> principalToIndex = new HashMap<>();
+                for (int i = 0; i < accessControlEntries.length; i++) {
+                    Principal principal2 = accessControlEntries[i].getPrincipal();
+                    Integer idx = i;
+                    principalToIndex.computeIfAbsent(principal2, key -> idx);
+                }
+                Integer[] sortedIndexes = principalToIndex.values().stream()
+                        .sorted()
+                        .toArray(size -> new Integer[size]);
+                if (index >= 0 && index < sortedIndexes.length - 1) {
+                    int idx = sortedIndexes[index];
+                    beforeEntry = accessControlEntries[idx];
+                }
             }
 
-            //now loop through the entries to move the affected ACEs to the specified
-            // position.
-            for (int i = accessControlEntries.length - 1; i >= 0; i--) {
-                AccessControlEntry ace = accessControlEntries[i];
-                if (principal.equals(ace.getPrincipal())) {
-                    //this ACE is for the specified principal.
-                    jacl.orderBefore(ace, beforeEntry);
+            if (beforeEntry != null) {
+                //now loop through the entries to move the affected ACEs to the specified
+                // position.
+                for (AccessControlEntry ace : accessControlEntries) {
+                    if (principal.equals(ace.getPrincipal())) {
+                        //this ACE is for the specified principal.
+                        jacl.orderBefore(ace, beforeEntry);
+                    }
                 }
             }
         } else {
@@ -1071,8 +1096,9 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             order = removeAces(resourcePath, order, principal, acl);
 
             // now add all the new aces that we have collected
-            addAces(resourcePath, principal, denyRestrictionsToLocalPrivilegesMap, false, acl);
-            addAces(resourcePath, principal, allowRestrictionsToLocalPrivilegesMap, true, acl);
+            Map<Privilege, Integer> privilegeLongestDepthMap = PrivilegesHelper.buildPrivilegeLongestDepthMap(acm.privilegeFromName(PrivilegeConstants.JCR_ALL));
+            addAces(resourcePath, principal, denyRestrictionsToLocalPrivilegesMap, false, acl, privilegeLongestDepthMap);
+            addAces(resourcePath, principal, allowRestrictionsToLocalPrivilegesMap, true, acl, privilegeLongestDepthMap);
 
             // reorder the aces
             reorderAccessControlEntries(acl, principal, order);

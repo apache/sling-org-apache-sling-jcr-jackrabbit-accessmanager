@@ -147,6 +147,15 @@ public class GetAceIT extends AccessManagerClientTestSupport {
         commonDeclaredAceWithLeafRestrictionForUser(1);
     }
 
+    /**
+     * ACE servlet returns restriction details for leaf of also allowed aggregate after a second
+     * update to verify that the ordering doesn't get broken during update
+     */
+    @Test
+    public void testDeclaredAceWithLeafRestrictionForUserAfterSecondUpdate() throws IOException, JsonException {
+        commonDeclaredAceWithLeafRestrictionForUser(2);
+    }
+
     protected void commonDeclaredAceWithLeafRestrictionForUser(int numberOfUpdateAceCalls) throws IOException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder(null, "sling-tests",

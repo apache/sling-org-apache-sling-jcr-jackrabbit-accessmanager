@@ -19,15 +19,25 @@ package org.apache.sling.jcr.jackrabbit.accessmanager.post;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 import javax.jcr.AccessDeniedException;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
+import javax.jcr.security.AccessControlEntry;
+import javax.jcr.security.AccessControlList;
+import javax.jcr.security.AccessControlPolicy;
 import javax.jcr.security.Privilege;
 import javax.json.Json;
 import javax.json.JsonObject;
@@ -36,6 +46,8 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
+import org.apache.jackrabbit.api.security.JackrabbitAccessControlList;
+import org.apache.jackrabbit.api.security.authorization.PrincipalAccessControlList;
 import org.apache.jackrabbit.api.security.principal.PrincipalManager;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionDefinition;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
@@ -46,6 +58,7 @@ import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
+import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrincipalAceHelper;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrivilegesHelper;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -197,6 +210,50 @@ public abstract class AbstractAccessGetServlet extends SlingAllMethodsServlet {
         } else {
             PrivilegesHelper.deny(map, restrictionItems, Arrays.asList(privileges));
         }
+    }
+
+    /**
+     * Builds a map by merging all the entries for the supplied
+     * policies and ordering them by the effective path
+     * 
+     * @param policies the policies to process
+     * @param accessControlEntryFilter a filter to find entries to include
+     * @param declaredAtPaths populated with details about where privileges are defined for the principal. 
+     *              In the map the key is the principal and the value is a map of paths the set of defined ACE
+     *              types at that path.
+     * @return map of sorted entries, key is the effectivePath and value is the list of entries for that path
+     */
+    protected @NotNull Map<String, List<AccessControlEntry>> entriesSortedByEffectivePath(@NotNull AccessControlPolicy[] policies,
+            @NotNull Predicate<? super AccessControlEntry> accessControlEntryFilter) throws RepositoryException {
+        Comparator<? super String> effectivePathComparator = (k1, k2) -> Objects.compare(k1, k2, Comparator.nullsFirst(String::compareTo));
+        Map<String, List<AccessControlEntry>> effectivePathToEntriesMap = new TreeMap<>(effectivePathComparator);
+
+        // map the effectivePaths to the entries for that path
+        for (AccessControlPolicy accessControlPolicy : policies) {
+            AccessControlEntry[] accessControlEntries = ((AccessControlList)accessControlPolicy).getAccessControlEntries();
+            if (accessControlPolicy instanceof AccessControlList) {
+                Stream.of(accessControlEntries)
+                    .filter(accessControlEntryFilter)
+                    .forEach(entry -> {
+                        String effectivePath = null;
+                        if (entry instanceof PrincipalAccessControlList.Entry) {
+                            // for principal-based ACE, the effectivePath comes from the entry
+                            effectivePath = ((PrincipalAccessControlList.Entry)entry).getEffectivePath();
+                            if (effectivePath == null) {
+                                // special case
+                                effectivePath = PrincipalAceHelper.RESOURCE_PATH_REPOSITORY;
+                            }
+                        } else if (accessControlPolicy instanceof JackrabbitAccessControlList) {
+                            // for basic ACE, the effectivePath comes from the ACL path
+                            effectivePath = ((JackrabbitAccessControlList)accessControlPolicy).getPath();
+                        }
+                        List<AccessControlEntry> entriesForPath = effectivePathToEntriesMap.computeIfAbsent(effectivePath, key -> new ArrayList<>());
+                        entriesForPath.add(entry);
+                    });
+            }
+        }
+
+        return effectivePathToEntriesMap;
     }
 
 }

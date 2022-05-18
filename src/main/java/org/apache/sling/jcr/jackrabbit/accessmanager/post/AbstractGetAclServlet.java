@@ -79,21 +79,24 @@ public abstract class AbstractGetAclServlet extends AbstractAccessGetServlet {
             srMap.put(restrictionDefinition.getName(), restrictionDefinition);
         }
 
-        AccessControlEntry[] accessControlEntries = getAccessControlEntries(jcrSession, resourcePath);
+        Map<String, List<AccessControlEntry>> effectivePathToEntriesMap = getAccessControlEntriesMap(jcrSession, resourcePath);
         Map<Principal, Integer> principalToOrderMap = new HashMap<>();
         Map<Principal, Map<Privilege, LocalPrivilege>> principalToPrivilegesMap = new HashMap<>();
-        //evaluate these in reverse order so the entries with highest specificity are processed last
-        for (int i = accessControlEntries.length - 1; i >= 0; i--) {
-            AccessControlEntry accessControlEntry = accessControlEntries[i];
-            if (accessControlEntry instanceof JackrabbitAccessControlEntry) {
-                JackrabbitAccessControlEntry jrAccessControlEntry = (JackrabbitAccessControlEntry)accessControlEntry;
-                Privilege[] privileges = jrAccessControlEntry.getPrivileges();
-                if (privileges != null) {
-                    Principal principal = accessControlEntry.getPrincipal();
-                    principalToOrderMap.put(principal, i);
-                    Map<Privilege, LocalPrivilege> map = principalToPrivilegesMap.computeIfAbsent(principal, k -> new HashMap<>());
+        for (Entry<String, List<AccessControlEntry>> entry : effectivePathToEntriesMap.entrySet()) {
+            List<AccessControlEntry> accessControlEntries = entry.getValue();
+            for (AccessControlEntry accessControlEntry : accessControlEntries) {
+                if (accessControlEntry instanceof JackrabbitAccessControlEntry) {
+                    JackrabbitAccessControlEntry jrAccessControlEntry = (JackrabbitAccessControlEntry)accessControlEntry;
+                    Privilege[] privileges = jrAccessControlEntry.getPrivileges();
+                    if (privileges != null) {
+                        Principal principal = accessControlEntry.getPrincipal();
+                        if (!principalToPrivilegesMap.containsKey(principal)) {
+                            principalToOrderMap.put(principal, principalToPrivilegesMap.size());
+                        }
+                        Map<Privilege, LocalPrivilege> map = principalToPrivilegesMap.computeIfAbsent(principal, k -> new HashMap<>());
 
-                    processACE(srMap, jrAccessControlEntry, privileges, map);
+                        processACE(srMap, jrAccessControlEntry, privileges, map);
+                    }
                 }
             }
         }
@@ -151,6 +154,15 @@ public abstract class AbstractGetAclServlet extends AbstractAccessGetServlet {
         return JsonConvert.addTo(builder, value);
     }
 
-    protected abstract AccessControlEntry[] getAccessControlEntries(Session session, String absPath) throws RepositoryException;
+    protected abstract Map<String, List<AccessControlEntry>> getAccessControlEntriesMap(Session session, String absPath) throws RepositoryException;
+
+    /**
+     * @deprecated use {@link #getAccessControlEntriesMap(Session, String, Map)} instead
+     */
+    @Deprecated
+    protected AccessControlEntry[] getAccessControlEntries(Session session, String absPath) throws RepositoryException {
+        return getAccessControlEntriesMap(session, absPath).values().stream()
+                .toArray(size -> new AccessControlEntry[size]);
+    }
 
 }
