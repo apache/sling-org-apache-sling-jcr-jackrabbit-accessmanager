@@ -19,9 +19,9 @@
 package org.apache.sling.jcr.jackrabbit.accessmanager.post;
 
 import java.security.Principal;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.stream.Stream;
+import java.util.Map;
 
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
@@ -36,7 +36,6 @@ import org.apache.jackrabbit.api.security.JackrabbitAccessControlPolicy;
 import org.apache.jackrabbit.api.security.authorization.PrincipalAccessControlList;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.sling.api.SlingHttpServletRequest;
-import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.apache.sling.jcr.jackrabbit.accessmanager.GetPrincipalAce;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrincipalAceHelper;
 import org.jetbrains.annotations.NotNull;
@@ -111,23 +110,16 @@ public class GetPrincipalAceServlet extends AbstractGetAceServlet implements Get
     }
 
     @Override
-    protected AccessControlEntry[] getAccessControlEntries(Session session, String absPath, Principal principal) throws RepositoryException {
-        List<AccessControlEntry> allEntries = new ArrayList<>(); 
-
-        AccessControlManager acMgr = AccessControlUtil.getAccessControlManager(session);
+    protected Map<String, List<AccessControlEntry>> getAccessControlEntriesMap(Session session, String absPath,
+            Principal principal) throws RepositoryException {
+        AccessControlManager acMgr = session.getAccessControlManager();
         if (acMgr instanceof JackrabbitAccessControlManager) {
             JackrabbitAccessControlManager jacMgr = (JackrabbitAccessControlManager)acMgr;
-            for (JackrabbitAccessControlPolicy policy : jacMgr.getPolicies(principal)) {
-                if (policy instanceof PrincipalAccessControlList) {
-                    PrincipalAccessControlList pacl = (PrincipalAccessControlList)policy;
-                    Stream.of(pacl.getAccessControlEntries())
-                        .filter(entry -> matchesPrincipalAccessControlEntry(entry, absPath, principal))
-                        .forEach(allEntries::add);
-                }
-            }
+            JackrabbitAccessControlPolicy[] policies = jacMgr.getPolicies(principal);
+            return entriesSortedByEffectivePath(policies, ace -> matchesPrincipalAccessControlEntry(ace, absPath, principal));
+        } else {
+            return Collections.emptyMap();
         }
-
-        return allEntries.toArray(new AccessControlEntry[allEntries.size()]);
     }
 
     /**

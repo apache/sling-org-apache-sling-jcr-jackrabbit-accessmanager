@@ -141,6 +141,15 @@ public class GetPaceIT extends PrincipalAceTestSupport {
         commonPrivilegeAceWithLeafRestrictionForUser(1);
     }
 
+    /**
+     * ACE servlet returns restriction details for leaf of also allowed aggregate after a second
+     * update to verify that the ordering doesn't get broken during update
+     */
+    @Test
+    public void testPrivilegeAceWithLeafRestrictionForUserAfterSecondUpdate() throws IOException, JsonException {
+        commonPrivilegeAceWithLeafRestrictionForUser(2);
+    }
+
     protected void commonPrivilegeAceWithLeafRestrictionForUser(int numberOfUpdateAceCalls) throws IOException {
         testFolderUrl = createTestFolder(null, "sling-tests",
                 "{ \"jcr:primaryType\": \"nt:unstructured\" }");

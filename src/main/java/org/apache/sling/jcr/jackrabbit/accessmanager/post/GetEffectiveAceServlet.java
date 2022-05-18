@@ -19,14 +19,12 @@
 package org.apache.sling.jcr.jackrabbit.accessmanager.post;
 
 import java.security.Principal;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Stream;
+import java.util.Map;
 
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.jcr.security.AccessControlEntry;
-import javax.jcr.security.AccessControlList;
 import javax.jcr.security.AccessControlManager;
 import javax.jcr.security.AccessControlPolicy;
 import javax.json.JsonObject;
@@ -95,19 +93,11 @@ public class GetEffectiveAceServlet extends AbstractGetAceServlet implements Get
     }
 
     @Override
-    protected AccessControlEntry[] getAccessControlEntries(Session session, String absPath, Principal principal) throws RepositoryException {
+    protected Map<String, List<AccessControlEntry>> getAccessControlEntriesMap(Session session, String absPath,
+            Principal principal) throws RepositoryException {
         AccessControlManager acMgr = AccessControlUtil.getAccessControlManager(session);
         AccessControlPolicy[] policies = acMgr.getEffectivePolicies(absPath);
-        List<AccessControlEntry> allEntries = new ArrayList<>(); 
-        for (AccessControlPolicy policy : policies) {
-            if (policy instanceof AccessControlList) {
-                AccessControlEntry[] accessControlEntries = ((AccessControlList)policy).getAccessControlEntries();
-                Stream.of(accessControlEntries)
-                    .filter(entry -> principal.equals(entry.getPrincipal()))
-                    .forEach(allEntries::add);
-            }
-        }
-        return allEntries.toArray(new AccessControlEntry[allEntries.size()]);
+        return entriesSortedByEffectivePath(policies, ace -> principal.equals(ace.getPrincipal()));
     }
 
 }

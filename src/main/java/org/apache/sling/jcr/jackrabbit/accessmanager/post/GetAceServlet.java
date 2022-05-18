@@ -19,21 +19,18 @@
 package org.apache.sling.jcr.jackrabbit.accessmanager.post;
 
 import java.security.Principal;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Stream;
+import java.util.Map;
 
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.jcr.security.AccessControlEntry;
-import javax.jcr.security.AccessControlList;
 import javax.jcr.security.AccessControlManager;
 import javax.jcr.security.AccessControlPolicy;
 import javax.json.JsonObject;
 import javax.servlet.Servlet;
 
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
-import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.apache.sling.jcr.jackrabbit.accessmanager.GetAce;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
@@ -95,19 +92,11 @@ public class GetAceServlet extends AbstractGetAceServlet implements GetAce {
     }
 
     @Override
-    protected AccessControlEntry[] getAccessControlEntries(Session session, String absPath, Principal principal) throws RepositoryException {
-        AccessControlManager acMgr = AccessControlUtil.getAccessControlManager(session);
+    protected Map<String, List<AccessControlEntry>> getAccessControlEntriesMap(Session session, String absPath,
+            Principal principal) throws RepositoryException {
+        AccessControlManager acMgr = session.getAccessControlManager();
         AccessControlPolicy[] policies = acMgr.getPolicies(absPath);
-        List<AccessControlEntry> allEntries = new ArrayList<>(); 
-        for (AccessControlPolicy accessControlPolicy : policies) {
-            if (accessControlPolicy instanceof AccessControlList) {
-                AccessControlEntry[] accessControlEntries = ((AccessControlList)accessControlPolicy).getAccessControlEntries();
-                Stream.of(accessControlEntries)
-                    .filter(entry -> principal.equals(entry.getPrincipal()))
-                    .forEach(allEntries::add);
-            }
-        }
-        return allEntries.toArray(new AccessControlEntry[allEntries.size()]);
+        return entriesSortedByEffectivePath(policies, ace -> principal.equals(ace.getPrincipal()));
     }
 
 }

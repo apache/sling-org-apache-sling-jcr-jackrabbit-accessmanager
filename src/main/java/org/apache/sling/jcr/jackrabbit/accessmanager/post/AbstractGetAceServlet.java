@@ -18,6 +18,7 @@ package org.apache.sling.jcr.jackrabbit.accessmanager.post;
 
 import java.security.Principal;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -49,8 +50,8 @@ public abstract class AbstractGetAceServlet extends AbstractAccessGetServlet {
     protected JsonObject internalGetAce(Session jcrSession, String resourcePath, String principalId) throws RepositoryException {
         Principal principal = validateArgs(jcrSession, resourcePath, principalId);
 
-        AccessControlEntry[] accessControlEntries = getAccessControlEntries(jcrSession, resourcePath, principal);
-        if (accessControlEntries == null || accessControlEntries.length == 0) {
+        Map<String, List<AccessControlEntry>> effectivePathToEntriesMap = getAccessControlEntriesMap(jcrSession, resourcePath, principal);
+        if (effectivePathToEntriesMap == null || effectivePathToEntriesMap.isEmpty()) {
             throw new ResourceNotFoundException(resourcePath, "No access control entries were found");
         }
 
@@ -62,14 +63,14 @@ public abstract class AbstractGetAceServlet extends AbstractAccessGetServlet {
         }
 
         Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap = new HashMap<>();
-        //evaluate these in reverse order so the entries with highest specificity are processed last
-        for (int i = accessControlEntries.length - 1; i >= 0; i--) {
-            AccessControlEntry accessControlEntry = accessControlEntries[i];
-            if (accessControlEntry instanceof JackrabbitAccessControlEntry) {
-                JackrabbitAccessControlEntry jrAccessControlEntry = (JackrabbitAccessControlEntry)accessControlEntry;
-                Privilege[] privileges = jrAccessControlEntry.getPrivileges();
-                if (privileges != null) {
-                    processACE(srMap, jrAccessControlEntry, privileges, privilegeToLocalPrivilegesMap);
+        for (List<AccessControlEntry> accessControlEntries : effectivePathToEntriesMap.values()) {
+            for (AccessControlEntry accessControlEntry : accessControlEntries) {
+                if (accessControlEntry instanceof JackrabbitAccessControlEntry) {
+                    JackrabbitAccessControlEntry jrAccessControlEntry = (JackrabbitAccessControlEntry)accessControlEntry;
+                    Privilege[] privileges = jrAccessControlEntry.getPrivileges();
+                    if (privileges != null) {
+                        processACE(srMap, jrAccessControlEntry, privileges, privilegeToLocalPrivilegesMap);
+                    }
                 }
             }
         }
@@ -84,6 +85,15 @@ public abstract class AbstractGetAceServlet extends AbstractAccessGetServlet {
         return jsonObj.build();
     }
 
-    protected abstract AccessControlEntry[] getAccessControlEntries(Session session, String absPath, Principal principal) throws RepositoryException;
+    protected abstract Map<String, List<AccessControlEntry>> getAccessControlEntriesMap(Session session, String absPath, Principal principal) throws RepositoryException;
+
+    /**
+     * @deprecated use {@link #getAccessControlEntriesMap(Session, String, Principal, Map)} instead
+     */
+    @Deprecated
+    protected AccessControlEntry[] getAccessControlEntries(Session session, String absPath, Principal principal) throws RepositoryException {
+        return getAccessControlEntriesMap(session, absPath, principal).values().stream()
+            .toArray(size -> new AccessControlEntry[size]);
+    }
 
 }

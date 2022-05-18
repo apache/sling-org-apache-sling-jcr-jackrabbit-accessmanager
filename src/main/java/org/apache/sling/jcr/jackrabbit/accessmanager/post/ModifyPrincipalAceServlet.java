@@ -28,6 +28,7 @@ import javax.jcr.Value;
 import javax.jcr.security.AccessControlEntry;
 import javax.jcr.security.AccessControlManager;
 import javax.jcr.security.AccessControlPolicy;
+import javax.jcr.security.Privilege;
 import javax.servlet.Servlet;
 
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
@@ -211,12 +212,14 @@ public class ModifyPrincipalAceServlet extends ModifyAceServlet implements Modif
     @Override
     protected void addAces(@NotNull String resourcePath, @NotNull Principal principal,
             @NotNull Map<Set<LocalRestriction>, List<LocalPrivilege>> restrictionsToLocalPrivilegesMap, boolean isAllow,
-            @NotNull JackrabbitAccessControlList acl) throws RepositoryException {
-        if (!isAllow && !restrictionsToLocalPrivilegesMap.isEmpty()) {
+            @NotNull JackrabbitAccessControlList acl, Map<Privilege, Integer> privilegeLongestDepthMap)
+            throws RepositoryException {
+        if (isAllow) {
+            super.addAces(resourcePath, principal, restrictionsToLocalPrivilegesMap, isAllow, acl, privilegeLongestDepthMap);
+        } else if (!restrictionsToLocalPrivilegesMap.isEmpty()) {
             // deny privileges not allowed in a principal ACE
             throw new IllegalArgumentException("Deny privileges are not allowed in a principal ACE");
         }
-        super.addAces(resourcePath, principal, restrictionsToLocalPrivilegesMap, isAllow, acl);
     }
 
     /**
