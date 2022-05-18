@@ -598,9 +598,10 @@ public final class PrivilegesHelper {
                     boolean allRestrictionsSame = childLocalPrivileges.stream().allMatch(lp -> firstAllowRestrictions.equals(lp.getAllowRestrictions()));
                     if (allRestrictionsSame) {
                         alp.setAllowRestrictions(firstAllowRestrictions);
-
-                        // each child with the same restrictions can be unset
-                        for (LocalPrivilege lp : childLocalPrivileges) {
+                    }
+                    // each child with the same restrictions can be unset
+                    for (LocalPrivilege lp : childLocalPrivileges) {
+                        if (lp.sameAllowRestrictions(alp.getAllowRestrictions())) {
                             lp.setAllow(false);
                             lp.setAllowRestrictions(Collections.emptySet());
                         }
@@ -618,9 +619,10 @@ public final class PrivilegesHelper {
                     boolean allRestrictionsSame = childLocalPrivileges.stream().allMatch(lp -> firstDenyRestrictions.equals(lp.getDenyRestrictions()));
                     if (allRestrictionsSame) {
                         alp.setDenyRestrictions(firstDenyRestrictions);
-
-                        // each child with the same restrictions can be unset
-                        for (LocalPrivilege lp : childLocalPrivileges) {
+                    }
+                    // each child with the same restrictions can be unset
+                    for (LocalPrivilege lp : childLocalPrivileges) {
+                        if (lp.sameDenyRestrictions(alp.getDenyRestrictions())) {
                             lp.setDeny(false);
                             lp.setDenyRestrictions(Collections.emptySet());
                         }
