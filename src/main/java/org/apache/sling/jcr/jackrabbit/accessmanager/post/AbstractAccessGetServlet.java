@@ -224,7 +224,8 @@ public abstract class AbstractAccessGetServlet extends SlingAllMethodsServlet {
      * @return map of sorted entries, key is the effectivePath and value is the list of entries for that path
      */
     protected @NotNull Map<String, List<AccessControlEntry>> entriesSortedByEffectivePath(@NotNull AccessControlPolicy[] policies,
-            @NotNull Predicate<? super AccessControlEntry> accessControlEntryFilter) throws RepositoryException {
+            @NotNull Predicate<? super AccessControlEntry> accessControlEntryFilter,
+            Map<Principal, Map<DeclarationType, Set<String>>> declaredAtPaths) throws RepositoryException {
         Comparator<? super String> effectivePathComparator = (k1, k2) -> Objects.compare(k1, k2, Comparator.nullsFirst(String::compareTo));
         Map<String, List<AccessControlEntry>> effectivePathToEntriesMap = new TreeMap<>(effectivePathComparator);
 
@@ -235,6 +236,7 @@ public abstract class AbstractAccessGetServlet extends SlingAllMethodsServlet {
                 Stream.of(accessControlEntries)
                     .filter(accessControlEntryFilter)
                     .forEach(entry -> {
+                        DeclarationType dt = null;
                         String effectivePath = null;
                         if (entry instanceof PrincipalAccessControlList.Entry) {
                             // for principal-based ACE, the effectivePath comes from the entry
@@ -243,12 +245,18 @@ public abstract class AbstractAccessGetServlet extends SlingAllMethodsServlet {
                                 // special case
                                 effectivePath = PrincipalAceHelper.RESOURCE_PATH_REPOSITORY;
                             }
+                            dt = DeclarationType.PRINCIPAL;
                         } else if (accessControlPolicy instanceof JackrabbitAccessControlList) {
                             // for basic ACE, the effectivePath comes from the ACL path
                             effectivePath = ((JackrabbitAccessControlList)accessControlPolicy).getPath();
+                            dt = DeclarationType.NODE;
                         }
                         List<AccessControlEntry> entriesForPath = effectivePathToEntriesMap.computeIfAbsent(effectivePath, key -> new ArrayList<>());
                         entriesForPath.add(entry);
+
+                        Map<DeclarationType, Set<String>> map = declaredAtPaths.computeIfAbsent(entry.getPrincipal(), k -> new HashMap<>());
+                        Set<String> set = map.computeIfAbsent(dt, k -> new HashSet<>());
+                        set.add(effectivePath);
                     });
             }
         }

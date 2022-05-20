@@ -21,6 +21,7 @@ import java.math.BigInteger;
 import java.security.Principal;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import javax.jcr.PropertyType;
@@ -33,6 +34,7 @@ import javax.json.JsonObjectBuilder;
 
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
+import org.apache.sling.jcr.jackrabbit.accessmanager.post.DeclarationType;
 
 /**
  * Utilities to help convert ACL/ACE data to JSON
@@ -43,6 +45,7 @@ public class JsonConvert {
     public static final String KEY_PRIVILEGES = "privileges";
     public static final String KEY_ALLOW = "allow";
     public static final String KEY_DENY = "deny";
+    public static final String KEY_DECLARED_AT = "declaredAt";
 
     private JsonConvert() {
         // no-op
@@ -75,6 +78,30 @@ public class JsonConvert {
             principalObj.add(JsonConvert.KEY_PRIVILEGES, privilegesObj);
         }
         return principalObj;
+    }
+
+    /**
+     * Add details about where the privileges were declared, usually
+     * for viewing the effective access list or entry
+     */
+    public static void addDeclaredAt(JsonObjectBuilder principalObj, Map<DeclarationType, Set<String>> declaredAt) {
+        JsonObjectBuilder declaredAtBuilder = Json.createObjectBuilder();
+        for (Entry<DeclarationType, Set<String>> daentry : declaredAt.entrySet()) {
+            DeclarationType type = daentry.getKey();
+            if (type != null) {
+                Set<String> value = daentry.getValue();
+                if (value.size() == 1) {
+                    declaredAtBuilder.add(type.getJsonKey(), value.iterator().next());
+                } else {
+                    JsonArrayBuilder typeBuilder = Json.createArrayBuilder();
+                    for (String at : value) {
+                        typeBuilder.add(at);
+                    }
+                    declaredAtBuilder.add(type.getJsonKey(), typeBuilder);
+                }
+            }
+        }
+        principalObj.add(JsonConvert.KEY_DECLARED_AT, declaredAtBuilder);
     }
 
     public static void addRestrictions(JsonObjectBuilder privilegeObj, String key, Set<LocalRestriction> restrictions) {

@@ -44,7 +44,7 @@ public abstract class PrincipalAceTestSupport extends AccessManagerClientTestSup
     @Override
     protected Option[] additionalOptions() throws IOException {
         return composite(super.additionalOptions())
-           .add(mavenBundle().groupId("org.apache.jackrabbit").artifactId("oak-authorization-principalbased").version("1.16.0"),
+           .add(mavenBundle().groupId("org.apache.jackrabbit").artifactId("oak-authorization-principalbased").version("1.18.0"),
                 newConfiguration("org.apache.jackrabbit.oak.spi.security.authorization.principalbased.impl.PrincipalBasedAuthorizationConfiguration")
                     .put("enableAggregationFilter", true)
                     .asOption(),

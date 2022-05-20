@@ -21,6 +21,7 @@ package org.apache.sling.jcr.jackrabbit.accessmanager.post;
 import java.security.Principal;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
@@ -93,10 +94,10 @@ public class GetAceServlet extends AbstractGetAceServlet implements GetAce {
 
     @Override
     protected Map<String, List<AccessControlEntry>> getAccessControlEntriesMap(Session session, String absPath,
-            Principal principal) throws RepositoryException {
+            Principal principal, Map<Principal, Map<DeclarationType, Set<String>>> declaredAtPaths) throws RepositoryException {
         AccessControlManager acMgr = session.getAccessControlManager();
         AccessControlPolicy[] policies = acMgr.getPolicies(absPath);
-        return entriesSortedByEffectivePath(policies, ace -> principal.equals(ace.getPrincipal()));
+        return entriesSortedByEffectivePath(policies, ace -> principal.equals(ace.getPrincipal()), declaredAtPaths);
     }
 
 }

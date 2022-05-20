@@ -22,6 +22,7 @@ import java.security.Principal;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
@@ -111,12 +112,12 @@ public class GetPrincipalAceServlet extends AbstractGetAceServlet implements Get
 
     @Override
     protected Map<String, List<AccessControlEntry>> getAccessControlEntriesMap(Session session, String absPath,
-            Principal principal) throws RepositoryException {
+            Principal principal, Map<Principal, Map<DeclarationType, Set<String>>> declaredAtPaths) throws RepositoryException {
         AccessControlManager acMgr = session.getAccessControlManager();
         if (acMgr instanceof JackrabbitAccessControlManager) {
             JackrabbitAccessControlManager jacMgr = (JackrabbitAccessControlManager)acMgr;
             JackrabbitAccessControlPolicy[] policies = jacMgr.getPolicies(principal);
-            return entriesSortedByEffectivePath(policies, ace -> matchesPrincipalAccessControlEntry(ace, absPath, principal));
+            return entriesSortedByEffectivePath(policies, ace -> matchesPrincipalAccessControlEntry(ace, absPath, principal), declaredAtPaths);
         } else {
             return Collections.emptyMap();
         }

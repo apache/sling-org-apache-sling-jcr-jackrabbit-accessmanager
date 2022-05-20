@@ -16,8 +16,10 @@
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager.post;
 
+import java.security.Principal;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
@@ -121,10 +123,11 @@ public class GetAclServlet extends AbstractGetAclServlet implements GetAcl {
     }
 
     @Override
-    protected Map<String, List<AccessControlEntry>> getAccessControlEntriesMap(Session session, String absPath) throws RepositoryException {
+    protected Map<String, List<AccessControlEntry>> getAccessControlEntriesMap(Session session, String absPath,
+            Map<Principal, Map<DeclarationType, Set<String>>> declaredAtPaths) throws RepositoryException {
         AccessControlManager accessControlManager = session.getAccessControlManager();
         AccessControlPolicy[] policies = accessControlManager.getPolicies(absPath);
-        return entriesSortedByEffectivePath(policies, ace -> true);
+        return entriesSortedByEffectivePath(policies, ace -> true, declaredAtPaths);
     }
 
 }
