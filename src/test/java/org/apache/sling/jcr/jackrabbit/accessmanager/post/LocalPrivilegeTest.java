@@ -36,6 +36,7 @@ import javax.jcr.security.AccessControlManager;
 import javax.jcr.security.Privilege;
 
 import org.apache.jackrabbit.oak.security.authorization.restriction.RestrictionProviderImpl;
+import org.apache.jackrabbit.oak.spi.security.authorization.accesscontrol.AccessControlConstants;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionDefinition;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
@@ -196,7 +197,7 @@ public class LocalPrivilegeTest {
         assertTrue(allowRestrictions.isEmpty());
 
         Set<LocalRestriction> newAllowRestrictions = new HashSet<>();
-        newAllowRestrictions.add(new LocalRestriction(rd("rep:glob"), val("/hello")));
+        newAllowRestrictions.add(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")));
         lp1.setAllowRestrictions(newAllowRestrictions);
         Set<LocalRestriction> allowRestrictions2 = lp1.getAllowRestrictions();
         assertNotNull(allowRestrictions2);
@@ -215,7 +216,7 @@ public class LocalPrivilegeTest {
         assertTrue(denyRestrictions.isEmpty());
 
         Set<LocalRestriction> newDenyRestrictions = new HashSet<>();
-        newDenyRestrictions.add(new LocalRestriction(rd("rep:glob"), val("/hello")));
+        newDenyRestrictions.add(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")));
         lp1.setDenyRestrictions(newDenyRestrictions);
         Set<LocalRestriction> denyRestrictions2 = lp1.getDenyRestrictions();
         assertNotNull(denyRestrictions2);
@@ -233,20 +234,20 @@ public class LocalPrivilegeTest {
         assertTrue(lp1.sameAllowRestrictions(lp2.getAllowRestrictions()));
 
         Set<LocalRestriction> newAllowRestrictions1 = new HashSet<>();
-        newAllowRestrictions1.add(new LocalRestriction(rd("rep:glob"), val("/hello")));
-        newAllowRestrictions1.add(new LocalRestriction(rd("nt:itemNames"), vals("item1", "item2")));
+        newAllowRestrictions1.add(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")));
+        newAllowRestrictions1.add(new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2")));
         lp1.setAllowRestrictions(newAllowRestrictions1);
         assertFalse(lp1.sameAllowRestrictions(lp2.getAllowRestrictions()));
 
         Set<LocalRestriction> newAllowRestrictions2 = new HashSet<>();
-        newAllowRestrictions2.add(new LocalRestriction(rd("rep:glob"), val("/hello")));
-        newAllowRestrictions2.add(new LocalRestriction(rd("nt:itemNames"), vals("item1", "item2")));
+        newAllowRestrictions2.add(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")));
+        newAllowRestrictions2.add(new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2")));
         lp2.setAllowRestrictions(newAllowRestrictions2);
         assertTrue(lp1.sameAllowRestrictions(lp2.getAllowRestrictions()));
 
         Set<LocalRestriction> newAllowRestrictions3 = new HashSet<>();
-        newAllowRestrictions3.add(new LocalRestriction(rd("rep:glob"), val("/hello")));
-        newAllowRestrictions3.add(new LocalRestriction(rd("nt:itemNames"), vals("item1", "item2_changed")));
+        newAllowRestrictions3.add(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")));
+        newAllowRestrictions3.add(new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2_changed")));
         lp2.setAllowRestrictions(newAllowRestrictions3);
         assertFalse(lp1.sameAllowRestrictions(lp2.getAllowRestrictions()));
     }
@@ -261,20 +262,20 @@ public class LocalPrivilegeTest {
         assertTrue(lp1.sameDenyRestrictions(lp2.getDenyRestrictions()));
 
         Set<LocalRestriction> newDenyRestrictions1 = new HashSet<>();
-        newDenyRestrictions1.add(new LocalRestriction(rd("rep:glob"), val("/hello")));
-        newDenyRestrictions1.add(new LocalRestriction(rd("nt:itemNames"), vals("item1", "item2")));
+        newDenyRestrictions1.add(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")));
+        newDenyRestrictions1.add(new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2")));
         lp1.setDenyRestrictions(newDenyRestrictions1);
         assertFalse(lp1.sameDenyRestrictions(lp2.getDenyRestrictions()));
 
         Set<LocalRestriction> newDenyRestrictions2 = new HashSet<>();
-        newDenyRestrictions2.add(new LocalRestriction(rd("rep:glob"), val("/hello")));
-        newDenyRestrictions2.add(new LocalRestriction(rd("nt:itemNames"), vals("item1", "item2")));
+        newDenyRestrictions2.add(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")));
+        newDenyRestrictions2.add(new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2")));
         lp2.setDenyRestrictions(newDenyRestrictions2);
         assertTrue(lp1.sameDenyRestrictions(lp2.getDenyRestrictions()));
 
         Set<LocalRestriction> newDenyRestrictions3 = new HashSet<>();
-        newDenyRestrictions3.add(new LocalRestriction(rd("rep:glob"), val("/hello")));
-        newDenyRestrictions3.add(new LocalRestriction(rd("nt:itemNames"), vals("item1", "item2_changed")));
+        newDenyRestrictions3.add(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")));
+        newDenyRestrictions3.add(new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2_changed")));
         lp2.setDenyRestrictions(newDenyRestrictions3);
         assertFalse(lp1.sameDenyRestrictions(lp2.getDenyRestrictions()));
     }
@@ -288,20 +289,20 @@ public class LocalPrivilegeTest {
         assertTrue(lp1.sameAllowAndDenyRestrictions());
 
         Set<LocalRestriction> newDenyRestrictions1 = new HashSet<>();
-        newDenyRestrictions1.add(new LocalRestriction(rd("rep:glob"), val("/hello")));
-        newDenyRestrictions1.add(new LocalRestriction(rd("nt:itemNames"), vals("item1", "item2")));
+        newDenyRestrictions1.add(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")));
+        newDenyRestrictions1.add(new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2")));
         lp1.setDenyRestrictions(newDenyRestrictions1);
         assertFalse(lp1.sameAllowAndDenyRestrictions());
 
         Set<LocalRestriction> newAllowRestrictions1 = new HashSet<>();
-        newAllowRestrictions1.add(new LocalRestriction(rd("rep:glob"), val("/hello")));
-        newAllowRestrictions1.add(new LocalRestriction(rd("nt:itemNames"), vals("item1", "item2")));
+        newAllowRestrictions1.add(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")));
+        newAllowRestrictions1.add(new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2")));
         lp1.setAllowRestrictions(newAllowRestrictions1);
         assertTrue(lp1.sameAllowAndDenyRestrictions());
 
         Set<LocalRestriction> newAllowRestrictions2 = new HashSet<>();
-        newAllowRestrictions2.add(new LocalRestriction(rd("rep:glob"), val("/hello")));
-        newAllowRestrictions2.add(new LocalRestriction(rd("nt:itemNames"), vals("item1", "item2_changed")));
+        newAllowRestrictions2.add(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")));
+        newAllowRestrictions2.add(new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2_changed")));
         lp1.setAllowRestrictions(newAllowRestrictions2);
         assertFalse(lp1.sameAllowAndDenyRestrictions());
     }
@@ -358,12 +359,12 @@ public class LocalPrivilegeTest {
         assertNotEquals(lp10, lp11);
 
         LocalPrivilege lp12 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
-        lp12.setAllowRestrictions(new HashSet<>(Arrays.asList(new LocalRestriction(rd("rep:glob"), val("/hello")))));
+        lp12.setAllowRestrictions(new HashSet<>(Arrays.asList(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")))));
         LocalPrivilege lp13 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
         assertNotEquals(lp12, lp13);
 
         LocalPrivilege lp14 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
-        lp14.setDenyRestrictions(new HashSet<>(Arrays.asList(new LocalRestriction(rd("rep:glob"), val("/hello")))));
+        lp14.setDenyRestrictions(new HashSet<>(Arrays.asList(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")))));
         LocalPrivilege lp15 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
         assertNotEquals(lp14, lp15);
 

@@ -102,4 +102,11 @@ public class LocalRestriction {
         return Arrays.equals(values, other.values);
     }
 
+    /**
+     * Clone from an existing object and then assign the new values
+     */
+    public static @NotNull LocalRestriction cloneWithNewValues(@NotNull LocalRestriction lr, @NotNull Value[] newValues) {
+        return new LocalRestriction(lr.rd, newValues);
+    }
+
 }

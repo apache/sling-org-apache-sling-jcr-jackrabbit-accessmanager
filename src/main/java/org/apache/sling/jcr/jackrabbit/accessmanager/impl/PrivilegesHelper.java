@@ -21,7 +21,6 @@ package org.apache.sling.jcr.jackrabbit.accessmanager.impl;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -268,26 +267,20 @@ public final class PrivilegesHelper {
         forAllow &= localPrivilege.isAllow();
         forDeny &= localPrivilege.isDeny();
         if (forAllow) {
-            Set<LocalRestriction> allowRestrictions = new HashSet<>(localPrivilege.getAllowRestrictions());
-            if (allowRestrictions.removeIf(lr -> restrictionNames.contains(lr.getName()))) {
-                localPrivilege.setAllowRestrictions(allowRestrictions);
-            }
+            localPrivilege.unsetAllowRestrictions(restrictionNames);
         }
         if (forDeny) {
-            Set<LocalRestriction> denyRestrictions = new HashSet<>(localPrivilege.getDenyRestrictions());
-            if (denyRestrictions.removeIf(lr -> restrictionNames.contains(lr.getName()))) {
-                localPrivilege.setDenyRestrictions(denyRestrictions);
-            }
+            localPrivilege.unsetDenyRestrictions(restrictionNames);
         }
 
         if (localPrivilege.sameAllowAndDenyRestrictions()) {
             // same restrictions so we can unset one of them
             if (forAllow) {
                 localPrivilege.setDeny(false);
-                localPrivilege.setDenyRestrictions(Collections.emptySet());
+                localPrivilege.clearDenyRestrictions();
             } else if (forDeny) {
                 localPrivilege.setAllow(false);
-                localPrivilege.setAllowRestrictions(Collections.emptySet());
+                localPrivilege.clearAllowRestrictions();
             }
         }
 
@@ -341,22 +334,18 @@ public final class PrivilegesHelper {
             if (requireAllowOrDenyAlreadySet && !localPrivilege.isDeny()) {
                 //skip it
             } else {
-                Set<LocalRestriction> denyRestrictions = new HashSet<>(localPrivilege.getDenyRestrictions());
-                denyRestrictions.removeIf(lr -> lr.getName().equals(restriction.getName()));
-                denyRestrictions.add(restriction);
                 localPrivilege.setDeny(true);
-                localPrivilege.setDenyRestrictions(denyRestrictions);
+                localPrivilege.unsetDenyRestrictions(Collections.singleton(restriction.getName()));
+                localPrivilege.setDenyRestrictions(Collections.singleton(restriction));
             }
         }
         if (forAllow) {
             if (requireAllowOrDenyAlreadySet && !localPrivilege.isAllow()) {
                 //skip it
             } else {
-                Set<LocalRestriction> allowRestrictions = new HashSet<>(localPrivilege.getAllowRestrictions());
-                allowRestrictions.removeIf(lr -> lr.getName().equals(restriction.getName()));
-                allowRestrictions.add(restriction);
                 localPrivilege.setAllow(true);
-                localPrivilege.setAllowRestrictions(allowRestrictions);
+                localPrivilege.unsetAllowRestrictions(Collections.singleton(restriction.getName()));
+                localPrivilege.setAllowRestrictions(Collections.singleton(restriction));
             }
         }
 

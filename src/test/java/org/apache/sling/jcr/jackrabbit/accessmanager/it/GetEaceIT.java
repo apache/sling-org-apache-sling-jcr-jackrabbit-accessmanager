@@ -17,6 +17,7 @@
 package org.apache.sling.jcr.jackrabbit.accessmanager.it;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -265,5 +266,74 @@ public class GetEaceIT extends AccessManagerClientTestSupport {
         assertTrue (nodeArray.get(1) instanceof JsonString);
         assertEquals(testFolderPath, ((JsonString)nodeArray.get(1)).getString());
     }
+
+    /**
+     * Effective ACE servlet returns correct information
+     */
+    @Test
+    public void testEffectiveAceForUserWithMergedRestrictionValues() throws IOException, JsonException {
+        testUserId = createTestUser();
+        testFolderUrl = createTestFolder(null, "sling-tests2",
+                "{ \"jcr:primaryType\": \"nt:unstructured\", \"child\" : { \"childPropOne\" : true, \"childPropTwo\" : \"two\" } }");
+
+        //1. create an initial set of privileges
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .withPrivilege(PrivilegeConstants.REP_READ_PROPERTIES, PrivilegeValues.DENY)
+                .withPrivilegeRestriction(PrivilegeValues.ALLOW, PrivilegeConstants.REP_READ_PROPERTIES, AccessControlConstants.REP_ITEM_NAMES, "childPropOne")
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+
+        // at this point the child JSON should have only one of the properties visible
+        Credentials testUserCreds = new UsernamePasswordCredentials(testUserId, "testPwd");
+        String getJsonContentUrl = testFolderUrl + "/child.json";
+        String jsonContent = getAuthenticatedContent(testUserCreds, getJsonContentUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
+        assertNotNull(jsonContent);
+        JsonObject jsonObject = parseJson(jsonContent);
+        assertTrue("Expected childPropOne property", jsonObject.containsKey("childPropOne"));
+        assertFalse("Did not expected childPropTwo property", jsonObject.containsKey("childPropTwo"));
+
+        // add ACE to the child to make the other property readable
+        List<NameValuePair> postParams2 = new AcePostParamsBuilder(testUserId)
+                .withPrivilegeRestriction(PrivilegeValues.ALLOW, PrivilegeConstants.REP_READ_PROPERTIES, AccessControlConstants.REP_ITEM_NAMES, "childPropTwo")
+                .build();
+        addOrUpdateAce(testFolderUrl + "/child", postParams2);
+
+        //fetch the JSON for the ace to verify the settings.
+        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
+        String getUrl = testFolderUrl + "/child.eace.json?pid=" + testUserId;
+        String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
+        assertNotNull(json);
+        JsonObject aceObject = parseJson(json);
+
+        String principalString = aceObject.getString("principal");
+        assertEquals(testUserId, principalString);
+
+        JsonObject privilegesObject = aceObject.getJsonObject("privileges");
+        assertNotNull(privilegesObject);
+        assertEquals(1, privilegesObject.size());
+        //allow privilege
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.REP_READ_PROPERTIES, jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            // verify we have the merged restriction values
+            JsonValue itemNamesValue = restrictionsObj.get(AccessControlConstants.REP_ITEM_NAMES);
+            assertNotNull(itemNamesValue);
+            assertTrue(itemNamesValue instanceof JsonArray);
+            JsonArray itemNamesArray = (JsonArray)itemNamesValue;
+            assertEquals(2, itemNamesArray.size());
+            assertEquals("childPropOne", itemNamesArray.getString(0));
+            assertEquals("childPropTwo", itemNamesArray.getString(1));
+        });
+
+        // now verify that the JSON has both properties visible
+        jsonContent = getAuthenticatedContent(testUserCreds, getJsonContentUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
+        assertNotNull(jsonContent);
+        jsonObject = parseJson(jsonContent);
+        assertTrue("Expected childPropOne property", jsonObject.containsKey("childPropOne"));
+        assertTrue("Expected childPropTwo property", jsonObject.containsKey("childPropTwo"));
+    }
+
 
 }

@@ -16,9 +16,15 @@
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager;
 
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 
+import javax.jcr.Value;
 import javax.jcr.security.Privilege;
 
 import org.jetbrains.annotations.NotNull;
@@ -73,11 +79,59 @@ public class LocalPrivilege {
         return Collections.unmodifiableSet(denyRestrictions);
     }
 
+    protected Set<LocalRestriction> mergeRestrictions(Set<LocalRestriction> currentRestrictions, Set<LocalRestriction> newRestrictions) {
+        Set<LocalRestriction> mergedRestrictons;
+        if (newRestrictions == null) {
+            mergedRestrictons = null;
+        } else {
+            mergedRestrictons = new HashSet<>(currentRestrictions);
+            for (LocalRestriction lr : newRestrictions) {
+                if (lr.isMultiValue()) {
+                    String expectedName = lr.getName();
+                    Optional<LocalRestriction> existing = currentRestrictions.stream()
+                            .filter(r ->  r.getName().equals(expectedName))
+                            .findFirst();
+                    if (existing.isPresent()) {
+                        //remove the old one that we are replacing
+                        mergedRestrictons.removeIf(k -> expectedName.equals(k.getName()));
+
+                        Set<Value> mergedValues = new LinkedHashSet<>();
+                        // add the current values
+                        LocalRestriction existingLr = existing.get();
+                        Stream.of(existingLr.getValues())
+                            .forEach(mergedValues::add);
+                        // merge the new values
+                        Stream.of(lr.getValues())
+                            .forEach(mergedValues::add);
+                        Value[] newValues = mergedValues.toArray(new Value[mergedValues.size()]);
+                        // construct the replacement object
+                        lr = LocalRestriction.cloneWithNewValues(lr, newValues);
+                    }
+                }
+                // add to the set
+                mergedRestrictons.add(lr);
+            }
+        }
+        return mergedRestrictons;
+    }
+
     public void setAllowRestrictions(Set<LocalRestriction> restrictions) {
-        this.allowRestrictions = restrictions;
+        this.allowRestrictions = mergeRestrictions(this.allowRestrictions, restrictions);
     }
     public void setDenyRestrictions(Set<LocalRestriction> restrictions) {
-        this.denyRestrictions = restrictions;
+        this.denyRestrictions = mergeRestrictions(this.denyRestrictions, restrictions);
+    }
+    public void unsetAllowRestrictions(Collection<String> restrictionNames) {
+        this.allowRestrictions.removeIf(k -> restrictionNames.contains(k.getName()));
+    }
+    public void unsetDenyRestrictions(Collection<String> restrictionNames) {
+        this.denyRestrictions.removeIf(k -> restrictionNames.contains(k.getName()));
+    }
+    public void clearAllowRestrictions() {
+        this.allowRestrictions.clear();
+    }
+    public void clearDenyRestrictions() {
+        this.denyRestrictions.clear();
     }
 
     /**
