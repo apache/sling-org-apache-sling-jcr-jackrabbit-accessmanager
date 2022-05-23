@@ -273,7 +273,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
     }
     protected void assertPrivilege(JsonObject privilegesObject, boolean expectedPrivilege, PrivilegeValues privilegeState, String privilegeName,
             VerifyAce verifyAce) {
-        assertPrivilege(privilegesObject, expectedPrivilege, privilegeState, privilegeName, true, null);
+        assertPrivilege(privilegesObject, expectedPrivilege, privilegeState, privilegeName, true, verifyAce);
     }
     protected void assertPrivilege(JsonObject privilegesObject, boolean expectedPrivilege, PrivilegeValues privilegeState, String privilegeName,
             boolean expectedForAllow,

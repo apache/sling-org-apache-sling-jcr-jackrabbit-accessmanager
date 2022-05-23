@@ -2218,13 +2218,13 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         // update the ACE
         List<NameValuePair> postParams = new AcePostParamsBuilder(testGroupId)
             .withPrivilegeRestriction(PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, AccessControlConstants.REP_GLOB, "/hello")
-            .withPrivilegeRestriction(PrivilegeValues.NONE, PrivilegeConstants.JCR_READ, AccessControlConstants.REP_GLOB, "/hello")
+            .withPrivilegeRestriction(PrivilegeValues.DENY, PrivilegeConstants.JCR_READ, AccessControlConstants.REP_GLOB, "/hello")
             .build();
         addOrUpdateAce(testFolderUrl, postParams);
         JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
         assertEquals(1, groupPrivilegesObject.size());
 
-        //allow privilege is there (allow prefererred over deny)
+        //allow privilege is there (allow preferred over deny)
         //allow privilege
         assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, true, jsonValue -> {
             assertNotNull(jsonValue);
