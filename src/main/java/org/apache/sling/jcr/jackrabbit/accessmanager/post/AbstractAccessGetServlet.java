@@ -49,13 +49,10 @@ import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlList;
 import org.apache.jackrabbit.api.security.authorization.PrincipalAccessControlList;
 import org.apache.jackrabbit.api.security.principal.PrincipalManager;
-import org.apache.jackrabbit.oak.spi.security.authorization.restriction.CompositeRestrictionProvider;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionDefinition;
-import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.resource.ResourceNotFoundException;
-import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
@@ -65,38 +62,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 @SuppressWarnings("serial")
-public abstract class AbstractAccessGetServlet extends SlingAllMethodsServlet {
-
-    private transient RestrictionProvider compositeRestrictionProvider = null;
-    private transient Set<RestrictionProvider> restrictionProviders = new HashSet<>();
-
-    // @Reference
-    protected void bindRestrictionProvider(RestrictionProvider rp) {
-        synchronized (restrictionProviders) {
-            if (restrictionProviders.add(rp)) {
-                compositeRestrictionProvider = null;
-            }
-        }
-    }
-    protected void unbindRestrictionProvider(RestrictionProvider rp) {
-        synchronized (restrictionProviders) {
-            if (restrictionProviders.remove(rp)) {
-                compositeRestrictionProvider = null;
-            }
-        }
-    }
-
-    /**
-     * Return the RestrictionProvider service
-     */
-    protected RestrictionProvider getRestrictionProvider() {
-        synchronized (restrictionProviders) {
-            if (compositeRestrictionProvider == null) {
-                compositeRestrictionProvider = CompositeRestrictionProvider.newInstance(restrictionProviders);
-            }
-            return compositeRestrictionProvider;
-        }
-    }
+public abstract class AbstractAccessGetServlet extends AbstractAccessServlet {
 
     /* (non-Javadoc)
      * @see org.apache.sling.api.servlets.SlingSafeMethodsServlet#doGet(org.apache.sling.api.SlingHttpServletRequest, org.apache.sling.api.SlingHttpServletResponse)

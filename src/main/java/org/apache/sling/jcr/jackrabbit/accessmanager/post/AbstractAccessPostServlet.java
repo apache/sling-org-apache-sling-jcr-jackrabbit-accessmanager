@@ -39,7 +39,6 @@ import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.request.header.MediaRangeList;
 import org.apache.sling.api.resource.ResourceNotFoundException;
 import org.apache.sling.api.resource.ResourceUtil;
-import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 import org.apache.sling.api.wrappers.SlingRequestPaths;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrincipalAceHelper;
 import org.apache.sling.servlets.post.AbstractPostResponse;
@@ -57,7 +56,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Base class for all the POST servlets for the AccessManager operations
  */
-public abstract class AbstractAccessPostServlet extends SlingAllMethodsServlet {
+public abstract class AbstractAccessPostServlet extends AbstractAccessServlet {
     private static final long serialVersionUID = -5918670409789895333L;
 
     /**

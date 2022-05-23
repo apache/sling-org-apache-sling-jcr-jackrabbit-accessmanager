@@ -53,7 +53,6 @@ import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlList;
 import org.apache.jackrabbit.api.security.authorization.PrincipalAccessControlList;
 import org.apache.jackrabbit.api.security.principal.PrincipalManager;
-import org.apache.jackrabbit.oak.spi.security.authorization.restriction.CompositeRestrictionProvider;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionDefinition;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
@@ -72,7 +71,6 @@ import org.jetbrains.annotations.Nullable;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
-import org.osgi.service.component.annotations.ReferencePolicy;
 import org.osgi.service.component.annotations.ReferencePolicyOption;
 
 /**
@@ -136,7 +134,20 @@ property= {
         "sling.servlet.methods=POST",
         "sling.servlet.selectors=modifyAce",
         "sling.servlet.prefix:Integer=-1"
+},
+reference = {
+        @Reference(name="RestrictionProvider",
+                bind = "bindRestrictionProvider",
+                cardinality = ReferenceCardinality.MULTIPLE,
+                policyOption = ReferencePolicyOption.GREEDY,
+                service = RestrictionProvider.class),
+        @Reference(name = "PostResponseCreator",
+                bind = "bindPostResponseCreator",
+                cardinality = ReferenceCardinality.MULTIPLE,
+                policyOption = ReferencePolicyOption.GREEDY,
+                service = PostResponseCreator.class)
 })
+@SuppressWarnings("java:S110")
 public class ModifyAceServlet extends AbstractAccessPostServlet implements ModifyAce {
     private static final long serialVersionUID = -9182485466670280437L;
     private static final String INVALID_OR_NOT_SUPPORTED_RESTRICTION_NAME_WAS_SUPPLIED = "Invalid restriction name was supplied";
@@ -197,59 +208,6 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
     private static final Pattern RESTRICTION_PATTERN_DELETE = Pattern.compile(String.format("^restriction@([^@]+)(@([^@]+))?%s$",
                 SlingPostConstants.SUFFIX_DELETE));
 
-    private transient RestrictionProvider compositeRestrictionProvider = null;
-    private transient Set<RestrictionProvider> restrictionProviders = new HashSet<>();
-
-    // NOTE: the @Reference annotation is not inherited, so subclasses will need to override the #bindRestrictionProvider 
-    // and #unbindRestrictionProvider methods to provide the @Reference annotation.     
-    //
-    @Reference(cardinality=ReferenceCardinality.MULTIPLE, policy = ReferencePolicy.DYNAMIC, policyOption=ReferencePolicyOption.GREEDY)
-    protected void bindRestrictionProvider(RestrictionProvider rp) {
-        synchronized (restrictionProviders) {
-            if (restrictionProviders.add(rp)) {
-                compositeRestrictionProvider = null;
-            }
-        }
-    }
-    protected void unbindRestrictionProvider(RestrictionProvider rp) { //NOSONAR
-        synchronized (restrictionProviders) {
-            if (restrictionProviders.remove(rp)) {
-                compositeRestrictionProvider = null;
-            }
-        }
-    }
-
-    /**
-     * Return the RestrictionProvider service
-     */
-    protected RestrictionProvider getRestrictionProvider() {
-        synchronized (restrictionProviders) {
-            if (compositeRestrictionProvider == null) {
-                compositeRestrictionProvider = CompositeRestrictionProvider.newInstance(restrictionProviders);
-            }
-            return compositeRestrictionProvider;
-        }
-    }
-
-    /**
-     * Overridden since the @Reference annotation is not inherited from the super method
-     */
-    @Override
-    @Reference(service = PostResponseCreator.class,
-        cardinality = ReferenceCardinality.MULTIPLE,
-        policy = ReferencePolicy.DYNAMIC)
-    protected void bindPostResponseCreator(PostResponseCreator creator, Map<String, Object> properties) {
-        super.bindPostResponseCreator(creator, properties);
-    }
-
-    /* (non-Javadoc)
-     * @see org.apache.sling.jackrabbit.usermanager.impl.post.AbstractPostServlet#unbindPostResponseCreator(org.apache.sling.servlets.post.PostResponseCreator, java.util.Map)
-     */
-    @Override
-    protected void unbindPostResponseCreator(PostResponseCreator creator, Map<String, Object> properties) { //NOSONAR
-        super.unbindPostResponseCreator(creator, properties);
-    }
-
     /* (non-Javadoc)
      * @see org.apache.sling.jackrabbit.accessmanager.post.AbstractAccessPostServlet#handleOperation(org.apache.sling.api.SlingHttpServletRequest, org.apache.sling.servlets.post.PostResponse, java.util.List)
      */
@@ -299,7 +257,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             throw new RepositoryException("JCR Session not found");
         }
 
-        if (restrictionProviders.isEmpty()) {
+        if (RestrictionProvider.EMPTY.equals(getRestrictionProvider())) {
             throw new IllegalStateException("No restriction provider is available so unable to process POSTed restriction values");
         }
 
