@@ -38,6 +38,8 @@ import org.apache.sling.jcr.jackrabbit.accessmanager.GetEffectiveAce;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.JsonConvert;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
+import org.osgi.service.component.annotations.ReferenceCardinality;
+import org.osgi.service.component.annotations.ReferencePolicyOption;
 
 /**
  * <p>
@@ -82,6 +84,8 @@ property= {
 reference = {
         @Reference(name="RestrictionProvider",
                 bind = "bindRestrictionProvider",
+                cardinality = ReferenceCardinality.MULTIPLE,
+                policyOption = ReferencePolicyOption.GREEDY,
                 service = RestrictionProvider.class)
 }
 )

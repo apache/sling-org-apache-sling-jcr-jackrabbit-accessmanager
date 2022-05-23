@@ -37,6 +37,7 @@ import javax.jcr.security.Privilege;
 
 import org.apache.jackrabbit.oak.security.authorization.restriction.RestrictionProviderImpl;
 import org.apache.jackrabbit.oak.spi.security.authorization.accesscontrol.AccessControlConstants;
+import org.apache.jackrabbit.oak.spi.security.authorization.restriction.CompositeRestrictionProvider;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionDefinition;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
@@ -46,6 +47,7 @@ import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
 import org.apache.sling.testing.mock.sling.ResourceResolverType;
 import org.apache.sling.testing.mock.sling.junit.SlingContext;
+import org.jetbrains.annotations.NotNull;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -75,7 +77,9 @@ public class LocalPrivilegeTest {
     private RestrictionDefinition rd(String restrictionName) throws Exception {
         if (srMap == null) {
             //make a temp map for quick lookup below
-            RestrictionProvider restrictionProvider = context.getService(RestrictionProvider.class);
+            @NotNull
+            RestrictionProvider[] services = context.getServices(RestrictionProvider.class, null);
+            RestrictionProvider restrictionProvider = CompositeRestrictionProvider.newInstance(services);
             Set<RestrictionDefinition> supportedRestrictions = restrictionProvider.getSupportedRestrictions("/");
             srMap = new HashMap<>();
             for (RestrictionDefinition restrictionDefinition : supportedRestrictions) {

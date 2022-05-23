@@ -53,6 +53,7 @@ import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlList;
 import org.apache.jackrabbit.api.security.authorization.PrincipalAccessControlList;
 import org.apache.jackrabbit.api.security.principal.PrincipalManager;
+import org.apache.jackrabbit.oak.spi.security.authorization.restriction.CompositeRestrictionProvider;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionDefinition;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
@@ -196,17 +197,38 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
     private static final Pattern RESTRICTION_PATTERN_DELETE = Pattern.compile(String.format("^restriction@([^@]+)(@([^@]+))?%s$",
                 SlingPostConstants.SUFFIX_DELETE));
 
-    private transient RestrictionProvider restrictionProvider = null;
+    private transient RestrictionProvider compositeRestrictionProvider = null;
+    private transient Set<RestrictionProvider> restrictionProviders = new HashSet<>();
 
     // NOTE: the @Reference annotation is not inherited, so subclasses will need to override the #bindRestrictionProvider 
     // and #unbindRestrictionProvider methods to provide the @Reference annotation.     
     //
-    @Reference(cardinality=ReferenceCardinality.OPTIONAL, policy = ReferencePolicy.DYNAMIC, policyOption=ReferencePolicyOption.GREEDY)
+    @Reference(cardinality=ReferenceCardinality.MULTIPLE, policy = ReferencePolicy.DYNAMIC, policyOption=ReferencePolicyOption.GREEDY)
     protected void bindRestrictionProvider(RestrictionProvider rp) {
-        this.restrictionProvider = rp;
+        synchronized (restrictionProviders) {
+            if (restrictionProviders.add(rp)) {
+                compositeRestrictionProvider = null;
+            }
+        }
     }
     protected void unbindRestrictionProvider(RestrictionProvider rp) { //NOSONAR
-        this.restrictionProvider = null;
+        synchronized (restrictionProviders) {
+            if (restrictionProviders.remove(rp)) {
+                compositeRestrictionProvider = null;
+            }
+        }
+    }
+
+    /**
+     * Return the RestrictionProvider service
+     */
+    protected RestrictionProvider getRestrictionProvider() {
+        synchronized (restrictionProviders) {
+            if (compositeRestrictionProvider == null) {
+                compositeRestrictionProvider = CompositeRestrictionProvider.newInstance(restrictionProviders);
+            }
+            return compositeRestrictionProvider;
+        }
     }
 
     /**
@@ -277,7 +299,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             throw new RepositoryException("JCR Session not found");
         }
 
-        if (restrictionProvider == null) {
+        if (restrictionProviders.isEmpty()) {
             throw new IllegalStateException("No restriction provider is available so unable to process POSTed restriction values");
         }
 
@@ -310,7 +332,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
      * @return map of restriction names to definition
      */
     protected @NotNull Map<String, RestrictionDefinition> buildRestrictionNameToDefinitionMap(@NotNull String resourcePath) {
-        Set<RestrictionDefinition> supportedRestrictions = restrictionProvider.getSupportedRestrictions(resourcePath);
+        Set<RestrictionDefinition> supportedRestrictions = getRestrictionProvider().getSupportedRestrictions(resourcePath);
         Map<String, RestrictionDefinition> srMap = new HashMap<>();
         for (RestrictionDefinition restrictionDefinition : supportedRestrictions) {
             srMap.put(restrictionDefinition.getName(), restrictionDefinition);
