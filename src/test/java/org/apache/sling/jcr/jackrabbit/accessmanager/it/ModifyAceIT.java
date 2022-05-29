@@ -41,6 +41,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.http.NameValuePair;
 import org.apache.jackrabbit.oak.spi.security.authorization.accesscontrol.AccessControlConstants;
+import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
 import org.apache.sling.servlets.post.JSONResponse;
 import org.apache.sling.servlets.post.PostResponseCreator;
@@ -63,6 +64,7 @@ import org.osgi.framework.ServiceRegistration;
 public class ModifyAceIT extends AccessManagerClientTestSupport {
 
     private ServiceRegistration<PostResponseCreator> serviceReg;
+    private ServiceRegistration<RestrictionProvider> serviceReg2;
     private VerifyAce verifyTrue = jsonValue -> assertEquals(ValueType.TRUE, jsonValue.getValueType());
 
     @Before
@@ -72,6 +74,8 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         Dictionary<String, Object> props = new Hashtable<>(); // NOSONAR
         serviceReg = bundle.getBundleContext().registerService(PostResponseCreator.class,
                 new CustomPostResponseCreatorImpl(), props);
+        serviceReg2 = bundle.getBundleContext().registerService(RestrictionProvider.class,
+                new CustomRestrictionProviderImpl(), props);
 
         super.before();
     }
@@ -81,6 +85,9 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
     public void after() throws Exception {
         if (serviceReg != null) {
             serviceReg.unregister();
+        }
+        if (serviceReg2 != null) {
+            serviceReg2.unregister();
         }
 
         super.after();
@@ -2310,6 +2317,52 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         JsonObject jsonObject = parseJson(json);
         assertEquals("javax.jcr.security.AccessControlException: No such privilege invalid_name", jsonObject.getString("status.message"));
+    }
+
+    /**
+     * Test to verify adding an ACE with a custom restriction to
+     * the ACL
+     */
+    @Test
+    public void testAddAceWithCustomRestriction() throws IOException, JsonException {
+        testUserId = createTestUser();
+        testFolderUrl = createTestFolder();
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                .withOrder("first")
+                .withPrivilegeRestriction(PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ,
+                        CustomRestrictionProviderImpl.SLING_CUSTOM_RESTRICTION, new String[] {"item1", "item2"})
+                .withPrivilegeRestriction(PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE,
+                        CustomRestrictionProviderImpl.SLING_CUSTOM_RESTRICTION, new String[] {"item1", "item2"})
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+
+        JsonObject user = getAce(testFolderUrl, testUserId);
+        assertNotNull(user);
+        assertEquals(testUserId, user.getString("principal"));
+        assertEquals(0, user.getInt("order"));
+
+        JsonObject privilegesObject = user.getJsonObject("privileges");
+        assertNotNull(privilegesObject);
+        assertEquals(2, privilegesObject.size());
+
+        VerifyAce verifyRestrictions = jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue customValue = restrictionsObj.get(CustomRestrictionProviderImpl.SLING_CUSTOM_RESTRICTION);
+            assertNotNull(customValue);
+            assertTrue(customValue instanceof JsonArray);
+            assertEquals(2, ((JsonArray)customValue).size());
+            assertEquals("item1", ((JsonArray)customValue).getString(0));
+            assertEquals("item2", ((JsonArray)customValue).getString(1));
+        };
+        //allow privilege
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, verifyRestrictions);
+        //deny privilege
+        assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, verifyRestrictions);
     }
 
 }

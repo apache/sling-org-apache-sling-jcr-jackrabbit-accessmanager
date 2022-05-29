@@ -71,7 +71,6 @@ import org.jetbrains.annotations.Nullable;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
-import org.osgi.service.component.annotations.ReferencePolicy;
 import org.osgi.service.component.annotations.ReferencePolicyOption;
 
 /**
@@ -135,7 +134,20 @@ property= {
         "sling.servlet.methods=POST",
         "sling.servlet.selectors=modifyAce",
         "sling.servlet.prefix:Integer=-1"
+},
+reference = {
+        @Reference(name="RestrictionProvider",
+                bind = "bindRestrictionProvider",
+                cardinality = ReferenceCardinality.MULTIPLE,
+                policyOption = ReferencePolicyOption.GREEDY,
+                service = RestrictionProvider.class),
+        @Reference(name = "PostResponseCreator",
+                bind = "bindPostResponseCreator",
+                cardinality = ReferenceCardinality.MULTIPLE,
+                policyOption = ReferencePolicyOption.GREEDY,
+                service = PostResponseCreator.class)
 })
+@SuppressWarnings("java:S110")
 public class ModifyAceServlet extends AbstractAccessPostServlet implements ModifyAce {
     private static final long serialVersionUID = -9182485466670280437L;
     private static final String INVALID_OR_NOT_SUPPORTED_RESTRICTION_NAME_WAS_SUPPLIED = "Invalid restriction name was supplied";
@@ -196,38 +208,6 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
     private static final Pattern RESTRICTION_PATTERN_DELETE = Pattern.compile(String.format("^restriction@([^@]+)(@([^@]+))?%s$",
                 SlingPostConstants.SUFFIX_DELETE));
 
-    private transient RestrictionProvider restrictionProvider = null;
-
-    // NOTE: the @Reference annotation is not inherited, so subclasses will need to override the #bindRestrictionProvider 
-    // and #unbindRestrictionProvider methods to provide the @Reference annotation.     
-    //
-    @Reference(cardinality=ReferenceCardinality.OPTIONAL, policy = ReferencePolicy.DYNAMIC, policyOption=ReferencePolicyOption.GREEDY)
-    protected void bindRestrictionProvider(RestrictionProvider rp) {
-        this.restrictionProvider = rp;
-    }
-    protected void unbindRestrictionProvider(RestrictionProvider rp) { //NOSONAR
-        this.restrictionProvider = null;
-    }
-
-    /**
-     * Overridden since the @Reference annotation is not inherited from the super method
-     */
-    @Override
-    @Reference(service = PostResponseCreator.class,
-        cardinality = ReferenceCardinality.MULTIPLE,
-        policy = ReferencePolicy.DYNAMIC)
-    protected void bindPostResponseCreator(PostResponseCreator creator, Map<String, Object> properties) {
-        super.bindPostResponseCreator(creator, properties);
-    }
-
-    /* (non-Javadoc)
-     * @see org.apache.sling.jackrabbit.usermanager.impl.post.AbstractPostServlet#unbindPostResponseCreator(org.apache.sling.servlets.post.PostResponseCreator, java.util.Map)
-     */
-    @Override
-    protected void unbindPostResponseCreator(PostResponseCreator creator, Map<String, Object> properties) { //NOSONAR
-        super.unbindPostResponseCreator(creator, properties);
-    }
-
     /* (non-Javadoc)
      * @see org.apache.sling.jackrabbit.accessmanager.post.AbstractAccessPostServlet#handleOperation(org.apache.sling.api.SlingHttpServletRequest, org.apache.sling.servlets.post.PostResponse, java.util.List)
      */
@@ -277,7 +257,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             throw new RepositoryException("JCR Session not found");
         }
 
-        if (restrictionProvider == null) {
+        if (RestrictionProvider.EMPTY.equals(getRestrictionProvider())) {
             throw new IllegalStateException("No restriction provider is available so unable to process POSTed restriction values");
         }
 
@@ -310,7 +290,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
      * @return map of restriction names to definition
      */
     protected @NotNull Map<String, RestrictionDefinition> buildRestrictionNameToDefinitionMap(@NotNull String resourcePath) {
-        Set<RestrictionDefinition> supportedRestrictions = restrictionProvider.getSupportedRestrictions(resourcePath);
+        Set<RestrictionDefinition> supportedRestrictions = getRestrictionProvider().getSupportedRestrictions(resourcePath);
         Map<String, RestrictionDefinition> srMap = new HashMap<>();
         for (RestrictionDefinition restrictionDefinition : supportedRestrictions) {
             srMap.put(restrictionDefinition.getName(), restrictionDefinition);

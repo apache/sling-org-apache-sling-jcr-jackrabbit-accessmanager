@@ -92,6 +92,7 @@ import org.slf4j.LoggerFactory;
                     policyOption = ReferencePolicyOption.GREEDY,
                     service = PostResponseCreator.class)
     })
+@SuppressWarnings("java:S110")
 public class DeleteAcesServlet extends AbstractAccessPostServlet implements DeleteAces {
     private static final long serialVersionUID = 3784866802938282971L;
 

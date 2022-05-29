@@ -44,7 +44,7 @@ import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.JsonConvert;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrivilegesHelper;
 
-@SuppressWarnings("serial")
+@SuppressWarnings({"serial", "java:S110"})
 public abstract class AbstractGetAclServlet extends AbstractAccessGetServlet {
 
     /**
