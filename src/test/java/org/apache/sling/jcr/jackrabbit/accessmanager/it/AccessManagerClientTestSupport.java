@@ -291,14 +291,14 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
             assertNotNull(privilegeObj);
             String key = privilegeState.toString();;
             if (expectedForAllow) {
-                assertTrue("Expected privilege " + privilegeName + " to have key '" + key,
+                assertTrue("Expected privilege " + privilegeName + " to have key: " + key,
                         privilegeObj.containsKey(key));
                 JsonValue jsonValue = privilegeObj.get(key);
                 if (verifyAce != null) {
                     verifyAce.verify(jsonValue);
                 }
             } else {
-                assertFalse("Did not expect privilege " + privilegeName + " to have key '" + key,
+                assertFalse("Did not expect privilege " + privilegeName + " to have key: " + key,
                         privilegeObj.containsKey(key));
             }
         }

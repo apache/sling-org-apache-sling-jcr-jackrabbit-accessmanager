@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -169,6 +168,10 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             this.paramValue = paramValue;
         }
 
+        public String getParamValue() {
+            return paramValue;
+        }
+
         public static PrivilegeValues valueOfParam(String value) {
             return Stream.of(PrivilegeValues.values())
                 .filter(item -> item.paramValue.equalsIgnoreCase(value))
@@ -234,8 +237,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
         // and now merge the changes from the request parameters
         processPostedPrivilegeDeleteParams(acm, request, privilegeToLocalPrivilegesMap);
         processPostedRestrictionDeleteParams(acm, request, srMap, privilegeToLocalPrivilegesMap);
-        processPostedPrivilegeParams(acm, request, privilegeToLocalPrivilegesMap, privilegeLongestDepthMap);
-        processPostedRestrictionParams(acm, request, srMap, privilegeToLocalPrivilegesMap, privilegeLongestDepthMap);
+        processPostedPrivilegeAndRestrictionParams(acm, request, srMap, privilegeToLocalPrivilegesMap, privilegeLongestDepthMap);
 
         // consolidate any aggregates that are still valid
         PrivilegesHelper.consolidateAggregates(session, resourcePath, privilegeToLocalPrivilegesMap, privilegeLongestDepthMap);
@@ -480,25 +482,23 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
     }
 
     /**
-     * Merge into the privilegeToLocalPrivilegesMap the changes requested in restriction
-     * request parameters.
+     * Populate the restrictions that that were posted and applicable
+     * to the requested privilege
      * 
-     * @param acm the access control manager
      * @param request the current request
      * @param srMap map of restriction names to the restriction definition
-     * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
+     * @param forPrivilege the privilege to load the restrictions for
+     * @param forAllowOrDeny either {@link PrivilegeValues#ALLOW} or {@link PrivilegeValues#DENY}
+     * @param generalRestrictions the general restrictions that are not for a specific privilege
      */
-    protected void processPostedRestrictionParams(@NotNull AccessControlManager acm,
+    protected Set<LocalRestriction> postedRestrictionsForPrivilege(
             @NotNull SlingHttpServletRequest request,
             @NotNull Map<String, RestrictionDefinition> srMap,
-            @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
-            @NotNull Map<Privilege, Integer> privilegeLongestDepthMap) throws RepositoryException {
-        Session session = request.getResourceResolver().adaptTo(Session.class);
-        ValueFactory vf = session.getValueFactory();
+            @NotNull Privilege forPrivilege,
+            @NotNull PrivilegeValues forAllowOrDeny,
+            @NotNull Set<LocalRestriction> generalRestrictions) throws RepositoryException {
+        Set<LocalRestriction> restrictions = new HashSet<>(generalRestrictions);
 
-        // first pass to collect all the restrictions so we can
-        //    process them in the right order
-        Map<Privilege, Map<LocalRestriction, Set<String>>> privilegeToLocalRestrictionMap = new HashMap<>();
         @NotNull
         Map<String, Matcher> postedRestrictionParams = getMatchedRequestParameterNames(request, RESTRICTION_PATTERN);
         for (Entry<String, Matcher> entry : postedRestrictionParams.entrySet()) {
@@ -506,146 +506,214 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             Matcher matcher = entry.getValue();
             String privilegeName;
             String restrictionName;
-            String allowOrDeny;
+            PrivilegeValues allowOrDeny;
             if (matcher.group(2) != null) {
                 privilegeName = matcher.group(1);
                 restrictionName = matcher.group(3);
-                allowOrDeny = matcher.group(4);
+                allowOrDeny = PrivilegeValues.valueOfParam(matcher.group(4));
             } else {
                 privilegeName = null;
                 restrictionName = matcher.group(1);
                 allowOrDeny = null;
             }
 
-            Privilege privilege = privilegeName == null ? null : acm.privilegeFromName(privilegeName);
-
-            RestrictionDefinition rd = srMap.get(restrictionName);
-            if (rd == null) {
-                //illegal restriction name?
-                throw new AccessControlException(INVALID_OR_NOT_SUPPORTED_RESTRICTION_NAME_WAS_SUPPLIED);
-            }
-            LocalRestriction localRestriction;
-            int restrictionType = rd.getRequiredType().tag();
-            if (rd.getRequiredType().isArray()) {
-                // multi-value
-                String[] parameterValues = request.getParameterValues(paramName);
-                Value[] restrictionValue = new Value[parameterValues.length];
-                for (int i = 0; i < parameterValues.length; i++) {
-                    restrictionValue[i] = vf.createValue(parameterValues[i], restrictionType);
-                }
-                localRestriction = new LocalRestriction(rd, restrictionValue);
-            } else {
-                // single value
-                Value restrictionValue = vf.createValue(request.getParameter(paramName), restrictionType);
-                localRestriction = new LocalRestriction(rd, restrictionValue);
-            }
-
-            Map<LocalRestriction, Set<String>> lrMap = privilegeToLocalRestrictionMap.computeIfAbsent(privilege, k -> new HashMap<>());
-            Set<String> valuesSet = lrMap.computeIfAbsent(localRestriction, k -> new HashSet<>());
-            valuesSet.add(allowOrDeny);
-        }
-
-        List<Entry<Privilege, Map<LocalRestriction, Set<String>>>> sortedEntries = new ArrayList<>(privilegeToLocalRestrictionMap.entrySet());
-        // sort the entries to process the most shallow last
-        Collections.sort(sortedEntries, Comparator.nullsFirst(Comparator.comparing(entry -> privilegeLongestDepthMap.get(entry.getKey()))));
-        for (Entry<Privilege, Map<LocalRestriction, Set<String>>> entry : sortedEntries) {
-            Privilege privilege = entry.getKey();
-
-            Collection<Privilege> privileges;
-            if (privilege == null) {
-                // process for every privilege
-                privileges = privilegeToLocalPrivilegesMap.keySet();
-            } else {
-                // process for the specific privilege only
-                privileges = Collections.singletonList(privilege);
-            }
-
-            Map<LocalRestriction, Set<String>> lrMap = entry.getValue();
-            for (Entry<LocalRestriction, Set<String>> lrEntry : lrMap.entrySet()) {
-                LocalRestriction localRestriction = lrEntry.getKey();
-                // sort the values to ensure it processes the Allow entry last when
-                //   there is a conflict
-                List<PrivilegeValues> privilegeValues = lrEntry.getValue().stream()
-                    .map(item -> item == null ? null : PrivilegeValues.valueOfParam(item))
-                    .sorted(Comparator.nullsLast(Comparator.comparing(PrivilegeValues::ordinal).reversed()))
-                    .collect(Collectors.toList());
-                for (PrivilegeValues allowOrDeny : privilegeValues) {
-                    if (allowOrDeny == null) {
-                        // not specified try both the deny and allow sets
-                        PrivilegesHelper.allowOrDenyRestriction(privilegeToLocalPrivilegesMap, localRestriction, privileges);
-                    } else {
-                        switch (allowOrDeny) {
-                        case DENY:
-                            PrivilegesHelper.denyRestriction(privilegeToLocalPrivilegesMap, localRestriction, privileges);
-                            break;
-                        case ALLOW:
-                            PrivilegesHelper.allowRestriction(privilegeToLocalPrivilegesMap, localRestriction, privileges);
-                            break;
-                        default:
-                            break;
-                        }
-                    }
-                }
+            if ((privilegeName == null || forPrivilege.getName().equals(privilegeName)) &&
+                    (allowOrDeny == null || forAllowOrDeny.equals(allowOrDeny))) {
+                LocalRestriction localRestriction = toLocalRestriction(request, srMap, restrictionName, paramName);
+                restrictions.removeIf(r -> r.getName().equals(localRestriction.getName()));
+                restrictions.add(localRestriction);
             }
         }
+
+        return restrictions;
     }
 
     /**
-     * Merge into the privilegeToLocalPrivilegesMap the changes requested in privilege
-     * request parameters.
+     * Construct a LocalRestriction using data a request parameter
+     * 
+     * @param request the current request
+     * @param srMap map of restriction names to the restriction definition
+     * @param restrictionName the name of the restriction
+     * @param paramName the request parameter name that contains the restriction values
+     */
+    protected LocalRestriction toLocalRestriction(
+            @NotNull SlingHttpServletRequest request,
+            @NotNull Map<String, RestrictionDefinition> srMap,
+            @NotNull String restrictionName,
+            @NotNull String paramName) throws RepositoryException {
+        RestrictionDefinition rd = srMap.get(restrictionName);
+        if (rd == null) {
+            //illegal restriction name?
+            throw new AccessControlException(INVALID_OR_NOT_SUPPORTED_RESTRICTION_NAME_WAS_SUPPLIED);
+        }
+        Session session = request.getResourceResolver().adaptTo(Session.class);
+        ValueFactory vf = session.getValueFactory();
+        LocalRestriction localRestriction;
+        int restrictionType = rd.getRequiredType().tag();
+        if (rd.getRequiredType().isArray()) {
+            // multi-value
+            String[] parameterValues = request.getParameterValues(paramName);
+            Value[] restrictionValue = new Value[parameterValues.length];
+            for (int i = 0; i < parameterValues.length; i++) {
+                restrictionValue[i] = vf.createValue(parameterValues[i], restrictionType);
+            }
+            localRestriction = new LocalRestriction(rd, restrictionValue);
+        } else {
+            // single value
+            Value restrictionValue = vf.createValue(request.getParameter(paramName), restrictionType);
+            localRestriction = new LocalRestriction(rd, restrictionValue);
+        }
+        return localRestriction;
+    }
+
+    /**
+     * Merge into the privilegeToLocalPrivilegesMap the changes requested in privilege and
+     * restriction request parameters.
      * 
      * @param acm the access control manager
      * @param request the current request
+     * @param srMap map of restriction names to the restriction definition
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
+     * @param privilegeLongestDepthMap the map of privileges to their longest depth
      */
-    protected void processPostedPrivilegeParams(@NotNull AccessControlManager acm,
+    protected void processPostedPrivilegeAndRestrictionParams(@NotNull AccessControlManager acm,
             @NotNull SlingHttpServletRequest request,
+            @NotNull Map<String, RestrictionDefinition> srMap,
             @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
             @NotNull Map<Privilege, Integer> privilegeLongestDepthMap) throws RepositoryException {
         @NotNull
         Map<String, Matcher> postedPrivilegeNameKeys = getMatchedRequestParameterNames(request, PRIVILEGE_PATTERN);
 
-        // first pass to collect all the privileges so we can
-        //    process them in the right order
-        Map<Privilege, String> privilegeToParamNameMap = new HashMap<>();
+        // collect all the privileges so we can process them in the right order
+        Map<Privilege, Set<String>> privilegeToParamValuesMap = new HashMap<>();
         for (Entry<String, Matcher> entry : postedPrivilegeNameKeys.entrySet()) {
             String paramName = entry.getKey();
             Matcher matcher = entry.getValue();
             String privilegeName = matcher.group(1);
             Privilege privilege = acm.privilegeFromName(privilegeName);
-            privilegeToParamNameMap.put(privilege, paramName);
+            Set<String> paramValues = privilegeToParamValuesMap.computeIfAbsent(privilege, p -> new HashSet<>());
+            paramValues.addAll(Arrays.asList(request.getParameterValues(paramName)));
         }
-        List<Entry<Privilege, String>> sortedEntries = new ArrayList<>(privilegeToParamNameMap.entrySet());
+
+        //also check for any restriction params
+        Set<LocalRestriction> generalRestrictions = new HashSet<>();
+        Map<String, Matcher> postedRestrictionParams = getMatchedRequestParameterNames(request, RESTRICTION_PATTERN);
+        for (Entry<String, Matcher> entry : postedRestrictionParams.entrySet()) {
+            Matcher matcher = entry.getValue();
+            if (matcher.group(2) != null) {
+                PrivilegeValues allowOrDeny = PrivilegeValues.valueOfParam(matcher.group(4));
+                if (PrivilegeValues.ALLOW.equals(allowOrDeny) ||
+                        PrivilegeValues.DENY.equals(allowOrDeny)) {
+                    String privilegeName = matcher.group(1);
+                    Privilege privilege = acm.privilegeFromName(privilegeName);
+                    Set<String> paramValues = privilegeToParamValuesMap.computeIfAbsent(privilege, p -> new HashSet<>());
+                    paramValues.add(allowOrDeny.getParamValue());
+                }
+            } else {
+                // restriction but not for a specific privilege
+                String restrictionName = matcher.group(1);
+                String paramName = entry.getKey();
+                LocalRestriction localRestriction = toLocalRestriction(request, srMap, restrictionName, paramName);
+                generalRestrictions.removeIf(r -> r.getName().equals(localRestriction.getName()));
+                generalRestrictions.add(localRestriction);
+            }
+        }
+
+        // apply the general restrictions to any already existing privilege that was not posted
+        //   with new state
+        if (!generalRestrictions.isEmpty()) {
+            for (Entry<Privilege, LocalPrivilege> entry : privilegeToLocalPrivilegesMap.entrySet()) {
+                Privilege p = entry.getKey();
+                if (!privilegeToParamValuesMap.containsKey(p)) {
+                    LocalPrivilege lp = entry.getValue();
+                    applyPrivilegeAndRestrictions(privilegeToLocalPrivilegesMap, p, 
+                            lp.isAllow(), generalRestrictions, 
+                            lp.isDeny(), generalRestrictions);
+                }
+            }
+        }
+
+        List<Entry<Privilege, Set<String>>> sortedEntries = new ArrayList<>(privilegeToParamValuesMap.entrySet());
         // sort the entries to process the most shallow last
         Collections.sort(sortedEntries, (e1, e2) -> privilegeLongestDepthMap.get(e1.getKey()).compareTo(privilegeLongestDepthMap.get(e2.getKey())));
-        for (Entry<Privilege, String> entry : sortedEntries) {
-            String paramName = entry.getValue();
+        for (Entry<Privilege, Set<String>> entry : sortedEntries) {
+            Set<String> paramValues = entry.getValue();
             Privilege privilege = entry.getKey();
 
-            String [] paramValues = request.getParameterValues(paramName);
             // convert and sort the values to ensure that allow goes after
             //  deny or none when there is a conflict
-            List<PrivilegeValues> privilegeValues = Stream.of(paramValues)
+            List<PrivilegeValues> privilegeValues = paramValues.stream()
                 .map(PrivilegeValues::valueOfParam)
                 .sorted((v1, v2) -> Integer.compare(v2.ordinal(), v1.ordinal()))
                 .collect(Collectors.toList());
+            boolean none = false;
+            boolean allow = false;
+            Set<LocalRestriction> allowRestrictions = Collections.emptySet();
+            boolean deny = false;
+            Set<LocalRestriction> denyRestrictions = Collections.emptySet();
             for (PrivilegeValues value : privilegeValues) {
                 switch (value) {
                 case DENY:
                 case DENIED:
-                    PrivilegesHelper.deny(privilegeToLocalPrivilegesMap, Collections.emptySet(), Collections.singleton(privilege));
+                    deny = true;
+                    denyRestrictions = postedRestrictionsForPrivilege(request, srMap, privilege, value, generalRestrictions);
                     break;
                 case ALLOW:
                 case GRANTED:
-                    PrivilegesHelper.allow(privilegeToLocalPrivilegesMap, Collections.emptySet(), Collections.singleton(privilege));
+                    allow = true;
+                    allowRestrictions = postedRestrictionsForPrivilege(request, srMap, privilege, value, generalRestrictions);
                     break;
                 case NONE:
-                    PrivilegesHelper.none(privilegeToLocalPrivilegesMap, Collections.singleton(privilege));
+                    none = true;
                     break;
                 default:
                     break;
                 }
             }
+            if (none) {
+                PrivilegesHelper.none(privilegeToLocalPrivilegesMap, Collections.singleton(privilege));
+            }
+            applyPrivilegeAndRestrictions(privilegeToLocalPrivilegesMap, privilege,
+                    allow, allowRestrictions, 
+                    deny, denyRestrictions);
+        }
+    }
+
+    /**
+     * Apply the privilege and restrictions to the local privileges
+     * 
+     * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
+     * @param p the privilege
+     * @param allow true if the privilege is to be allowed
+     * @param allowRestrictions restrictions (if any) for the allow
+     * @param deny true if the privilege is to be denied
+     * @param denyRestrictions restrictions (if any) for the deny
+     */
+    protected void applyPrivilegeAndRestrictions(
+            @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            @NotNull Privilege p, 
+            boolean allow, @NotNull Set<LocalRestriction> allowRestrictions,
+            boolean deny, @NotNull Set<LocalRestriction> denyRestrictions) throws RepositoryException {
+        if (allow) {
+            // clear out the state that we are replacing
+            PrivilegesHelper.unallowRestrictions(privilegeToLocalPrivilegesMap,
+                    allowRestrictions.stream().map(LocalRestriction::getName).collect(Collectors.toSet()),
+                    Collections.singleton(p));
+        }
+        if (deny) {
+            // clear out the state that we are replacing
+            PrivilegesHelper.undenyRestrictions(privilegeToLocalPrivilegesMap,
+                    denyRestrictions.stream().map(LocalRestriction::getName).collect(Collectors.toSet()),
+                    Collections.singleton(p));
+        }
+        if (allow && deny) {
+            PrivilegesHelper.allowAndDeny(privilegeToLocalPrivilegesMap, 
+                    allow, allowRestrictions, deny, denyRestrictions,
+                    Collections.singleton(p));
+        } else if (allow) {
+            PrivilegesHelper.allow(privilegeToLocalPrivilegesMap, allowRestrictions, Collections.singleton(p));
+        } else if (deny) {
+            PrivilegesHelper.deny(privilegeToLocalPrivilegesMap, denyRestrictions, Collections.singleton(p));
         }
     }
 

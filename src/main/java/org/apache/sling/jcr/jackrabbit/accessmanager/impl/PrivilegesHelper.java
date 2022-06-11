@@ -80,6 +80,46 @@ public final class PrivilegesHelper {
     }
 
     /**
+     * Populates a local allow and/or deny privilege in the privilegeToLocalPrivilegesMap
+     * 
+     * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
+     * @param privilege the privilege to allow
+     * @param allow true or false to set the allow value of the LocalPrivilege
+     * @param allowRestrictions if allow is true, the set of restrictions
+     * @param deny true or false to set the allow value of the LocalPrivilege
+     * @param denyRestrictions if deny is true, the set of restrictions
+     * @return the LocalPrivileges that was populated
+     */
+    public static LocalPrivilege localAllowAndDenyPriv(Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap, 
+            Privilege privilege,
+            boolean allow, @NotNull Set<LocalRestriction> allowRestrictions,
+            boolean deny, @NotNull Set<LocalRestriction> denyRestrictions
+            ) {
+        LocalPrivilege localPrivilege = privilegeToLocalPrivilegesMap.computeIfAbsent(privilege, LocalPrivilege::new);
+        if (allow) {
+            localPrivilege.setAllow(true);
+            localPrivilege.setAllowRestrictions(allowRestrictions);
+        } else {
+            localPrivilege.setAllow(false);
+            localPrivilege.setAllowRestrictions(Collections.emptySet());
+        }
+        if (deny) {
+            localPrivilege.setDeny(true);
+            localPrivilege.setDenyRestrictions(denyRestrictions);
+        } else {
+            localPrivilege.setDeny(false);
+            localPrivilege.setDenyRestrictions(Collections.emptySet());
+        }
+        if (localPrivilege.isAllow() && localPrivilege.isDeny() && localPrivilege.sameAllowAndDenyRestrictions()) {
+            // same restrictions to we prefer the allow
+            localPrivilege.setDeny(false);
+            localPrivilege.setDenyRestrictions(Collections.emptySet());
+        }
+
+        return localPrivilege;
+    }
+
+    /**
      * Populates a local allow privilege in the privilegeToLocalPrivilegesMap
      * 
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
@@ -132,6 +172,43 @@ public final class PrivilegesHelper {
     }
 
     /**
+     * Populates each of the local allow and/or deny privilege in the privilegeToLocalPrivilegesMap.  If the supplied
+     * privilege is an aggregate then the data is populated for each of non-aggregate privileges contained in
+     * the aggregate privilege.  Otherwise, the data is populated for the privilege itself.
+     * 
+     * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
+     * @param p the privilege to update
+     * @param allow true or false to set the allow value of the LocalPrivilege
+     * @param allowRestrictions if allow is true, the set of restrictions
+     * @param deny true or false to set the allow value of the LocalPrivilege
+     * @param denyRestrictions if deny is true, the set of restrictions
+     */
+    private static void expandAllowAndDenyPrivWithoutAggregates(Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            Privilege p,
+            boolean allow, @NotNull Set<LocalRestriction> allowRestrictions,
+            boolean deny, @NotNull Set<LocalRestriction> denyRestrictions
+            ) throws RepositoryException {
+        if (p.isAggregate()) {
+            Privilege[] aggregatePrivileges = p.getDeclaredAggregatePrivileges();
+            for (Privilege aggregatePrivilege : aggregatePrivileges) {
+                if (aggregatePrivilege.isAggregate()) {
+                    expandAllowAndDenyPrivWithoutAggregates(privilegeToLocalPrivilegesMap, aggregatePrivilege,
+                            allow, allowRestrictions,
+                            deny, denyRestrictions);
+                } else {
+                    localAllowAndDenyPriv(privilegeToLocalPrivilegesMap, aggregatePrivilege,
+                            allow, allowRestrictions,
+                            deny, denyRestrictions);
+                }
+            }
+        } else {
+            localAllowAndDenyPriv(privilegeToLocalPrivilegesMap, p,
+                    allow, allowRestrictions,
+                    deny, denyRestrictions);
+        }
+    }
+
+    /**
      * Populates each of the local allow privilege in the privilegeToLocalPrivilegesMap.  If the supplied
      * privilege is an aggregate then the data is populated for each of non-aggregate privileges contained in
      * the aggregate privilege.  Otherwise, the data is populated for the privilege itself.
@@ -180,6 +257,28 @@ public final class PrivilegesHelper {
             }
         } else {
             localDenyPriv(privilegeToLocalPrivilegesMap, p, isDeny, restrictions);
+        }
+    }
+
+    /**
+     * Populates each of the local allow and/or deny privilege in the privilegeToLocalPrivilegesMap.  If the supplied
+     * privilege is an aggregate then the data is populated for each of non-aggregate privileges contained in
+     * the aggregate privilege.  Otherwise, the data is populated for the privilege itself.
+     * 
+     * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
+     * @param allow true or false to set the allow value of the LocalPrivilege
+     * @param allowRestrictions if allow is true, the set of restrictions
+     * @param deny true or false to set the allow value of the LocalPrivilege
+     * @param denyRestrictions if deny is true, the set of restrictions
+     * @param privileges the privilege to update
+     */
+    public static void allowAndDeny(Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            boolean allow, @NotNull Set<LocalRestriction> allowRestrictions,
+            boolean deny, @NotNull Set<LocalRestriction> denyRestrictions,
+            @NotNull Collection<Privilege> privileges) throws RepositoryException {
+        for (Privilege privilege : privileges) {
+            expandAllowAndDenyPrivWithoutAggregates(privilegeToLocalPrivilegesMap, privilege,
+                    allow, allowRestrictions, deny, denyRestrictions);
         }
     }
 
@@ -577,43 +676,63 @@ public final class PrivilegesHelper {
             if (childPrivileges.length == childLocalPrivileges.size()) {
                 boolean allAllow = childLocalPrivileges.stream().allMatch(LocalPrivilege::isAllow);
                 if (allAllow) {
-                    // all the child privileges are allow so we can mark the parent as allow
-                    LocalPrivilege alp = privilegeToLocalPrivilegesMap.computeIfAbsent(aggregatePrivilege, LocalPrivilege::new);
-                    alp.setAllow(true);
-
                     // if the restrictions of all the items is the same then we should copy it up
                     //  and unset the data from each child
                     Set<LocalRestriction> firstAllowRestrictions = childLocalPrivileges.get(0).getAllowRestrictions();
                     boolean allRestrictionsSame = childLocalPrivileges.stream().allMatch(lp -> firstAllowRestrictions.equals(lp.getAllowRestrictions()));
+                    Set<LocalRestriction> restrictions;
                     if (allRestrictionsSame) {
-                        alp.setAllowRestrictions(firstAllowRestrictions);
+                        restrictions = firstAllowRestrictions;
+                    } else {
+                        restrictions = Collections.emptySet();
                     }
-                    // each child with the same restrictions can be unset
-                    for (LocalPrivilege lp : childLocalPrivileges) {
-                        if (lp.sameAllowRestrictions(alp.getAllowRestrictions())) {
-                            lp.setAllow(false);
-                            lp.setAllowRestrictions(Collections.emptySet());
+
+                    // if any deny child has the same restrictions, then the parent should not be set
+                    //   as that would cause the deny privilege to get excluded when persisted
+                    boolean anyDenyWithSameRestrictions = childLocalPrivileges.stream().anyMatch(p -> p.isDeny() && p.sameDenyRestrictions(restrictions));
+                    if (!anyDenyWithSameRestrictions) {
+                        // all the child privileges are allow so we can mark the parent as allow
+                        LocalPrivilege alp = privilegeToLocalPrivilegesMap.computeIfAbsent(aggregatePrivilege, LocalPrivilege::new);
+                        alp.setAllow(true);
+                        alp.setAllowRestrictions(restrictions);
+
+                        // each child with the same restrictions can be unset
+                        for (LocalPrivilege lp : childLocalPrivileges) {
+                            if (lp.sameAllowRestrictions(alp.getAllowRestrictions())) {
+                                lp.setAllow(false);
+                                lp.setAllowRestrictions(Collections.emptySet());
+                            }
                         }
                     }
                 }
                 boolean allDeny = childLocalPrivileges.stream().allMatch(LocalPrivilege::isDeny);
                 if (allDeny) {
-                    // all the child privileges are deny so we can mark the parent as deny
-                    LocalPrivilege alp = privilegeToLocalPrivilegesMap.computeIfAbsent(aggregatePrivilege, LocalPrivilege::new);
-                    alp.setDeny(true);
-
                     // if the restrictions of all the items is the same then we should copy it up
                     //  and unset the data from each child
                     Set<LocalRestriction> firstDenyRestrictions = childLocalPrivileges.get(0).getDenyRestrictions();
                     boolean allRestrictionsSame = childLocalPrivileges.stream().allMatch(lp -> firstDenyRestrictions.equals(lp.getDenyRestrictions()));
+                    Set<LocalRestriction> restrictions;
                     if (allRestrictionsSame) {
-                        alp.setDenyRestrictions(firstDenyRestrictions);
+                        restrictions = firstDenyRestrictions;
+                    } else {
+                        restrictions = Collections.emptySet();
                     }
-                    // each child with the same restrictions can be unset
-                    for (LocalPrivilege lp : childLocalPrivileges) {
-                        if (lp.sameDenyRestrictions(alp.getDenyRestrictions())) {
-                            lp.setDeny(false);
-                            lp.setDenyRestrictions(Collections.emptySet());
+
+                    // if any allow child has the same restrictions, then the parent should not be set
+                    //   as that would cause the allow privilege to get excluded when persisted
+                    boolean anyAllowWithSameRestrictions = childLocalPrivileges.stream().anyMatch(p -> p.isAllow() && p.sameAllowRestrictions(restrictions));
+                    if (!anyAllowWithSameRestrictions) {
+                        // all the child privileges are deny so we can mark the parent as deny
+                        LocalPrivilege alp = privilegeToLocalPrivilegesMap.computeIfAbsent(aggregatePrivilege, LocalPrivilege::new);
+                        alp.setDeny(true);
+                        alp.setDenyRestrictions(restrictions);
+
+                        // each child with the same restrictions can be unset
+                        for (LocalPrivilege lp : childLocalPrivileges) {
+                            if (lp.sameDenyRestrictions(alp.getDenyRestrictions())) {
+                                lp.setDeny(false);
+                                lp.setDenyRestrictions(Collections.emptySet());
+                            }
                         }
                     }
                 }
