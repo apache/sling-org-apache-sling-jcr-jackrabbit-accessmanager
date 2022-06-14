@@ -40,6 +40,7 @@ import javax.json.JsonValue.ValueType;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.http.NameValuePair;
+import org.apache.jackrabbit.JcrConstants;
 import org.apache.jackrabbit.oak.spi.security.authorization.accesscontrol.AccessControlConstants;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
@@ -2363,6 +2364,102 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, verifyRestrictions);
         //deny privilege
         assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE, verifyRestrictions);
+    }
+
+    /**
+     * Test to verify adding an ACE does not include an allow aggregate privilege
+     * when there is a deny child privilege with the same restrictions as the parent
+     */
+    @Test
+    public void testNoAggregateAllowWhenDenyChildHasSameRestriction() throws IOException, JsonException {
+        testUserId = createTestUser();
+        testFolderUrl = createTestFolder();
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                //allow the child privileges with varying restrictions
+                .withPrivilege(PrivilegeConstants.REP_READ_NODES, PrivilegeValues.ALLOW)
+                .withPrivilege(PrivilegeConstants.REP_READ_PROPERTIES, PrivilegeValues.ALLOW)
+                .withPrivilegeRestriction(PrivilegeValues.ALLOW, PrivilegeConstants.REP_READ_PROPERTIES,
+                        AccessControlConstants.REP_ITEM_NAMES, new String[] {JcrConstants.JCR_CREATED, JcrConstants.JCR_PRIMARYTYPE})
+                //deny a child privilege with different restrictions than the same allow privilege
+                .withPrivilege(PrivilegeConstants.REP_READ_PROPERTIES, PrivilegeValues.DENY)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+
+        JsonObject user = getAce(testFolderUrl, testUserId);
+        assertNotNull(user);
+        assertEquals(testUserId, user.getString("principal"));
+
+        JsonObject privilegesObject = user.getJsonObject("privileges");
+        assertNotNull(privilegesObject);
+        assertEquals(2, privilegesObject.size());
+
+        VerifyAce verifyRestrictions = jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue customValue = restrictionsObj.get(AccessControlConstants.REP_ITEM_NAMES);
+            assertNotNull(customValue);
+            assertTrue(customValue instanceof JsonArray);
+            assertEquals(2, ((JsonArray)customValue).size());
+            assertEquals(JcrConstants.JCR_CREATED, ((JsonArray)customValue).getString(0));
+            assertEquals(JcrConstants.JCR_PRIMARYTYPE, ((JsonArray)customValue).getString(1));
+        };
+        //allow privilege
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.REP_READ_NODES, verifyTrue);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.REP_READ_PROPERTIES, verifyRestrictions);
+        //deny privilege
+        assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.REP_READ_PROPERTIES, verifyTrue);
+    }
+
+    /**
+     * Test to verify adding an ACE does not include a deny aggregate privilege
+     * when there is an allow child privilege with the same restrictions as the parent
+     */
+    @Test
+    public void testNoAggregateDenyWhenAllowChildHasSameRestriction() throws IOException, JsonException {
+        testUserId = createTestUser();
+        testFolderUrl = createTestFolder();
+
+        // update the ACE
+        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+                //deny the child privileges with varying restrictions
+                .withPrivilege(PrivilegeConstants.REP_READ_NODES, PrivilegeValues.DENY)
+                .withPrivilege(PrivilegeConstants.REP_READ_PROPERTIES, PrivilegeValues.DENY)
+                .withPrivilegeRestriction(PrivilegeValues.DENY, PrivilegeConstants.REP_READ_PROPERTIES,
+                        AccessControlConstants.REP_ITEM_NAMES, new String[] {JcrConstants.JCR_CREATED, JcrConstants.JCR_PRIMARYTYPE})
+                //allow a child privilege with different restrictions than the same deny privilege
+                .withPrivilege(PrivilegeConstants.REP_READ_PROPERTIES, PrivilegeValues.ALLOW)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+
+        JsonObject user = getAce(testFolderUrl, testUserId);
+        assertNotNull(user);
+        assertEquals(testUserId, user.getString("principal"));
+
+        JsonObject privilegesObject = user.getJsonObject("privileges");
+        assertNotNull(privilegesObject);
+        assertEquals(2, privilegesObject.size());
+
+        VerifyAce verifyRestrictions = jsonValue -> {
+            assertNotNull(jsonValue);
+            assertTrue(jsonValue instanceof JsonObject);
+            JsonObject restrictionsObj = (JsonObject)jsonValue;
+
+            JsonValue customValue = restrictionsObj.get(AccessControlConstants.REP_ITEM_NAMES);
+            assertNotNull(customValue);
+            assertTrue(customValue instanceof JsonArray);
+            assertEquals(2, ((JsonArray)customValue).size());
+            assertEquals(JcrConstants.JCR_CREATED, ((JsonArray)customValue).getString(0));
+            assertEquals(JcrConstants.JCR_PRIMARYTYPE, ((JsonArray)customValue).getString(1));
+        };
+        //allow privilege
+        assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.REP_READ_PROPERTIES, verifyTrue);
+        //deny privilege
+        assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.REP_READ_NODES, verifyTrue);
+        assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.REP_READ_PROPERTIES, verifyRestrictions);
     }
 
 }

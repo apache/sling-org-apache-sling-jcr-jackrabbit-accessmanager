@@ -69,7 +69,7 @@ public class LocalRestriction {
         builder.append("LocalRestriction [name=");
         builder.append(rd == null ? null : rd.getName());
         builder.append(", value=");
-        builder.append(getValues());
+        builder.append(Arrays.toString(getValues()));
         builder.append("]");
         return builder.toString();
     }

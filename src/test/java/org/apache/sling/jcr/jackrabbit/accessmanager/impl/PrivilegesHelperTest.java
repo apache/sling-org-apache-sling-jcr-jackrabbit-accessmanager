@@ -262,6 +262,117 @@ public class PrivilegesHelperTest {
     }
 
     @Test
+    public void testAllowAndDenyBoth() throws RepositoryException {
+        Map<Privilege, LocalPrivilege> merged = new HashMap<>();
+
+        // allow jcr:modifyProperties
+        PrivilegesHelper.allowAndDeny(merged, 
+                true, Collections.emptySet(),
+                true, Collections.emptySet(),
+                Collections.singleton(priv(PrivilegeConstants.JCR_MODIFY_PROPERTIES)));
+
+        assertAllowSetHasModifyPropertiesLeafs(merged);
+        assertDenySetIsEmpty(merged);
+    }
+
+    @Test
+    public void testAllowAndDenyBothWithSameRestrictions() throws RepositoryException {
+        Map<Privilege, LocalPrivilege> merged = new HashMap<>();
+
+        // allow jcr:modifyProperties
+        PrivilegesHelper.allowAndDeny(merged, 
+                true, Collections.singleton(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello"))),
+                true, Collections.singleton(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello"))),
+                Collections.singleton(priv(PrivilegeConstants.JCR_MODIFY_PROPERTIES)));
+
+        assertAllowSetHasModifyPropertiesLeafs(merged);
+        assertDenySetIsEmpty(merged);
+    }
+
+    protected void assertDenySetIsEmpty(Map<Privilege, LocalPrivilege> merged) {
+        Set<Privilege> denySet = merged.values().stream()
+                .filter(lp -> lp.isDeny())
+                .map(lp -> lp.getPrivilege())
+                .collect(Collectors.toSet());
+        assertTrue(denySet.isEmpty());
+    }
+
+    protected void assertAllowSetHasModifyPropertiesLeafs(Map<Privilege, LocalPrivilege> merged)
+            throws RepositoryException {
+        Set<Privilege> allowSet = merged.values().stream()
+                .filter(lp -> lp.isAllow())
+                .map(lp -> lp.getPrivilege())
+                .collect(Collectors.toSet());
+        assertThat(allowSet.size(), equalTo(3));
+        assertThat(allowSet, not(hasItems(priv(PrivilegeConstants.JCR_MODIFY_PROPERTIES))));
+        assertThat(allowSet, hasItems(
+                priv(PrivilegeConstants.REP_ADD_PROPERTIES),
+                priv(PrivilegeConstants.REP_ALTER_PROPERTIES),
+                priv(PrivilegeConstants.REP_REMOVE_PROPERTIES)));
+    }
+
+    protected void assertDenySetHasModifyPropertiesLeafs(Map<Privilege, LocalPrivilege> merged)
+            throws RepositoryException {
+        Set<Privilege> denySet = merged.values().stream()
+                .filter(lp -> lp.isDeny())
+                .map(lp -> lp.getPrivilege())
+                .collect(Collectors.toSet());
+        assertThat(denySet.size(), equalTo(3));
+        assertThat(denySet, not(hasItems(priv(PrivilegeConstants.JCR_MODIFY_PROPERTIES))));
+        assertThat(denySet, hasItems(
+                priv(PrivilegeConstants.REP_ADD_PROPERTIES),
+                priv(PrivilegeConstants.REP_ALTER_PROPERTIES),
+                priv(PrivilegeConstants.REP_REMOVE_PROPERTIES)));
+    }
+
+
+    @Test
+    public void testAllowAndDenyBothWithDifferentRestrictions() throws RepositoryException {
+        Map<Privilege, LocalPrivilege> merged = new HashMap<>();
+
+        // allow jcr:modifyProperties
+        PrivilegesHelper.allowAndDeny(merged, 
+                true, Collections.singleton(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello"))),
+                true, Collections.singleton(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello2"))),
+                Collections.singleton(priv(PrivilegeConstants.JCR_MODIFY_PROPERTIES)));
+
+        assertAllowSetHasModifyPropertiesLeafs(merged);
+        assertDenySetHasModifyPropertiesLeafs(merged);
+    }
+
+    @Test
+    public void testAllowAndDenyOnlyAllow() throws RepositoryException {
+        Map<Privilege, LocalPrivilege> merged = new HashMap<>();
+
+        // allow jcr:modifyProperties
+        PrivilegesHelper.allowAndDeny(merged, 
+                true, Collections.emptySet(),
+                false, Collections.emptySet(),
+                Collections.singleton(priv(PrivilegeConstants.JCR_MODIFY_PROPERTIES)));
+
+        assertAllowSetHasModifyPropertiesLeafs(merged);
+        assertDenySetIsEmpty(merged);
+    }
+
+    @Test
+    public void testAllowAndDenyOnlyDeny() throws RepositoryException {
+        Map<Privilege, LocalPrivilege> merged = new HashMap<>();
+
+        // allow jcr:modifyProperties
+        PrivilegesHelper.allowAndDeny(merged, 
+                false, Collections.emptySet(),
+                true, Collections.emptySet(),
+                Collections.singleton(priv(PrivilegeConstants.JCR_MODIFY_PROPERTIES)));
+
+        Set<Privilege> allowSet = merged.values().stream()
+                .filter(lp -> lp.isAllow())
+                .map(lp -> lp.getPrivilege())
+                .collect(Collectors.toSet());
+        assertTrue(allowSet.isEmpty());
+        assertDenySetHasModifyPropertiesLeafs(merged);
+    }
+
+    @Test
     public void testAllow() throws RepositoryException {
         Map<Privilege, LocalPrivilege> merged = new HashMap<>();
 
@@ -269,17 +380,7 @@ public class PrivilegesHelperTest {
         PrivilegesHelper.allow(merged, Collections.emptySet(),
                 Collections.singleton(priv(PrivilegeConstants.JCR_MODIFY_PROPERTIES)));
 
-        Set<Privilege> allowSet = merged.values().stream()
-                .filter(lp -> lp.isAllow())
-                .map(lp -> lp.getPrivilege())
-                .collect(Collectors.toSet());
-
-        assertThat(allowSet.size(), equalTo(3));
-        assertThat(allowSet, not(hasItems(priv(PrivilegeConstants.JCR_MODIFY_PROPERTIES))));
-        assertThat(allowSet, hasItems(
-                priv(PrivilegeConstants.REP_ADD_PROPERTIES),
-                priv(PrivilegeConstants.REP_ALTER_PROPERTIES),
-                priv(PrivilegeConstants.REP_REMOVE_PROPERTIES)));
+        assertAllowSetHasModifyPropertiesLeafs(merged);
     }
 
     @Test
@@ -290,17 +391,7 @@ public class PrivilegesHelperTest {
         PrivilegesHelper.allow(merged, Collections.emptySet(),
                 Collections.singleton(priv(PrivilegeConstants.JCR_MODIFY_PROPERTIES)));
 
-        Set<Privilege> allowSet = merged.values().stream()
-                .filter(lp -> lp.isAllow())
-                .map(lp -> lp.getPrivilege())
-                .collect(Collectors.toSet());
-
-        assertThat(allowSet.size(), equalTo(3));
-        assertThat(allowSet, not(hasItems(priv(PrivilegeConstants.JCR_MODIFY_PROPERTIES))));
-        assertThat(allowSet, hasItems(
-                priv(PrivilegeConstants.REP_ADD_PROPERTIES),
-                priv(PrivilegeConstants.REP_ALTER_PROPERTIES),
-                priv(PrivilegeConstants.REP_REMOVE_PROPERTIES)));
+        assertAllowSetHasModifyPropertiesLeafs(merged);
 
         // unallow jcr:modifyProperties
         PrivilegesHelper.unallow(merged,
@@ -322,17 +413,7 @@ public class PrivilegesHelperTest {
         PrivilegesHelper.deny(merged, Collections.emptySet(),
                 Collections.singleton(priv(PrivilegeConstants.JCR_MODIFY_PROPERTIES)));
 
-        Set<Privilege> denySet = merged.values().stream()
-                .filter(lp -> lp.isDeny())
-                .map(lp -> lp.getPrivilege())
-                .collect(Collectors.toSet());
-
-        assertThat(denySet.size(), equalTo(3));
-        assertThat(denySet, not(hasItems(priv(PrivilegeConstants.JCR_MODIFY_PROPERTIES))));
-        assertThat(denySet, hasItems(
-                priv(PrivilegeConstants.REP_ADD_PROPERTIES),
-                priv(PrivilegeConstants.REP_ALTER_PROPERTIES),
-                priv(PrivilegeConstants.REP_REMOVE_PROPERTIES)));
+        assertDenySetHasModifyPropertiesLeafs(merged);
     }
 
     @Test
@@ -343,17 +424,7 @@ public class PrivilegesHelperTest {
         PrivilegesHelper.deny(merged, Collections.emptySet(),
                 Collections.singleton(priv(PrivilegeConstants.JCR_MODIFY_PROPERTIES)));
 
-        Set<Privilege> denySet = merged.values().stream()
-                .filter(lp -> lp.isDeny())
-                .map(lp -> lp.getPrivilege())
-                .collect(Collectors.toSet());
-
-        assertThat(denySet.size(), equalTo(3));
-        assertThat(denySet, not(hasItems(priv(PrivilegeConstants.JCR_MODIFY_PROPERTIES))));
-        assertThat(denySet, hasItems(
-                priv(PrivilegeConstants.REP_ADD_PROPERTIES),
-                priv(PrivilegeConstants.REP_ALTER_PROPERTIES),
-                priv(PrivilegeConstants.REP_REMOVE_PROPERTIES)));
+        assertDenySetHasModifyPropertiesLeafs(merged);
 
         // undeny jcr:modifyProperties
         PrivilegesHelper.undeny(merged,

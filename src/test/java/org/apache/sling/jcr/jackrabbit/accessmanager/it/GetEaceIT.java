@@ -290,7 +290,7 @@ public class GetEaceIT extends AccessManagerClientTestSupport {
         assertNotNull(jsonContent);
         JsonObject jsonObject = parseJson(jsonContent);
         assertTrue("Expected childPropOne property", jsonObject.containsKey("childPropOne"));
-        assertFalse("Did not expected childPropTwo property", jsonObject.containsKey("childPropTwo"));
+        assertFalse("Did not expect childPropTwo property", jsonObject.containsKey("childPropTwo"));
 
         // add ACE to the child to make the other property readable
         List<NameValuePair> postParams2 = new AcePostParamsBuilder(testUserId)
