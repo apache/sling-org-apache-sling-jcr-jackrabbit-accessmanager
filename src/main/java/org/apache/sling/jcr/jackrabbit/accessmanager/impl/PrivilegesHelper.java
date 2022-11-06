@@ -680,21 +680,11 @@ public final class PrivilegesHelper {
                     //  and unset the data from each child
                     Set<LocalRestriction> firstAllowRestrictions = childLocalPrivileges.get(0).getAllowRestrictions();
                     boolean allRestrictionsSame = childLocalPrivileges.stream().allMatch(lp -> firstAllowRestrictions.equals(lp.getAllowRestrictions()));
-                    Set<LocalRestriction> restrictions;
                     if (allRestrictionsSame) {
-                        restrictions = firstAllowRestrictions;
-                    } else {
-                        restrictions = Collections.emptySet();
-                    }
-
-                    // if any deny child has the same restrictions, then the parent should not be set
-                    //   as that would cause the deny privilege to get excluded when persisted
-                    boolean anyDenyWithSameRestrictions = childLocalPrivileges.stream().anyMatch(p -> p.isDeny() && p.sameDenyRestrictions(restrictions));
-                    if (!anyDenyWithSameRestrictions) {
                         // all the child privileges are allow so we can mark the parent as allow
                         LocalPrivilege alp = privilegeToLocalPrivilegesMap.computeIfAbsent(aggregatePrivilege, LocalPrivilege::new);
                         alp.setAllow(true);
-                        alp.setAllowRestrictions(restrictions);
+                        alp.setAllowRestrictions(firstAllowRestrictions);
 
                         // each child with the same restrictions can be unset
                         for (LocalPrivilege lp : childLocalPrivileges) {
@@ -711,21 +701,11 @@ public final class PrivilegesHelper {
                     //  and unset the data from each child
                     Set<LocalRestriction> firstDenyRestrictions = childLocalPrivileges.get(0).getDenyRestrictions();
                     boolean allRestrictionsSame = childLocalPrivileges.stream().allMatch(lp -> firstDenyRestrictions.equals(lp.getDenyRestrictions()));
-                    Set<LocalRestriction> restrictions;
                     if (allRestrictionsSame) {
-                        restrictions = firstDenyRestrictions;
-                    } else {
-                        restrictions = Collections.emptySet();
-                    }
-
-                    // if any allow child has the same restrictions, then the parent should not be set
-                    //   as that would cause the allow privilege to get excluded when persisted
-                    boolean anyAllowWithSameRestrictions = childLocalPrivileges.stream().anyMatch(p -> p.isAllow() && p.sameAllowRestrictions(restrictions));
-                    if (!anyAllowWithSameRestrictions) {
                         // all the child privileges are deny so we can mark the parent as deny
                         LocalPrivilege alp = privilegeToLocalPrivilegesMap.computeIfAbsent(aggregatePrivilege, LocalPrivilege::new);
                         alp.setDeny(true);
-                        alp.setDenyRestrictions(restrictions);
+                        alp.setDenyRestrictions(firstDenyRestrictions);
 
                         // each child with the same restrictions can be unset
                         for (LocalPrivilege lp : childLocalPrivileges) {

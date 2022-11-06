@@ -834,12 +834,12 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
             assertTrue(jsonValue instanceof JsonObject);
             JsonObject restrictionsObj = (JsonObject)jsonValue;
 
-            JsonValue repGlobValue = restrictionsObj.get("rep:glob");
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
             assertNotNull(repGlobValue);
             assertTrue(repGlobValue instanceof JsonString);
             assertEquals("/hello", ((JsonString)repGlobValue).getString());
 
-            JsonValue repItemNamesValue = restrictionsObj.get("rep:itemNames");
+            JsonValue repItemNamesValue = restrictionsObj.get(AccessControlConstants.REP_ITEM_NAMES);
             assertNotNull(repItemNamesValue);
             assertTrue(repItemNamesValue instanceof JsonArray);
             assertEquals(2, ((JsonArray)repItemNamesValue).size());
@@ -991,12 +991,12 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
             assertTrue(jsonValue instanceof JsonObject);
             JsonObject restrictionsObj = (JsonObject)jsonValue;
 
-            JsonValue repGlobValue = restrictionsObj.get("rep:glob");
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
             assertNotNull(repGlobValue);
             assertTrue(repGlobValue instanceof JsonString);
             assertEquals("/hello", ((JsonString)repGlobValue).getString());
 
-            JsonValue repItemNamesValue = restrictionsObj.get("rep:itemNames");
+            JsonValue repItemNamesValue = restrictionsObj.get(AccessControlConstants.REP_ITEM_NAMES);
             assertNotNull(repItemNamesValue);
             assertTrue(repItemNamesValue instanceof JsonArray);
             assertEquals(2, ((JsonArray)repItemNamesValue).size());
@@ -1072,7 +1072,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
             assertTrue(jsonValue instanceof JsonObject);
             JsonObject restrictionsObj = (JsonObject)jsonValue;
 
-            JsonValue repGlobValue = restrictionsObj.get("rep:glob");
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
             assertNotNull(repGlobValue);
             assertTrue(repGlobValue instanceof JsonString);
             assertEquals("/hello", ((JsonString)repGlobValue).getString());
@@ -1107,7 +1107,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
             assertTrue(jsonValue instanceof JsonObject);
             JsonObject restrictionsObj = (JsonObject)jsonValue;
 
-            JsonValue repGlobValue = restrictionsObj.get("rep:glob");
+            JsonValue repGlobValue = restrictionsObj.get(AccessControlConstants.REP_GLOB);
             assertNotNull(repGlobValue);
             assertTrue(repGlobValue instanceof JsonString);
             assertEquals("/hello_again", ((JsonString)repGlobValue).getString());
@@ -1697,10 +1697,10 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         addOrUpdateAce(testFolderUrl, postParams);
 
         JsonObject groupPrivilegesObject = getAcePrivleges(testFolderUrl, testGroupId);
-        assertEquals(3, groupPrivilegesObject.size());
+        assertEquals(2, groupPrivilegesObject.size());
 
         //allow privilege
-        assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ, true, jsonValue -> assertEquals(ValueType.TRUE, jsonValue.getValueType()));
+        assertPrivilege(groupPrivilegesObject, false, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ);
         assertPrivilege(groupPrivilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.REP_READ_PROPERTIES, true, jsonValue -> {
             assertNotNull(jsonValue);
             assertTrue(jsonValue instanceof JsonObject);

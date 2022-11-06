@@ -34,6 +34,7 @@ import javax.jcr.Value;
 import javax.jcr.ValueFactory;
 
 import org.apache.jackrabbit.oak.security.authorization.restriction.RestrictionProviderImpl;
+import org.apache.jackrabbit.oak.spi.security.authorization.accesscontrol.AccessControlConstants;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.CompositeRestrictionProvider;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionDefinition;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
@@ -94,11 +95,11 @@ public class LocalRestrictionTest {
      */
     @Test
     public void testHashCode() throws Exception {
-        LocalRestriction lr1 = new LocalRestriction(rd("rep:glob"), val("/hello1"));
-        LocalRestriction lr2 = new LocalRestriction(rd("rep:glob"), val("/hello2"));
+        LocalRestriction lr1 = new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello1"));
+        LocalRestriction lr2 = new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello2"));
         assertNotSame(lr1.hashCode(), lr2.hashCode());
 
-        LocalRestriction lr3 = new LocalRestriction(rd("rep:glob"), val("/hello1"));
+        LocalRestriction lr3 = new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello1"));
         assertEquals(lr1.hashCode(), lr3.hashCode());
     }
 
@@ -107,8 +108,8 @@ public class LocalRestrictionTest {
      */
     @Test
     public void testGetName() throws Exception {
-        LocalRestriction lr1 = new LocalRestriction(rd("rep:glob"), val("/hello1"));
-        assertEquals("rep:glob", lr1.getName());
+        LocalRestriction lr1 = new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello1"));
+        assertEquals(AccessControlConstants.REP_GLOB, lr1.getName());
     }
 
     /**
@@ -116,10 +117,10 @@ public class LocalRestrictionTest {
      */
     @Test
     public void testIsMultiValue() throws Exception {
-        LocalRestriction lr1 = new LocalRestriction(rd("rep:glob"), val("/hello1"));
+        LocalRestriction lr1 = new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello1"));
         assertFalse(lr1.isMultiValue());
 
-        LocalRestriction lr2 = new LocalRestriction(rd("rep:itemNames"), vals("item1", "item2"));
+        LocalRestriction lr2 = new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2"));
         assertTrue(lr2.isMultiValue());
     }
 
@@ -128,16 +129,16 @@ public class LocalRestrictionTest {
      */
     @Test
     public void testGetValue() throws Exception {
-        LocalRestriction lr1 = new LocalRestriction(rd("rep:glob"), val("/hello1"));
+        LocalRestriction lr1 = new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello1"));
         assertEquals(val("/hello1"), lr1.getValue());
 
-        LocalRestriction lr2 = new LocalRestriction(rd("rep:glob"), (Value)null);
+        LocalRestriction lr2 = new LocalRestriction(rd(AccessControlConstants.REP_GLOB), (Value)null);
         assertNull(lr2.getValue());
 
-        LocalRestriction lr3 = new LocalRestriction(rd("rep:itemNames"), vals("item1", "item2"));
+        LocalRestriction lr3 = new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2"));
         assertEquals(val("item1"), lr3.getValue());
 
-        LocalRestriction lr4 = new LocalRestriction(rd("rep:itemNames"), (Value[])new Value[0]);
+        LocalRestriction lr4 = new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), (Value[])new Value[0]);
         assertNull(lr4.getValue());
     }
 
@@ -146,13 +147,13 @@ public class LocalRestrictionTest {
      */
     @Test
     public void testGetValues() throws Exception {
-        LocalRestriction lr1 = new LocalRestriction(rd("rep:itemNames"), vals("item1", "item2"));
+        LocalRestriction lr1 = new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2"));
         assertArrayEquals(vals("item1", "item2"), lr1.getValues());
 
-        LocalRestriction lr2 = new LocalRestriction(rd("rep:itemNames"), (Value[])null);
+        LocalRestriction lr2 = new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), (Value[])null);
         assertNull(lr2.getValues());
 
-        LocalRestriction lr3 = new LocalRestriction(rd("rep:itemNames"), new Value[0]);
+        LocalRestriction lr3 = new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), new Value[0]);
         assertArrayEquals(new Value[0], lr3.getValues());
     }
 
@@ -161,7 +162,7 @@ public class LocalRestrictionTest {
      */
     @Test
     public void testToString() throws Exception {
-        LocalRestriction lr1 = new LocalRestriction(rd("rep:glob"), val("/hello1"));
+        LocalRestriction lr1 = new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello1"));
         assertNotNull(lr1.toString());
 
         LocalRestriction lr2 = new LocalRestriction(null, val("/hello1"));
@@ -173,15 +174,15 @@ public class LocalRestrictionTest {
      */
     @Test
     public void testEqualsObject() throws Exception {
-        LocalRestriction lr1 = new LocalRestriction(rd("rep:glob"), val("/hello1"));
+        LocalRestriction lr1 = new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello1"));
         assertEquals(lr1, lr1);
         assertNotEquals(lr1, null);
         assertNotEquals(lr1, this);
 
-        LocalRestriction lr2 = new LocalRestriction(rd("rep:glob"), val("/hello2"));
+        LocalRestriction lr2 = new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello2"));
         assertNotEquals(lr1, lr2);
 
-        LocalRestriction lr3 = new LocalRestriction(rd("rep:glob"), val("/hello1"));
+        LocalRestriction lr3 = new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello1"));
         assertEquals(lr1, lr3);
 
         LocalRestriction lr4 = new LocalRestriction(null, val("/hello1"));
@@ -189,19 +190,19 @@ public class LocalRestrictionTest {
         assertEquals(lr4, lr5);
 
         LocalRestriction lr6 = new LocalRestriction(null, val("/hello1"));
-        LocalRestriction lr7 = new LocalRestriction(rd("rep:glob"), val("/hello1"));
+        LocalRestriction lr7 = new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello1"));
         assertNotEquals(lr6, lr7);
 
-        LocalRestriction lr8 = new LocalRestriction(rd("rep:glob"), val("/hello1"));
+        LocalRestriction lr8 = new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello1"));
         LocalRestriction lr9 = new LocalRestriction(null, val("/hello1"));
         assertNotEquals(lr8, lr9);
 
-        LocalRestriction lr10 = new LocalRestriction(rd("rep:glob"), val("/hello1"));
-        LocalRestriction lr11 = new LocalRestriction(rd("rep:itemNames"), val("/hello1"));
+        LocalRestriction lr10 = new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello1"));
+        LocalRestriction lr11 = new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), val("/hello1"));
         assertNotEquals(lr10, lr11);
 
-        LocalRestriction lr12 = new LocalRestriction(rd("rep:glob"), val("/hello1"));
-        LocalRestriction lr13 = new LocalRestriction(rd("rep:glob"), val("/hello2"));
+        LocalRestriction lr12 = new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello1"));
+        LocalRestriction lr13 = new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello2"));
         assertNotEquals(lr12, lr13);
     }
 

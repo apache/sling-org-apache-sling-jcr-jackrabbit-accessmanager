@@ -22,6 +22,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.stream.Stream;
 
 import javax.json.JsonException;
 import javax.json.JsonObject;
@@ -172,13 +173,24 @@ public class GetAceIT extends AccessManagerClientTestSupport {
 
         JsonObject acePrivleges = getAcePrivleges(testFolderUrl, testUserId);
         assertNotNull(acePrivleges);
-        assertEquals(2, acePrivleges.size());
+        assertEquals(18, acePrivleges.size());
         //allow privilege
-        assertPrivilege(acePrivleges, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_ALL,
-                true, jsonValue -> {
-                    assertNotNull(jsonValue);
-                    assertEquals(JsonValue.TRUE, jsonValue);
-                });
+        Stream.of(PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL, PrivilegeConstants.JCR_VERSION_MANAGEMENT,
+                PrivilegeConstants.JCR_READ, PrivilegeConstants.REP_USER_MANAGEMENT,
+                PrivilegeConstants.JCR_ADD_CHILD_NODES, PrivilegeConstants.JCR_NAMESPACE_MANAGEMENT,
+                PrivilegeConstants.JCR_READ_ACCESS_CONTROL, PrivilegeConstants.JCR_NODE_TYPE_DEFINITION_MANAGEMENT,
+                PrivilegeConstants.JCR_LOCK_MANAGEMENT, PrivilegeConstants.JCR_RETENTION_MANAGEMENT,
+                PrivilegeConstants.JCR_LIFECYCLE_MANAGEMENT, PrivilegeConstants.JCR_NODE_TYPE_MANAGEMENT,
+                PrivilegeConstants.JCR_REMOVE_CHILD_NODES, PrivilegeConstants.JCR_MODIFY_PROPERTIES,
+                PrivilegeConstants.REP_INDEX_DEFINITION_MANAGEMENT, PrivilegeConstants.REP_PRIVILEGE_MANAGEMENT,
+                PrivilegeConstants.JCR_WORKSPACE_MANAGEMENT)
+            .forEach(privilege -> {
+                assertPrivilege(acePrivleges, true, PrivilegeValues.ALLOW, privilege,
+                        true, jsonValue -> {
+                            assertNotNull(jsonValue);
+                            assertEquals(JsonValue.TRUE, jsonValue);
+                        });
+            });
         assertPrivilege(acePrivleges, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_REMOVE_NODE,
                 true, jsonValue -> {
                     assertNotNull(jsonValue);
