@@ -147,8 +147,6 @@ public abstract class AbstractAccessGetServlet extends AbstractAccessServlet {
      * 
      * @param jcrSession the JCR session
      * @param resourcePath the resource path
-     * @param principalId the principal id
-     * @return the principal for the requested principalId
      */
     protected @NotNull void validateArgs(Session jcrSession, String resourcePath) throws RepositoryException {
         if (jcrSession == null) {

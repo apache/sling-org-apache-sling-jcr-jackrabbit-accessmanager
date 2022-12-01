@@ -136,7 +136,7 @@ public abstract class AbstractGetAclServlet extends AbstractAccessGetServlet {
     /**
      * Override to add additional data to the principal object
      * 
-     * @param principalObj the current principal object
+     * @param principalJson the current principal JSON builder
      * @param principal the current principal
      * @param principalToDeclaredAtPaths a map of principal the paths where ACEs are declared
      */
