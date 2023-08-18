@@ -101,12 +101,7 @@
     <dependencies>
         <dependency>
             <groupId>org.osgi</groupId>
-            <artifactId>osgi.core</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.osgi</groupId>
-            <artifactId>osgi.cmpn</artifactId>
+            <artifactId>org.osgi.framework</artifactId>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -165,6 +160,27 @@
             <artifactId>geronimo-json_1.0_spec</artifactId>
             <version>1.0-alpha-1</version>
             <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.osgi</groupId>
+            <artifactId>org.osgi.service.cm</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.osgi</groupId>
+            <artifactId>org.osgi.service.component</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.osgi</groupId>
+            <artifactId>org.osgi.service.event</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.osgi</groupId>
+            <artifactId>org.osgi.service.log</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
@@ -236,6 +252,13 @@
             <artifactId>org.apache.felix.healthcheck.api</artifactId>
             <version>2.0.4</version>
             <scope>test</scope>
+            <exclusions>
+                <!-- workaround to exclude the banned aggregate artifact -->
+                <exclusion>
+                    <groupId>org.osgi</groupId>
+                    <artifactId>osgi.core</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
        <dependency>
             <groupId>org.awaitility</groupId>
