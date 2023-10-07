@@ -26,11 +26,11 @@ import java.net.URI;
 import java.util.List;
 import java.util.stream.Stream;
 
-import javax.json.JsonArray;
-import javax.json.JsonException;
-import javax.json.JsonObject;
-import javax.json.JsonString;
-import javax.json.JsonValue;
+import jakarta.json.JsonArray;
+import jakarta.json.JsonException;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonString;
+import jakarta.json.JsonValue;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.http.NameValuePair;
