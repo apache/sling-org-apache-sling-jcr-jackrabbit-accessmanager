@@ -200,8 +200,6 @@ public class JsonConvertTest {
      */
     @Test
     public void testAddToJsonObjectBuilderStringObject() throws RepositoryException {
-        JsonObjectBuilder builder = Json.createObjectBuilder();
-
         String key = JsonConvert.KEY_ALLOW;
         Function<JsonObject, Object> doubleFn = json -> json.getJsonNumber(key).doubleValue();
         Function<JsonObject, Object> bigDecimalFn = json -> json.getJsonNumber(key).bigDecimalValue();
@@ -239,6 +237,7 @@ public class JsonConvertTest {
         };
         for (Object[] objects : candidates) {
             Object value = objects[1];
+            JsonObjectBuilder builder = Json.createObjectBuilder();
             JsonConvert.addTo(builder, key, value);
             JsonObject build = builder.build();
             assertNotNull(build);
@@ -259,8 +258,6 @@ public class JsonConvertTest {
      */
     @Test
     public void testAddToJsonArrayBuilderObject() {
-        JsonArrayBuilder builder = Json.createArrayBuilder();
-
         Function<JsonArray, Object> doubleFn = json -> json.getJsonNumber(0).doubleValue();
         Function<JsonArray, Object> bigDecimalFn = json -> json.getJsonNumber(0).bigDecimalValue();
         Function<JsonArray, Object> bigIntegerFn = json -> json.getJsonNumber(0).bigIntegerValue();
@@ -295,6 +292,7 @@ public class JsonConvertTest {
         };
         for (Object[] objects : candidates) {
             Object value = objects[1];
+            JsonArrayBuilder builder = Json.createArrayBuilder();
             JsonConvert.addTo(builder, value);
             JsonArray build = builder.build();
             assertNotNull(build);

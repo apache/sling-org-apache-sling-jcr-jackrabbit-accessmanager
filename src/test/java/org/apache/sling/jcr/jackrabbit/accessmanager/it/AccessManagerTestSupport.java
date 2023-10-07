@@ -76,63 +76,32 @@ public abstract class AccessManagerTestSupport extends TestSupport {
             vmOption = new VMOption(vmOpt);
         }
 
-        final String jacocoOpt = System.getProperty("jacoco.command");
-        VMOption jacocoCommand = null;
-        if (jacocoOpt != null && !jacocoOpt.isEmpty()) {
-            jacocoCommand = new VMOption(jacocoOpt);
-        }
-
-        // switch to the minimum oak version that supports principalbased access control
-        versionResolver.setVersion("org.apache.jackrabbit", "oak-api", "1.18.0");
-        versionResolver.setVersion("org.apache.jackrabbit", "oak-blob", "1.18.0");
-        versionResolver.setVersion("org.apache.jackrabbit", "oak-blob-plugins", "1.18.0");
-        versionResolver.setVersion("org.apache.jackrabbit", "oak-commons", "1.18.0");
-        versionResolver.setVersion("org.apache.jackrabbit", "oak-core", "1.18.0");
-        versionResolver.setVersion("org.apache.jackrabbit", "oak-core-spi", "1.18.0");
-        versionResolver.setVersion("org.apache.jackrabbit", "oak-jcr", "1.18.0");
-        versionResolver.setVersion("org.apache.jackrabbit", "oak-lucene", "1.18.0");
-        versionResolver.setVersion("org.apache.jackrabbit", "oak-query-spi", "1.18.0");
-        versionResolver.setVersion("org.apache.jackrabbit", "oak-security-spi", "1.18.0");
-        versionResolver.setVersion("org.apache.jackrabbit", "oak-segment-tar", "1.18.0");
-        versionResolver.setVersion("org.apache.jackrabbit", "oak-store-composite", "1.18.0");
-        versionResolver.setVersion("org.apache.jackrabbit", "oak-store-document", "1.18.0");
-        versionResolver.setVersion("org.apache.jackrabbit", "oak-store-spi", "1.18.0");
-        versionResolver.setVersion("org.apache.jackrabbit", "oak-jackrabbit-api", "1.18.0");
-        versionResolver.setVersion("commons-codec", "commons-codec", "1.14");
-        versionResolver.setVersion("org.apache.tika", "tika-core", "1.24");
-        versionResolver.setVersion("org.apache.tika", "tika-parsers", "1.24");
-
         // newer version of sling.api and dependencies for SLING-10034
         //   may remove at a later date if the superclass includes these versions or later
-        versionResolver.setVersionFromProject("org.apache.sling", "org.apache.sling.api");
-        versionResolver.setVersion("org.apache.sling", "org.apache.sling.resourceresolver", "1.7.0"); // to be compatible with current o.a.sling.api
-        versionResolver.setVersion("org.apache.sling", "org.apache.sling.scripting.core", "2.3.4"); // to be compatible with current o.a.sling.api
-        versionResolver.setVersion("org.apache.sling", "org.apache.sling.scripting.api", "2.2.0"); // to be compatible with current o.a.sling.api
-        versionResolver.setVersion("org.apache.sling", "org.apache.sling.servlets.resolver", "2.7.12"); // to be compatible with current o.a.sling.api
-        versionResolver.setVersion("org.apache.sling", "org.apache.sling.commons.compiler", "2.4.0"); // to be compatible with current o.a.sling.scripting.core
+        versionResolver.setVersion("org.apache.sling", "org.apache.sling.api", "2.27.2");
+        versionResolver.setVersion("org.apache.sling", "org.apache.sling.engine", "2.15.6");
+        versionResolver.setVersion("org.apache.sling", "org.apache.sling.resourceresolver", "1.10.0");
+        versionResolver.setVersion("org.apache.sling", "org.apache.sling.servlets.resolver", "2.9.14");
+
+        // workaround for FELIX-6656 - use jetty 4.x version instead of the 5.x version
+        //  may remove at a later date after http.jetty-5.1.2 is released and used
+        versionResolver.setVersion("org.apache.felix", "org.apache.felix.http.jetty", "4.2.0");
+        versionResolver.setVersion("org.apache.felix", "org.apache.felix.http.servlet-api", "2.0.0");
 
         return options(
             composite(
                 super.baseConfiguration(),
                 when(vmOption != null).useOptions(vmOption),
-                when(jacocoCommand != null).useOptions(jacocoCommand),
                 optionalRemoteDebug(),
                 slingQuickstart(),
                 testBundle("bundle.filename"),
                 junitBundles(),
                 awaitility()
             ).add(
-                // needed by latest version of org.apache.sling.api
-                mavenBundle().groupId("org.apache.felix").artifactId("org.apache.felix.converter").version("1.0.14"),
-                // switch to the oak variation of jackrabbit-api
-                mavenBundle().groupId("org.apache.jackrabbit").artifactId("oak-jackrabbit-api").version(versionResolver)
-            ).add(
                 additionalOptions()
             ).remove(
                 // remove our bundle under test to avoid duplication
-                mavenBundle().groupId("org.apache.sling").artifactId("org.apache.sling.jcr.jackrabbit.accessmanager").version(versionResolver),
-                // switch to the oak variation of jackrabbit-api
-                mavenBundle().groupId("org.apache.jackrabbit").artifactId("jackrabbit-api").version(versionResolver)
+                mavenBundle().groupId("org.apache.sling").artifactId("org.apache.sling.jcr.jackrabbit.accessmanager").version(versionResolver)
             )
         );
     }

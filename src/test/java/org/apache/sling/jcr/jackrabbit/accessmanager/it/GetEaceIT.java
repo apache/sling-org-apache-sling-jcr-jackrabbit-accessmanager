@@ -288,8 +288,14 @@ public class GetEaceIT extends AccessManagerClientTestSupport {
         testFolderUrl = createTestFolder(null, "sling-tests2",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"child\" : { \"childPropOne\" : true, \"childPropTwo\" : \"two\" } }");
 
-        //1. create an initial set of privileges
-        List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
+        //0. ensure everyone has the privilege to read the test nodes
+        List<NameValuePair> postParams = new AcePostParamsBuilder("everyone")
+                .withPrivilege(PrivilegeConstants.REP_READ_NODES, PrivilegeValues.ALLOW)
+                .build();
+        addOrUpdateAce(testFolderUrl, postParams);
+
+        //1. create an initial set of privileges for the test user
+        postParams = new AcePostParamsBuilder(testUserId)
                 .withPrivilege(PrivilegeConstants.REP_READ_PROPERTIES, PrivilegeValues.DENY)
                 .withPrivilegeRestriction(PrivilegeValues.ALLOW, PrivilegeConstants.REP_READ_PROPERTIES, AccessControlConstants.REP_ITEM_NAMES, "childPropOne")
                 .build();
