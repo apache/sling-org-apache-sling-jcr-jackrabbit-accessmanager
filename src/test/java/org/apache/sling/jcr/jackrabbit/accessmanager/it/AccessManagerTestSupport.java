@@ -49,6 +49,10 @@ import org.apache.felix.hc.api.execution.HealthCheckExecutionResult;
 import org.apache.felix.hc.api.execution.HealthCheckExecutor;
 import org.apache.felix.hc.api.execution.HealthCheckSelector;
 import org.apache.sling.testing.paxexam.TestSupport;
+import org.junit.Rule;
+import org.junit.rules.TestRule;
+import org.junit.rules.TestWatcher;
+import org.junit.runner.Description;
 import org.ops4j.pax.exam.Configuration;
 import org.ops4j.pax.exam.Option;
 import org.ops4j.pax.exam.options.ModifiableCompositeOption;
@@ -68,6 +72,26 @@ public abstract class AccessManagerTestSupport extends TestSupport {
     @Inject
     private HealthCheckExecutor hcExecutor;
 
+    @Rule
+    public TestRule watcher = new TestWatcher() {
+
+        /* (non-Javadoc)
+         * @see org.junit.rules.TestWatcher#starting(org.junit.runner.Description)
+         */
+        @Override
+        protected void starting(Description description) {
+            logger.info("Starting test: {}", description.getMethodName());
+        }
+
+        /* (non-Javadoc)
+         * @see org.junit.rules.TestWatcher#finished(org.junit.runner.Description)
+         */
+        @Override
+        protected void finished(Description description) {
+           logger.info("Finished test: {}", description.getMethodName());
+        }
+
+    };
 
     @Configuration
     public Option[] configuration() throws IOException {
