@@ -44,11 +44,6 @@ import java.util.Dictionary;
 import java.util.List;
 
 import javax.inject.Inject;
-import jakarta.json.Json;
-import jakarta.json.JsonException;
-import jakarta.json.JsonObject;
-import jakarta.json.JsonReader;
-import jakarta.json.JsonValue;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.http.Header;
@@ -80,6 +75,12 @@ import org.junit.Before;
 import org.ops4j.pax.exam.Option;
 import org.osgi.service.cm.Configuration;
 import org.osgi.service.cm.ConfigurationAdmin;
+
+import jakarta.json.Json;
+import jakarta.json.JsonException;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonReader;
+import jakarta.json.JsonValue;
 
 /**
  * base class for tests doing http requests to verify calls to the accessmanager
@@ -147,7 +148,31 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
                         "org.apache.sling.engine.auth.Authenticator",
                         "org.apache.sling.api.resource.ResourceResolverFactory",
                         "org.apache.sling.api.servlets.ServletResolver",
-                        "javax.script.ScriptEngineManager"
+                        "javax.script.ScriptEngineManager",
+
+                        // SLING-12081 ensure the expected "usermanager" services are available before we
+                        //  attempt to run any tests to avoid flaky timing troubles on some environments
+                        "org.apache.sling.jackrabbit.usermanager.resource.SystemUserManagerPaths",
+                        "org.apache.sling.jackrabbit.usermanager.ChangeUserPassword",
+                        "org.apache.sling.jackrabbit.usermanager.CreateGroup",
+                        "org.apache.sling.jackrabbit.usermanager.CreateUser",
+                        "org.apache.sling.jackrabbit.usermanager.DeleteAuthorizables",
+                        "org.apache.sling.jackrabbit.usermanager.DeleteGroup",
+                        "org.apache.sling.jackrabbit.usermanager.DeleteUser",
+                        "org.apache.sling.jackrabbit.usermanager.UpdateGroup",
+                        "org.apache.sling.jackrabbit.usermanager.UpdateUser",
+
+                        // SLING-12081 ensure the expected "accessmanager" services are available before we
+                        //  attempt to run any tests to avoid flaky timing troubles on some environments
+                        "org.apache.sling.jcr.jackrabbit.accessmanager.DeleteAces",
+                        "org.apache.sling.jcr.jackrabbit.accessmanager.DeletePrincipalAces",
+                        "org.apache.sling.jcr.jackrabbit.accessmanager.GetAce",
+                        "org.apache.sling.jcr.jackrabbit.accessmanager.GetAcl",
+                        "org.apache.sling.jcr.jackrabbit.accessmanager.GetEffectiveAce",
+                        "org.apache.sling.jcr.jackrabbit.accessmanager.GetEffectiveAcl",
+                        "org.apache.sling.jcr.jackrabbit.accessmanager.GetPrincipalAce",
+                        "org.apache.sling.jcr.jackrabbit.accessmanager.ModifyAce",
+                        "org.apache.sling.jcr.jackrabbit.accessmanager.ModifyPrincipalAce"
                 })
                 .asOption(),
             factoryConfiguration("org.apache.felix.hc.generalchecks.BundlesStartedCheck")
