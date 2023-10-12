@@ -48,6 +48,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
+import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.Credentials;
@@ -148,31 +149,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
                         "org.apache.sling.engine.auth.Authenticator",
                         "org.apache.sling.api.resource.ResourceResolverFactory",
                         "org.apache.sling.api.servlets.ServletResolver",
-                        "javax.script.ScriptEngineManager",
-
-                        // SLING-12081 ensure the expected "usermanager" services are available before we
-                        //  attempt to run any tests to avoid flaky timing troubles on some environments
-                        "org.apache.sling.jackrabbit.usermanager.resource.SystemUserManagerPaths",
-                        "org.apache.sling.jackrabbit.usermanager.ChangeUserPassword",
-                        "org.apache.sling.jackrabbit.usermanager.CreateGroup",
-                        "org.apache.sling.jackrabbit.usermanager.CreateUser",
-                        "org.apache.sling.jackrabbit.usermanager.DeleteAuthorizables",
-                        "org.apache.sling.jackrabbit.usermanager.DeleteGroup",
-                        "org.apache.sling.jackrabbit.usermanager.DeleteUser",
-                        "org.apache.sling.jackrabbit.usermanager.UpdateGroup",
-                        "org.apache.sling.jackrabbit.usermanager.UpdateUser",
-
-                        // SLING-12081 ensure the expected "accessmanager" services are available before we
-                        //  attempt to run any tests to avoid flaky timing troubles on some environments
-                        "org.apache.sling.jcr.jackrabbit.accessmanager.DeleteAces",
-                        "org.apache.sling.jcr.jackrabbit.accessmanager.DeletePrincipalAces",
-                        "org.apache.sling.jcr.jackrabbit.accessmanager.GetAce",
-                        "org.apache.sling.jcr.jackrabbit.accessmanager.GetAcl",
-                        "org.apache.sling.jcr.jackrabbit.accessmanager.GetEffectiveAce",
-                        "org.apache.sling.jcr.jackrabbit.accessmanager.GetEffectiveAcl",
-                        "org.apache.sling.jcr.jackrabbit.accessmanager.GetPrincipalAce",
-                        "org.apache.sling.jcr.jackrabbit.accessmanager.ModifyAce",
-                        "org.apache.sling.jcr.jackrabbit.accessmanager.ModifyPrincipalAce"
+                        "javax.script.ScriptEngineManager"
                 })
                 .asOption(),
             factoryConfiguration("org.apache.felix.hc.generalchecks.BundlesStartedCheck")
@@ -354,7 +331,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
             HttpPost postRequest = new HttpPost(url);
             postRequest.setEntity(new UrlEncodedFormEntity(postParams));
             try (CloseableHttpResponse response = httpClient.execute(postRequest, httpContext)) {
-                assertEquals(assertMessage, expectedStatusCode, response.getStatusLine().getStatusCode());
+                verifyHttpStatus(response, assertMessage, expectedStatusCode);
             }
             return null;
         });
@@ -364,7 +341,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         doAuthenticatedWork(creds, () -> {
             HttpGet getRequest = new HttpGet(urlString);
             try (CloseableHttpResponse response = httpClient.execute(getRequest, httpContext)) {
-                assertEquals(assertMessage, expectedStatusCode, response.getStatusLine().getStatusCode());
+                verifyHttpStatus(response, assertMessage, expectedStatusCode);
                 return null;
             }
         });
@@ -374,7 +351,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         return (String)doAuthenticatedWork(creds, () -> {
             HttpGet getRequest = new HttpGet(url);
             try (CloseableHttpResponse response = httpClient.execute(getRequest, httpContext)) {
-                assertEquals(expectedStatusCode, response.getStatusLine().getStatusCode());
+                verifyHttpStatus(response, null, expectedStatusCode);
                 final Header h = response.getFirstHeader("Content-Type");
                 if (expectedContentType == null) {
                     if (h != null) {
@@ -402,7 +379,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
             HttpPost postRequest = new HttpPost(url);
             postRequest.setEntity(new UrlEncodedFormEntity(postParams));
             try (CloseableHttpResponse response = httpClient.execute(postRequest, httpContext)) {
-                assertEquals(expectedStatusCode, response.getStatusLine().getStatusCode());
+                verifyHttpStatus(response, null, expectedStatusCode);
                 final Header h = response.getFirstHeader("Content-Type");
                 if (expectedContentType == null) {
                     if (h != null) {
@@ -493,7 +470,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
             postRequest.addHeader(new BasicHeader("Accept", "application/json,*/*;q=0.9"));
             JsonObject jsonObj = null;
             try (CloseableHttpResponse response = httpClient.execute(postRequest, httpContext)) {
-                assertEquals(HttpServletResponse.SC_CREATED, response.getStatusLine().getStatusCode());
+                verifyHttpStatus(response, null, HttpServletResponse.SC_CREATED);
                 jsonObj = parseJson(EntityUtils.toString(response.getEntity()));
             }
             return jsonObj;
@@ -701,6 +678,81 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         JsonObject privilegesObject = ace.getJsonObject("privileges");
         assertNotNull(privilegesObject);
         return privilegesObject;
+    }
+
+    /**
+     * Verify expected status and show error message in case expected status is not returned.
+     *
+     * @param response       The SlingHttpResponse of an executed request.
+     * @param errorMessage   error message; if {@code null}, errorMessage is extracted from response
+     * @param expectedStatus List of acceptable HTTP Statuses
+     */
+    protected void verifyHttpStatus(HttpResponse response, String errorMessage, int... expectedStatus) throws IOException {
+        if (!checkStatus(response, expectedStatus)) {
+            failWithErrorAndResponseContent(response, errorMessage, expectedStatus);
+        }
+    }
+
+    /**
+     * Check if the response status matches one of the expected values
+     * 
+     * @param response the response to check
+     * @param expectedStatus the set of status values that are expected
+     * @return true if the status is as expected, false otherwise
+     */
+    protected boolean checkStatus(HttpResponse response, int... expectedStatus) {
+        // if no HttpResponse was given
+        if (response == null) {
+            throw new NullPointerException("The response is null!");
+        }
+
+        // if no expected statuses are given
+        if (expectedStatus == null || expectedStatus.length == 0) {
+            throw new IllegalArgumentException("At least one expected HTTP Status must be set!");
+        }
+
+        // get the returned HTTP Status
+        int givenStatus = response.getStatusLine().getStatusCode();
+
+        // check if it matches with an expected one
+        for (int expected : expectedStatus) {
+            if (givenStatus == expected) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Fail with a message that includes the response content
+     * 
+     * @param response the response to check
+     * @param errorMessage the extra error message to use (or null)
+     * @param expectedStatus the set of status values that are expected
+     */
+    protected void failWithErrorAndResponseContent(HttpResponse response, String errorMessage, int... expectedStatus) throws IOException {
+        // build error message
+        StringBuilder errorMsgBuilder = new StringBuilder();
+        errorMsgBuilder.append("Expected HTTP Status: ");
+        for (int expected : expectedStatus) {
+            errorMsgBuilder.append(expected).append(" ");
+        }
+
+        errorMsgBuilder.append(". Instead ")
+            .append(response.getStatusLine().getStatusCode())
+            .append(" was returned!\n");
+
+        if (errorMessage != null) {
+            errorMsgBuilder.append(errorMessage);
+        }
+
+        String content = EntityUtils.toString(response.getEntity());
+        errorMsgBuilder.append("\nResponse Content:\n")
+            .append(content);
+
+        // fail with the error message
+        fail(errorMsgBuilder.toString());
     }
 
 }
