@@ -71,6 +71,7 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
+import org.awaitility.Awaitility;
 import org.junit.After;
 import org.junit.Before;
 import org.ops4j.pax.exam.Option;
@@ -184,6 +185,18 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         httpClient = HttpClients.custom()
                 .disableRedirectHandling()
                 .build();
+
+        // SLING-12081 - wait for the "users" resource to be available to try to avoid flaky
+        //   failures while creating test users
+        final String getUrl = String.format("%s/system/userManager/user.json", baseServerUri);
+        final String msg = "Unexpected status while attempting to get the users resource at " + getUrl;
+        final Credentials creds = new UsernamePasswordCredentials("admin", "admin");
+        Awaitility.await("users resource available")
+            .ignoreException(AssertionError.class)
+            .until(() -> {
+                    assertAuthenticatedHttpStatus(creds, getUrl, HttpServletResponse.SC_OK, msg);
+                    return true;
+                });
     }
 
     @After
