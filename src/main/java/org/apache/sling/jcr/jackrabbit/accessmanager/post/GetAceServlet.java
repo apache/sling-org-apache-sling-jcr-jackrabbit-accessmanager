@@ -28,7 +28,7 @@ import javax.jcr.Session;
 import javax.jcr.security.AccessControlEntry;
 import javax.jcr.security.AccessControlManager;
 import javax.jcr.security.AccessControlPolicy;
-import javax.json.JsonObject;
+import jakarta.json.JsonObject;
 import javax.servlet.Servlet;
 
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;

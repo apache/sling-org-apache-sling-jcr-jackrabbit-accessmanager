@@ -36,13 +36,13 @@ import javax.jcr.Value;
 import javax.jcr.ValueFactory;
 import javax.jcr.security.AccessControlManager;
 import javax.jcr.security.Privilege;
-import javax.json.Json;
-import javax.json.JsonArray;
-import javax.json.JsonArrayBuilder;
-import javax.json.JsonObject;
-import javax.json.JsonObjectBuilder;
-import javax.json.JsonString;
-import javax.json.JsonValue;
+import jakarta.json.Json;
+import jakarta.json.JsonArray;
+import jakarta.json.JsonArrayBuilder;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonObjectBuilder;
+import jakarta.json.JsonString;
+import jakarta.json.JsonValue;
 
 import org.apache.jackrabbit.oak.security.authorization.restriction.RestrictionProviderImpl;
 import org.apache.jackrabbit.oak.spi.security.authorization.accesscontrol.AccessControlConstants;
@@ -172,7 +172,7 @@ public class JsonConvertTest {
     }
 
     /**
-     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.impl.JsonConvert#addRestrictions(javax.json.JsonObjectBuilder, java.lang.String, java.util.Set)}.
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.impl.JsonConvert#addRestrictions(jakarta.json.JsonObjectBuilder, java.lang.String, java.util.Set)}.
      */
     @Test
     public void testAddRestrictions() {
@@ -196,7 +196,7 @@ public class JsonConvertTest {
     }
 
     /**
-     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.impl.JsonConvert#addTo(javax.json.JsonObjectBuilder, java.lang.String, java.lang.Object)}.
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.impl.JsonConvert#addTo(jakarta.json.JsonObjectBuilder, java.lang.String, java.lang.Object)}.
      */
     @Test
     public void testAddToJsonObjectBuilderStringObject() throws RepositoryException {
@@ -254,7 +254,7 @@ public class JsonConvertTest {
     }
 
     /**
-     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.impl.JsonConvert#addTo(javax.json.JsonArrayBuilder, java.lang.Object)}.
+     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.impl.JsonConvert#addTo(jakarta.json.JsonArrayBuilder, java.lang.Object)}.
      */
     @Test
     public void testAddToJsonArrayBuilderObject() {

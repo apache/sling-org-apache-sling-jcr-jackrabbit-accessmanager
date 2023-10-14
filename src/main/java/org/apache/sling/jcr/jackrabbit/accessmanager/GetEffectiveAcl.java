@@ -20,7 +20,7 @@ package org.apache.sling.jcr.jackrabbit.accessmanager;
 
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
-import javax.json.JsonObject;
+import jakarta.json.JsonObject;
 
 /**
  * The <code>GetAcl</code> service api.

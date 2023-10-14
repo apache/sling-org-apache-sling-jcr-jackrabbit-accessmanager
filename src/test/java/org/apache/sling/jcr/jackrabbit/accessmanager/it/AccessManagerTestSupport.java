@@ -23,6 +23,7 @@ import static org.apache.sling.testing.paxexam.SlingOptions.versionResolver;
 import static org.awaitility.Awaitility.await;
 import static org.junit.Assert.assertNotNull;
 import static org.ops4j.pax.exam.CoreOptions.composite;
+import static org.ops4j.pax.exam.CoreOptions.frameworkProperty;
 import static org.ops4j.pax.exam.CoreOptions.junitBundles;
 import static org.ops4j.pax.exam.CoreOptions.mavenBundle;
 import static org.ops4j.pax.exam.CoreOptions.options;
@@ -48,6 +49,10 @@ import org.apache.felix.hc.api.execution.HealthCheckExecutionResult;
 import org.apache.felix.hc.api.execution.HealthCheckExecutor;
 import org.apache.felix.hc.api.execution.HealthCheckSelector;
 import org.apache.sling.testing.paxexam.TestSupport;
+import org.junit.Rule;
+import org.junit.rules.TestRule;
+import org.junit.rules.TestWatcher;
+import org.junit.runner.Description;
 import org.ops4j.pax.exam.Configuration;
 import org.ops4j.pax.exam.Option;
 import org.ops4j.pax.exam.options.ModifiableCompositeOption;
@@ -67,6 +72,26 @@ public abstract class AccessManagerTestSupport extends TestSupport {
     @Inject
     private HealthCheckExecutor hcExecutor;
 
+    @Rule
+    public TestRule watcher = new TestWatcher() {
+
+        /* (non-Javadoc)
+         * @see org.junit.rules.TestWatcher#starting(org.junit.runner.Description)
+         */
+        @Override
+        protected void starting(Description description) {
+            logger.info("Starting test: {}", description.getMethodName());
+        }
+
+        /* (non-Javadoc)
+         * @see org.junit.rules.TestWatcher#finished(org.junit.runner.Description)
+         */
+        @Override
+        protected void finished(Description description) {
+           logger.info("Finished test: {}", description.getMethodName());
+        }
+
+    };
 
     @Configuration
     public Option[] configuration() throws IOException {
@@ -97,6 +122,12 @@ public abstract class AccessManagerTestSupport extends TestSupport {
                 testBundle("bundle.filename"),
                 junitBundles(),
                 awaitility()
+            ).add(
+                // jakarta impl of JSON apis
+                frameworkProperty("org.apache.aries.spifly.auto.consumers").value("jakarta.json-api"),
+                frameworkProperty("org.apache.aries.spifly.auto.providers").value("org.eclipse.parsson"),
+                mavenBundle().groupId("jakarta.json").artifactId("jakarta.json-api").version("2.1.1"),
+                mavenBundle().groupId("org.eclipse.parsson").artifactId("parsson").version("1.1.1")
             ).add(
                 additionalOptions()
             ).remove(

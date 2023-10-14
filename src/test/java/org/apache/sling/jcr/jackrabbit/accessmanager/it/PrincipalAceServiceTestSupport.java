@@ -23,7 +23,7 @@ import javax.jcr.Node;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.jcr.SimpleCredentials;
-import javax.json.JsonObject;
+import jakarta.json.JsonObject;
 
 import org.apache.sling.jcr.api.SlingRepository;
 import org.apache.sling.jcr.jackrabbit.accessmanager.GetPrincipalAce;

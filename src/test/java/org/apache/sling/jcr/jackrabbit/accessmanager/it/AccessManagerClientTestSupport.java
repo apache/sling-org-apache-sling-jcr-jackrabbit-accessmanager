@@ -41,18 +41,17 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Dictionary;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import javax.inject.Inject;
-import javax.json.Json;
-import javax.json.JsonException;
-import javax.json.JsonObject;
-import javax.json.JsonReader;
-import javax.json.JsonValue;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
+import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.Credentials;
@@ -75,11 +74,21 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
+import org.apache.sling.api.resource.LoginException;
+import org.apache.sling.api.resource.ResourceResolver;
+import org.apache.sling.api.resource.ResourceResolverFactory;
+import org.awaitility.Awaitility;
 import org.junit.After;
 import org.junit.Before;
 import org.ops4j.pax.exam.Option;
 import org.osgi.service.cm.Configuration;
 import org.osgi.service.cm.ConfigurationAdmin;
+
+import jakarta.json.Json;
+import jakarta.json.JsonException;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonReader;
+import jakarta.json.JsonValue;
 
 /**
  * base class for tests doing http requests to verify calls to the accessmanager
@@ -103,6 +112,9 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
 
     @Inject
     protected ConfigurationAdmin cm;
+
+    @Inject
+    protected ResourceResolverFactory resourceResolverFactory;
 
     protected static final String COOKIE_SLING_FORMAUTH = "sling.formauth";
     protected static final String COOKIE_SLING_FORMAUTH_DOMAIN = "sling.formauth.cookie.domain";
@@ -182,6 +194,21 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         httpClient = HttpClients.custom()
                 .disableRedirectHandling()
                 .build();
+
+        // SLING-12081 - wait for the "users" resource to be available to try to avoid flaky
+        //   failures while creating test users
+        Awaitility.await("users resource available")
+            .atMost(10000, TimeUnit.MILLISECONDS)
+            .pollInterval(1000, TimeUnit.MILLISECONDS)
+            .ignoreException(LoginException.class)
+            .until(() -> {
+                    Map<String, Object> authInfo = new HashMap<>();
+                    authInfo.put(ResourceResolverFactory.USER, "admin");
+                    authInfo.put(ResourceResolverFactory.PASSWORD, "admin".toCharArray());
+                    try (ResourceResolver resourceResolver = resourceResolverFactory.getResourceResolver(authInfo)) {
+                        return resourceResolver.getResource("/system/userManager/user") != null;
+                    }
+                });
     }
 
     @After
@@ -329,7 +356,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
             HttpPost postRequest = new HttpPost(url);
             postRequest.setEntity(new UrlEncodedFormEntity(postParams));
             try (CloseableHttpResponse response = httpClient.execute(postRequest, httpContext)) {
-                assertEquals(assertMessage, expectedStatusCode, response.getStatusLine().getStatusCode());
+                verifyHttpStatus(response, assertMessage, expectedStatusCode);
             }
             return null;
         });
@@ -339,7 +366,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         doAuthenticatedWork(creds, () -> {
             HttpGet getRequest = new HttpGet(urlString);
             try (CloseableHttpResponse response = httpClient.execute(getRequest, httpContext)) {
-                assertEquals(assertMessage, expectedStatusCode, response.getStatusLine().getStatusCode());
+                verifyHttpStatus(response, assertMessage, expectedStatusCode);
                 return null;
             }
         });
@@ -349,7 +376,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         return (String)doAuthenticatedWork(creds, () -> {
             HttpGet getRequest = new HttpGet(url);
             try (CloseableHttpResponse response = httpClient.execute(getRequest, httpContext)) {
-                assertEquals(expectedStatusCode, response.getStatusLine().getStatusCode());
+                verifyHttpStatus(response, null, expectedStatusCode);
                 final Header h = response.getFirstHeader("Content-Type");
                 if (expectedContentType == null) {
                     if (h != null) {
@@ -377,7 +404,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
             HttpPost postRequest = new HttpPost(url);
             postRequest.setEntity(new UrlEncodedFormEntity(postParams));
             try (CloseableHttpResponse response = httpClient.execute(postRequest, httpContext)) {
-                assertEquals(expectedStatusCode, response.getStatusLine().getStatusCode());
+                verifyHttpStatus(response, null, expectedStatusCode);
                 final Header h = response.getFirstHeader("Content-Type");
                 if (expectedContentType == null) {
                     if (h != null) {
@@ -468,7 +495,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
             postRequest.addHeader(new BasicHeader("Accept", "application/json,*/*;q=0.9"));
             JsonObject jsonObj = null;
             try (CloseableHttpResponse response = httpClient.execute(postRequest, httpContext)) {
-                assertEquals(HttpServletResponse.SC_CREATED, response.getStatusLine().getStatusCode());
+                verifyHttpStatus(response, null, HttpServletResponse.SC_CREATED);
                 jsonObj = parseJson(EntityUtils.toString(response.getEntity()));
             }
             return jsonObj;
@@ -676,6 +703,81 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         JsonObject privilegesObject = ace.getJsonObject("privileges");
         assertNotNull(privilegesObject);
         return privilegesObject;
+    }
+
+    /**
+     * Verify expected status and show error message in case expected status is not returned.
+     *
+     * @param response       The SlingHttpResponse of an executed request.
+     * @param errorMessage   error message; if {@code null}, errorMessage is extracted from response
+     * @param expectedStatus List of acceptable HTTP Statuses
+     */
+    protected void verifyHttpStatus(HttpResponse response, String errorMessage, int... expectedStatus) throws IOException {
+        if (!checkStatus(response, expectedStatus)) {
+            failWithErrorAndResponseContent(response, errorMessage, expectedStatus);
+        }
+    }
+
+    /**
+     * Check if the response status matches one of the expected values
+     * 
+     * @param response the response to check
+     * @param expectedStatus the set of status values that are expected
+     * @return true if the status is as expected, false otherwise
+     */
+    protected boolean checkStatus(HttpResponse response, int... expectedStatus) {
+        // if no HttpResponse was given
+        if (response == null) {
+            throw new NullPointerException("The response is null!");
+        }
+
+        // if no expected statuses are given
+        if (expectedStatus == null || expectedStatus.length == 0) {
+            throw new IllegalArgumentException("At least one expected HTTP Status must be set!");
+        }
+
+        // get the returned HTTP Status
+        int givenStatus = response.getStatusLine().getStatusCode();
+
+        // check if it matches with an expected one
+        for (int expected : expectedStatus) {
+            if (givenStatus == expected) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Fail with a message that includes the response content
+     * 
+     * @param response the response to check
+     * @param errorMessage the extra error message to use (or null)
+     * @param expectedStatus the set of status values that are expected
+     */
+    protected void failWithErrorAndResponseContent(HttpResponse response, String errorMessage, int... expectedStatus) throws IOException {
+        // build error message
+        StringBuilder errorMsgBuilder = new StringBuilder();
+        errorMsgBuilder.append("Expected HTTP Status: ");
+        for (int expected : expectedStatus) {
+            errorMsgBuilder.append(expected).append(" ");
+        }
+
+        errorMsgBuilder.append(". Instead ")
+            .append(response.getStatusLine().getStatusCode())
+            .append(" was returned!\n");
+
+        if (errorMessage != null) {
+            errorMsgBuilder.append(errorMessage);
+        }
+
+        String content = EntityUtils.toString(response.getEntity());
+        errorMsgBuilder.append("\nResponse Content:\n")
+            .append(content);
+
+        // fail with the error message
+        fail(errorMsgBuilder.toString());
     }
 
 }
