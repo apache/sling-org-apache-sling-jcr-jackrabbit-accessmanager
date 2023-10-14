@@ -41,7 +41,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Dictionary;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletResponse;
@@ -71,6 +74,9 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
+import org.apache.sling.api.resource.LoginException;
+import org.apache.sling.api.resource.ResourceResolver;
+import org.apache.sling.api.resource.ResourceResolverFactory;
 import org.awaitility.Awaitility;
 import org.junit.After;
 import org.junit.Before;
@@ -106,6 +112,9 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
 
     @Inject
     protected ConfigurationAdmin cm;
+
+    @Inject
+    protected ResourceResolverFactory resourceResolverFactory;
 
     protected static final String COOKIE_SLING_FORMAUTH = "sling.formauth";
     protected static final String COOKIE_SLING_FORMAUTH_DOMAIN = "sling.formauth.cookie.domain";
@@ -188,14 +197,17 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
 
         // SLING-12081 - wait for the "users" resource to be available to try to avoid flaky
         //   failures while creating test users
-        final String getUrl = String.format("%s/system/userManager/user.json", baseServerUri);
-        final String msg = "Unexpected status while attempting to get the users resource at " + getUrl;
-        final Credentials creds = new UsernamePasswordCredentials("admin", "admin");
         Awaitility.await("users resource available")
-            .ignoreException(AssertionError.class)
+            .atMost(10000, TimeUnit.MILLISECONDS)
+            .pollInterval(1000, TimeUnit.MILLISECONDS)
+            .ignoreException(LoginException.class)
             .until(() -> {
-                    assertAuthenticatedHttpStatus(creds, getUrl, HttpServletResponse.SC_OK, msg);
-                    return true;
+                    Map<String, Object> authInfo = new HashMap<>();
+                    authInfo.put(ResourceResolverFactory.USER, "admin");
+                    authInfo.put(ResourceResolverFactory.PASSWORD, "admin".toCharArray());
+                    try (ResourceResolver resourceResolver = resourceResolverFactory.getResourceResolver(authInfo)) {
+                        return resourceResolver.getResource("/system/userManager/user") != null;
+                    }
                 });
     }
 
