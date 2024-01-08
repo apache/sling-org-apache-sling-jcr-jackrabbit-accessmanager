@@ -42,11 +42,11 @@ import jakarta.json.JsonString;
 import jakarta.json.JsonValue;
 import jakarta.json.JsonValue.ValueType;
 
+import org.apache.jackrabbit.api.JackrabbitSession;
 import org.apache.jackrabbit.api.security.principal.PrincipalManager;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionDefinition;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
-import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.JsonConvert;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
@@ -81,7 +81,7 @@ public class PrivilegesInfo {
      * @throws RepositoryException if any errors reading the information
      */
     public Privilege [] getSupportedPrivileges(Session session, String absPath) throws RepositoryException {
-        AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(session);
+        AccessControlManager accessControlManager = session.getAccessControlManager();
         return accessControlManager.getSupportedPrivileges(absPath);
     }
 
@@ -193,7 +193,7 @@ public class PrivilegesInfo {
 
         Map<Principal, AccessRights> map;
         AccessControlManager acm = session.getAccessControlManager();
-        PrincipalManager principalManager = AccessControlUtil.getPrincipalManager(session);
+        PrincipalManager principalManager = ((JackrabbitSession)session).getPrincipalManager();
         Function<? super JsonValue, ? extends Principal> keyMapper = val -> {
             String principalId = ((JsonObject)val).getString(JsonConvert.KEY_PRINCIPAL);
             return principalManager.getPrincipal(principalId);
@@ -256,7 +256,7 @@ public class PrivilegesInfo {
      */
     public AccessRights getDeclaredAccessRightsForPrincipal(Session session, String absPath, String principalId) throws RepositoryException {
         Map<Principal, AccessRights> declaredAccessRights = getDeclaredAccessRights(session, absPath);
-        PrincipalManager principalManager = AccessControlUtil.getPrincipalManager(session);
+        PrincipalManager principalManager = ((JackrabbitSession)session).getPrincipalManager();
         Principal principal = principalManager.getPrincipal(principalId);
         return declaredAccessRights.get(principal);
     }
@@ -414,7 +414,7 @@ public class PrivilegesInfo {
      */
     public AccessRights getEffectiveAccessRightsForPrincipal(Session session, String absPath, String principalId) throws RepositoryException {
         Map<Principal, AccessRights> effectiveAccessRights = getEffectiveAccessRights(session, absPath);
-        PrincipalManager principalManager = AccessControlUtil.getPrincipalManager(session);
+        PrincipalManager principalManager = ((JackrabbitSession)session).getPrincipalManager();
         Principal principal = principalManager.getPrincipal(principalId);
         return effectiveAccessRights.get(principal);
     }
@@ -444,7 +444,7 @@ public class PrivilegesInfo {
      */
     public boolean canAddChildren(Session session, String absPath) {
         try {
-            AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(session);
+            AccessControlManager accessControlManager = session.getAccessControlManager();
             return accessControlManager.hasPrivileges(absPath, new Privilege[] {
                             accessControlManager.privilegeFromName(Privilege.JCR_ADD_CHILD_NODES)
                         });
@@ -478,8 +478,7 @@ public class PrivilegesInfo {
      */
     public boolean canDeleteChildren(Session session, String absPath) {
         try {
-            AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(session);
-            
+            AccessControlManager accessControlManager = session.getAccessControlManager();
             return accessControlManager.hasPrivileges(absPath, new Privilege[] {
                             accessControlManager.privilegeFromName(Privilege.JCR_REMOVE_CHILD_NODES)
                         });
@@ -513,7 +512,7 @@ public class PrivilegesInfo {
      */
     public boolean canDelete(Session session, String absPath) {
         try {
-            AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(session);
+            AccessControlManager accessControlManager = session.getAccessControlManager();
 
             String parentPath;
             int lastSlash = absPath.lastIndexOf('/');
@@ -557,7 +556,7 @@ public class PrivilegesInfo {
      */
     public boolean canModifyProperties(Session session, String absPath) {
         try {
-            AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(session);
+            AccessControlManager accessControlManager = session.getAccessControlManager();
             return accessControlManager.hasPrivileges(absPath, new Privilege[] {
                             accessControlManager.privilegeFromName(Privilege.JCR_MODIFY_PROPERTIES)
                         });
@@ -591,7 +590,7 @@ public class PrivilegesInfo {
      */
     public boolean canReadAccessControl(Session session, String absPath) {
         try {
-            AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(session);
+            AccessControlManager accessControlManager = session.getAccessControlManager();
             return accessControlManager.hasPrivileges(absPath, new Privilege[] {
                             accessControlManager.privilegeFromName(Privilege.JCR_READ_ACCESS_CONTROL)
                         });
@@ -625,7 +624,7 @@ public class PrivilegesInfo {
      */
     public boolean canModifyAccessControl(Session session, String absPath) {
         try {
-            AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(session);
+            AccessControlManager accessControlManager = session.getAccessControlManager();
             return accessControlManager.hasPrivileges(absPath, new Privilege[] {
                             accessControlManager.privilegeFromName(Privilege.JCR_MODIFY_ACCESS_CONTROL)
                         });

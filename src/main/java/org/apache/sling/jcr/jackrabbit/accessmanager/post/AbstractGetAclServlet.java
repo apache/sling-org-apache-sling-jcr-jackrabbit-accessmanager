@@ -38,7 +38,6 @@ import jakarta.json.JsonObjectBuilder;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionDefinition;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
-import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.JsonConvert;
@@ -103,7 +102,7 @@ public abstract class AbstractGetAclServlet extends AbstractAccessGetServlet {
         }
 
         // combine any aggregates that are still valid
-        AccessControlManager acm = AccessControlUtil.getAccessControlManager(jcrSession);
+        AccessControlManager acm = jcrSession.getAccessControlManager();
         Map<Privilege, Integer> privilegeLongestDepthMap = PrivilegesHelper.buildPrivilegeLongestDepthMap(acm.privilegeFromName(PrivilegeConstants.JCR_ALL));
         for (Entry<Principal, Map<Privilege, LocalPrivilege>> entry : principalToPrivilegesMap.entrySet()) {
             Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap = entry.getValue();

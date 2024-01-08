@@ -33,7 +33,6 @@ import jakarta.json.JsonObjectBuilder;
 import javax.servlet.Servlet;
 
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
-import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.apache.sling.jcr.jackrabbit.accessmanager.GetEffectiveAce;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.JsonConvert;
 import org.osgi.service.component.annotations.Component;
@@ -112,7 +111,7 @@ public class GetEffectiveAceServlet extends AbstractGetAceServlet implements Get
     @Override
     protected Map<String, List<AccessControlEntry>> getAccessControlEntriesMap(Session session, String absPath,
             Principal principal, Map<Principal, Map<DeclarationType, Set<String>>> declaredAtPaths) throws RepositoryException {
-        AccessControlManager acMgr = AccessControlUtil.getAccessControlManager(session);
+        AccessControlManager acMgr = session.getAccessControlManager();
         AccessControlPolicy[] policies = acMgr.getEffectivePolicies(absPath);
         return entriesSortedByEffectivePath(policies, ace -> principal.equals(ace.getPrincipal()), declaredAtPaths);
     }
