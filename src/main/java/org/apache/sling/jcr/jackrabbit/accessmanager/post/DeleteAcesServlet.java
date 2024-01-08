@@ -29,9 +29,9 @@ import javax.jcr.security.AccessControlList;
 import javax.jcr.security.AccessControlManager;
 import javax.servlet.Servlet;
 
+import org.apache.jackrabbit.api.JackrabbitSession;
 import org.apache.jackrabbit.api.security.principal.PrincipalManager;
 import org.apache.sling.api.SlingHttpServletRequest;
-import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.apache.sling.jcr.jackrabbit.accessmanager.DeleteAces;
 import org.apache.sling.servlets.post.Modification;
 import org.apache.sling.servlets.post.PostResponse;
@@ -144,7 +144,7 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
         validateResourcePath(jcrSession, resourcePath);
 
         // validate that the submitted names are valid
-        PrincipalManager principalManager = AccessControlUtil.getPrincipalManager(jcrSession);
+        PrincipalManager principalManager = ((JackrabbitSession)jcrSession).getPrincipalManager();
         for (String pid : principalNamesToDelete) {
             Principal principal = principalManager.getPrincipal(pid);
             if (principal == null) {
@@ -165,7 +165,7 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
         @NotNull
         Set<Principal> found = validateArgs(jcrSession, resourcePath, principalNamesToDelete);
         try {
-            AccessControlManager accessControlManager = AccessControlUtil.getAccessControlManager(jcrSession);
+            AccessControlManager accessControlManager = jcrSession.getAccessControlManager();
             AccessControlList updatedAcl = getAccessControlListOrNull(accessControlManager, resourcePath, false);
 
             // if there is no AccessControlList, then there is nothing to be deleted

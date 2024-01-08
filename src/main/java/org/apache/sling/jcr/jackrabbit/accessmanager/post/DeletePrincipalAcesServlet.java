@@ -31,7 +31,6 @@ import javax.servlet.Servlet;
 
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlManager;
 import org.apache.jackrabbit.api.security.authorization.PrincipalAccessControlList;
-import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.apache.sling.jcr.jackrabbit.accessmanager.DeletePrincipalAces;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrincipalAceHelper;
 import org.apache.sling.servlets.post.Modification;
@@ -117,7 +116,7 @@ public class DeletePrincipalAcesServlet extends DeleteAcesServlet implements Del
         @NotNull
         Set<Principal> found = validateArgs(jcrSession, resourcePath, principalNamesToDelete);
         try {
-            JackrabbitAccessControlManager jacm = (JackrabbitAccessControlManager)AccessControlUtil.getAccessControlManager(jcrSession);
+            JackrabbitAccessControlManager jacm = (JackrabbitAccessControlManager)jcrSession.getAccessControlManager();
 
             // track which of the submitted principals had an ACE removed
             Set<Principal> removedPrincipalSet = new HashSet<>();

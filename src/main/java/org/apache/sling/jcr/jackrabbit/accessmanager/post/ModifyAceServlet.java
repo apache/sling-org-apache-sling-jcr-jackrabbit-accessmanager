@@ -48,6 +48,7 @@ import javax.jcr.security.AccessControlPolicyIterator;
 import javax.jcr.security.Privilege;
 import javax.servlet.Servlet;
 
+import org.apache.jackrabbit.api.JackrabbitSession;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlList;
 import org.apache.jackrabbit.api.security.authorization.PrincipalAccessControlList;
@@ -56,7 +57,6 @@ import org.apache.jackrabbit.oak.spi.security.authorization.restriction.Restrict
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
 import org.apache.sling.api.SlingHttpServletRequest;
-import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
 import org.apache.sling.jcr.jackrabbit.accessmanager.ModifyAce;
@@ -228,7 +228,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
         // Calculate a map of restriction names to the restriction definition.
         // Use for fast lookup during the calls below.
         Map<String, RestrictionDefinition> srMap = buildRestrictionNameToDefinitionMap(resourcePath);
-        AccessControlManager acm = AccessControlUtil.getAccessControlManager(session);
+        AccessControlManager acm = session.getAccessControlManager();
         Map<Privilege, Integer> privilegeLongestDepthMap = PrivilegesHelper.buildPrivilegeLongestDepthMap(acm.privilegeFromName(PrivilegeConstants.JCR_ALL));
 
         // first calculate what is currently stored in the ace
@@ -268,7 +268,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
         }
 
         // validate that the submitted name is valid
-        PrincipalManager principalManager = AccessControlUtil.getPrincipalManager(jcrSession);
+        PrincipalManager principalManager = ((JackrabbitSession)jcrSession).getPrincipalManager();
         Principal principal = principalManager.getPrincipal(principalId);
         if (principal == null) {
             throw new RepositoryException("Invalid principalId was submitted.");
@@ -276,7 +276,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
 
         validateResourcePath(jcrSession, resourcePath);
 
-        AccessControlManager acm = AccessControlUtil.getAccessControlManager(jcrSession);
+        AccessControlManager acm = jcrSession.getAccessControlManager();
         JackrabbitAccessControlList acl = getAcl(acm, resourcePath, principal);
         if (acl == null) {
             throw new IllegalStateException("No access control list is available so unable to process");
@@ -1020,7 +1020,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
 
         // Calculate a map of restriction names to the restriction definition.
         // Use for fast lookup during the calls below.
-        AccessControlManager acm = AccessControlUtil.getAccessControlManager(jcrSession);
+        AccessControlManager acm = jcrSession.getAccessControlManager();
         Map<String, RestrictionDefinition> srMap = buildRestrictionNameToDefinitionMap(resourcePath);
         Map<Privilege, Integer> privilegeLongestDepthMap = PrivilegesHelper.buildPrivilegeLongestDepthMap(acm.privilegeFromName(PrivilegeConstants.JCR_ALL));
 
@@ -1137,7 +1137,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
 
         try {
             // Get or create the ACL for the node.
-            AccessControlManager acm = AccessControlUtil.getAccessControlManager(jcrSession);
+            AccessControlManager acm = jcrSession.getAccessControlManager();
             JackrabbitAccessControlList acl = getAcl(acm, resourcePath, principal);
 
             // remove all the old aces for the principal

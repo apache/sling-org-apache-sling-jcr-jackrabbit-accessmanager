@@ -27,17 +27,17 @@ import javax.jcr.Session;
 import javax.jcr.security.AccessControlEntry;
 import javax.jcr.security.AccessControlManager;
 import javax.jcr.security.Privilege;
-import jakarta.json.JsonObject;
-import jakarta.json.JsonObjectBuilder;
 
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionDefinition;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
 import org.apache.sling.api.resource.ResourceNotFoundException;
-import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.JsonConvert;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrivilegesHelper;
+
+import jakarta.json.JsonObject;
+import jakarta.json.JsonObjectBuilder;
 
 @SuppressWarnings({"serial", "java:S110"})
 public abstract class AbstractGetAceServlet extends AbstractAccessGetServlet {
@@ -77,7 +77,7 @@ public abstract class AbstractGetAceServlet extends AbstractAccessGetServlet {
         }
 
         // combine any aggregates that are still valid
-        AccessControlManager acm = AccessControlUtil.getAccessControlManager(jcrSession);
+        AccessControlManager acm = jcrSession.getAccessControlManager();
         Map<Privilege, Integer> privilegeLongestDepthMap = PrivilegesHelper.buildPrivilegeLongestDepthMap(acm.privilegeFromName(PrivilegeConstants.JCR_ALL));
         PrivilegesHelper.consolidateAggregates(jcrSession, resourcePath, privilegeToLocalPrivilegesMap, privilegeLongestDepthMap);
 

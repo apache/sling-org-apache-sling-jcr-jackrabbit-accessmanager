@@ -42,7 +42,6 @@ import org.apache.jackrabbit.oak.spi.security.authorization.restriction.Restrict
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
 import org.apache.jackrabbit.value.ValueFactoryImpl;
-import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
 import org.apache.sling.testing.mock.sling.ResourceResolverType;
@@ -66,7 +65,7 @@ public class LocalPrivilegeTest {
     @Before
     public void setup() throws RepositoryException {
         Session session = context.resourceResolver().adaptTo(Session.class);
-        acm = AccessControlUtil.getAccessControlManager(session);
+        acm = session.getAccessControlManager();
         context.registerService(new RestrictionProviderImpl());
     }
 

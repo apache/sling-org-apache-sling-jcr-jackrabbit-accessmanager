@@ -39,12 +39,10 @@ import javax.jcr.security.AccessControlEntry;
 import javax.jcr.security.AccessControlList;
 import javax.jcr.security.AccessControlPolicy;
 import javax.jcr.security.Privilege;
-import jakarta.json.Json;
-import jakarta.json.JsonObject;
-import jakarta.json.stream.JsonGenerator;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.jackrabbit.api.JackrabbitSession;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlList;
 import org.apache.jackrabbit.api.security.authorization.PrincipalAccessControlList;
@@ -53,13 +51,16 @@ import org.apache.jackrabbit.oak.spi.security.authorization.restriction.Restrict
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.resource.ResourceNotFoundException;
-import org.apache.sling.jcr.base.util.AccessControlUtil;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrincipalAceHelper;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrivilegesHelper;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import jakarta.json.Json;
+import jakarta.json.JsonObject;
+import jakarta.json.stream.JsonGenerator;
 
 @SuppressWarnings("serial")
 public abstract class AbstractAccessGetServlet extends AbstractAccessServlet {
@@ -133,7 +134,7 @@ public abstract class AbstractAccessGetServlet extends AbstractAccessServlet {
         }
 
         // validate that the submitted name is valid
-        PrincipalManager principalManager = AccessControlUtil.getPrincipalManager(jcrSession);
+        PrincipalManager principalManager = ((JackrabbitSession)jcrSession).getPrincipalManager();
         Principal principal = principalManager.getPrincipal(principalId);
         if (principal == null) {
             throw new RepositoryException("Invalid principalId was submitted.");
