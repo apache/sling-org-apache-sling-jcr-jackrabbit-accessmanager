@@ -20,8 +20,6 @@ package org.apache.sling.jcr.jackrabbit.accessmanager.it;
 
 import static org.apache.sling.testing.paxexam.SlingOptions.slingBundleresource;
 import static org.apache.sling.testing.paxexam.SlingOptions.slingCommonsCompiler;
-import static org.apache.sling.testing.paxexam.SlingOptions.slingJcrJackrabbitAccessmanager;
-import static org.apache.sling.testing.paxexam.SlingOptions.slingJcrJackrabbitUsermanager;
 import static org.apache.sling.testing.paxexam.SlingOptions.slingScriptingJavascript;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -39,15 +37,13 @@ import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Dictionary;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 import javax.inject.Inject;
-import javax.servlet.http.HttpServletResponse;
+import javax.jcr.RepositoryException;
+import javax.jcr.Session;
+import javax.jcr.SimpleCredentials;
 
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
@@ -74,10 +70,13 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
-import org.apache.sling.api.resource.LoginException;
-import org.apache.sling.api.resource.ResourceResolver;
+import org.apache.jackrabbit.api.JackrabbitSession;
+import org.apache.jackrabbit.api.security.user.Authorizable;
+import org.apache.jackrabbit.api.security.user.Group;
+import org.apache.jackrabbit.api.security.user.User;
+import org.apache.jackrabbit.api.security.user.UserManager;
 import org.apache.sling.api.resource.ResourceResolverFactory;
-import org.awaitility.Awaitility;
+import org.apache.sling.jcr.api.SlingRepository;
 import org.junit.After;
 import org.junit.Before;
 import org.ops4j.pax.exam.Option;
@@ -89,6 +88,7 @@ import jakarta.json.JsonException;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonReader;
 import jakarta.json.JsonValue;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * base class for tests doing http requests to verify calls to the accessmanager
@@ -129,6 +129,11 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
     protected String testGroupId = null;
     protected String testFolderUrl = null;
 
+    @Inject
+    protected SlingRepository repository;
+
+    protected Session adminSession;
+
     @Override
     protected Option[] additionalOptions() throws IOException {
         // optionally create a tinybundle that contains a test script
@@ -136,9 +141,6 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
 
         return new Option[]{
             slingBundleresource(),
-            // for usermanager support
-            slingJcrJackrabbitAccessmanager(),
-            slingJcrJackrabbitUsermanager(),
             // add javascript support for the test script
             slingCommonsCompiler(),
             when(bundle != null).useOptions(slingScriptingJavascript()),
@@ -195,24 +197,14 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
                 .disableRedirectHandling()
                 .build();
 
-        // SLING-12081 - wait for the "users" resource to be available to try to avoid flaky
-        //   failures while creating test users
-        Awaitility.await("users resource available")
-            .atMost(10000, TimeUnit.MILLISECONDS)
-            .pollInterval(1000, TimeUnit.MILLISECONDS)
-            .ignoreException(LoginException.class)
-            .until(() -> {
-                    Map<String, Object> authInfo = new HashMap<>();
-                    authInfo.put(ResourceResolverFactory.USER, "admin");
-                    authInfo.put(ResourceResolverFactory.PASSWORD, "admin".toCharArray());
-                    try (ResourceResolver resourceResolver = resourceResolverFactory.getResourceResolver(authInfo)) {
-                        return resourceResolver.getResource("/system/userManager/user") != null;
-                    }
-                });
+        adminSession = repository.login(new SimpleCredentials("admin", "admin".toCharArray()));
+        assertNotNull("Expected adminSession to not be null", adminSession);
     }
 
     @After
     public void after() throws Exception {
+        adminSession.refresh(false);
+
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
 
         if (testFolderUrl != null) {
@@ -223,18 +215,15 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         }
         if (testGroupId != null) {
             //remove the test user if it exists.
-            String postUrl = String.format("%s/system/userManager/group/%s.delete.html", baseServerUri, testGroupId);
-            assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, Collections.emptyList(), null);
+            maybeRemoveAuthorizable(testGroupId);
         }
         if (testUserId != null) {
             //remove the test user if it exists.
-            String postUrl = String.format("%s/system/userManager/user/%s.delete.html", baseServerUri, testUserId);
-            assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, Collections.emptyList(), null);
+            maybeRemoveAuthorizable(testUserId);
         }
         if (testUserId2 != null) {
             //remove the test user if it exists.
-            String postUrl = String.format("%s/system/userManager/user/%s.delete.html", baseServerUri, testUserId2);
-            assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, Collections.emptyList(), null);
+            maybeRemoveAuthorizable(testUserId2);
         }
 
         // close/cleanup the test user http client
@@ -246,6 +235,11 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         // clear out other state
         httpContext = null;
         baseServerUri = null;
+
+        if (adminSession.hasPendingChanges()) {
+            adminSession.save();
+        }
+        adminSession.logout();
     }
 
     /**
@@ -427,37 +421,36 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         });
     }
 
-    protected String createTestUser() throws IOException {
-        String postUrl = String.format("%s/system/userManager/user.create.html", baseServerUri);
-
+    protected void maybeRemoveAuthorizable(String id) throws RepositoryException {
+        UserManager userManager = ((JackrabbitSession)adminSession).getUserManager();
+        Authorizable authorizable = userManager.getAuthorizable(id);
+        if (authorizable != null) {
+            authorizable.remove();
+            adminSession.save();
+        }
+    }
+    protected String createTestUser() throws RepositoryException {
+        UserManager userManager = ((JackrabbitSession)adminSession).getUserManager();
         String userId = "testUser" + getNextInt();
-        List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair(":name", userId));
-        postParams.add(new BasicNameValuePair("pwd", "testPwd"));
-        postParams.add(new BasicNameValuePair("pwdConfirm", "testPwd"));
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        final String msg = "Unexpected status while attempting to create test user at " + postUrl;
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, msg);
-
-        final String sessionInfoUrl = String.format("%s/system/sling/info.sessionInfo.json", baseServerUri);
-        assertAuthenticatedHttpStatus(creds, sessionInfoUrl, HttpServletResponse.SC_OK,
-                "session info failed for user " + userId);
-
-        return userId;
+        User user = userManager.createUser(userId, "testPwd");
+        adminSession.save();
+        return user.getID();
     }
 
-    protected String createTestGroup() throws IOException {
-        String postUrl = String.format("%s/system/userManager/group.create.html", baseServerUri);
-
+    protected String createTestGroup() throws RepositoryException {
+        UserManager userManager = ((JackrabbitSession)adminSession).getUserManager();
         String groupId = "testGroup" + getNextInt();
-        List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair(":name", groupId));
+        Group group = userManager.createGroup(groupId);
+        adminSession.save();
+        return group.getID();
+    }
 
-        Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        final String msg = "Unexpected status while attempting to create test group at " + postUrl;
-        assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, msg);
-
-        return groupId;
+    protected void addUserToGroup(String userId, String groupId) throws RepositoryException {
+        UserManager userManager = ((JackrabbitSession)adminSession).getUserManager();
+        Group group = userManager.getAuthorizable(groupId, Group.class);
+        User user = userManager.getAuthorizable(userId, User.class);
+        group.addMember(user);
+        adminSession.save();
     }
 
     protected String createTestFolder() throws IOException {

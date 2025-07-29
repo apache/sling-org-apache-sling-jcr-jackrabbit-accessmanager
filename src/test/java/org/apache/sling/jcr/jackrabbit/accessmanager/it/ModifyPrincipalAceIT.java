@@ -22,9 +22,7 @@ import static org.junit.Assert.assertNotNull;
 import java.io.IOException;
 import java.util.List;
 
-import jakarta.json.JsonException;
-import jakarta.json.JsonObject;
-import javax.servlet.http.HttpServletResponse;
+import javax.jcr.RepositoryException;
 
 import org.apache.http.NameValuePair;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
@@ -33,6 +31,10 @@ import org.junit.runner.RunWith;
 import org.ops4j.pax.exam.junit.PaxExam;
 import org.ops4j.pax.exam.spi.reactors.ExamReactorStrategy;
 import org.ops4j.pax.exam.spi.reactors.PerClass;
+
+import jakarta.json.JsonException;
+import jakarta.json.JsonObject;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * Tests for the 'pace' Sling Get Operation
@@ -75,7 +77,7 @@ public class ModifyPrincipalAceIT extends PrincipalAceTestSupport {
      * Privilege ACE servlet returns error for non-service user
      */
     @Test
-    public void testModifyPrivilegeAceForNonServiceUser() throws IOException, JsonException {
+    public void testModifyPrivilegeAceForNonServiceUser() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder(null, "sling-tests",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"child\" : { \"childPropOne\" : true } }");

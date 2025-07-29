@@ -46,7 +46,6 @@ import javax.jcr.security.AccessControlManager;
 import javax.jcr.security.AccessControlPolicy;
 import javax.jcr.security.AccessControlPolicyIterator;
 import javax.jcr.security.Privilege;
-import javax.servlet.Servlet;
 
 import org.apache.jackrabbit.api.JackrabbitSession;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
@@ -56,14 +55,14 @@ import org.apache.jackrabbit.api.security.principal.PrincipalManager;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionDefinition;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
-import org.apache.sling.api.SlingHttpServletRequest;
+import org.apache.sling.api.SlingJakartaHttpServletRequest;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
 import org.apache.sling.jcr.jackrabbit.accessmanager.ModifyAce;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrivilegesHelper;
+import org.apache.sling.servlets.post.JakartaPostResponse;
+import org.apache.sling.servlets.post.JakartaPostResponseCreator;
 import org.apache.sling.servlets.post.Modification;
-import org.apache.sling.servlets.post.PostResponse;
-import org.apache.sling.servlets.post.PostResponseCreator;
 import org.apache.sling.servlets.post.SlingPostConstants;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -71,6 +70,8 @@ import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.component.annotations.ReferencePolicyOption;
+
+import jakarta.servlet.Servlet;
 
 /**
  * <p>
@@ -144,7 +145,7 @@ reference = {
                 bind = "bindPostResponseCreator",
                 cardinality = ReferenceCardinality.MULTIPLE,
                 policyOption = ReferencePolicyOption.GREEDY,
-                service = PostResponseCreator.class)
+                service = JakartaPostResponseCreator.class)
 })
 @SuppressWarnings("java:S110")
 public class ModifyAceServlet extends AbstractAccessPostServlet implements ModifyAce {
@@ -212,11 +213,11 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
                 SlingPostConstants.SUFFIX_DELETE));
 
     /* (non-Javadoc)
-     * @see org.apache.sling.jackrabbit.accessmanager.post.AbstractAccessPostServlet#handleOperation(org.apache.sling.api.SlingHttpServletRequest, org.apache.sling.servlets.post.PostResponse, java.util.List)
+     * @see org.apache.sling.jackrabbit.accessmanager.post.AbstractAccessPostServlet#handleOperation(org.apache.sling.api.SlingJakartaHttpServletRequest, org.apache.sling.servlets.post.JakartaPostResponse, java.util.List)
      */
     @Override
-    protected void handleOperation(SlingHttpServletRequest request,
-            PostResponse response, List<Modification> changes)
+    protected void handleOperation(SlingJakartaHttpServletRequest request,
+            JakartaPostResponse response, List<Modification> changes)
             throws RepositoryException {
         Session session = request.getResourceResolver().adaptTo(Session.class);
         String resourcePath = getItemPath(request);
@@ -365,7 +366,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
      * @param pattern the regex pattern to match
      * @return map of parameter names to Matcher that match the pattern
      */
-    protected @NotNull Map<String, Matcher> getMatchedRequestParameterNames(@NotNull SlingHttpServletRequest request, @NotNull Pattern pattern) {
+    protected @NotNull Map<String, Matcher> getMatchedRequestParameterNames(@NotNull SlingJakartaHttpServletRequest request, @NotNull Pattern pattern) {
         Map<String, Matcher> keys = new HashMap<>();
         Enumeration<String> parameterNames = request.getParameterNames();
         while (parameterNames.hasMoreElements()) {
@@ -387,7 +388,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      */
     protected void processPostedPrivilegeDeleteParams(@NotNull AccessControlManager acm,
-            @NotNull SlingHttpServletRequest request,
+            @NotNull SlingJakartaHttpServletRequest request,
             @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap) throws RepositoryException {
         @NotNull
         Map<String, Matcher> postedPrivilegeDeleteNames = getMatchedRequestParameterNames(request, PRIVILEGE_PATTERN_DELETE);
@@ -419,7 +420,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      */
     protected void processPostedRestrictionDeleteParams(@NotNull AccessControlManager acm,
-            @NotNull SlingHttpServletRequest request,
+            @NotNull SlingJakartaHttpServletRequest request,
             @NotNull Map<String, RestrictionDefinition> srMap,
             @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap) throws RepositoryException {
         @NotNull
@@ -492,7 +493,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
      * @param generalRestrictions the general restrictions that are not for a specific privilege
      */
     protected Set<LocalRestriction> postedRestrictionsForPrivilege(
-            @NotNull SlingHttpServletRequest request,
+            @NotNull SlingJakartaHttpServletRequest request,
             @NotNull Map<String, RestrictionDefinition> srMap,
             @NotNull Privilege forPrivilege,
             @NotNull PrivilegeValues forAllowOrDeny,
@@ -537,7 +538,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
      * @param paramName the request parameter name that contains the restriction values
      */
     protected LocalRestriction toLocalRestriction(
-            @NotNull SlingHttpServletRequest request,
+            @NotNull SlingJakartaHttpServletRequest request,
             @NotNull Map<String, RestrictionDefinition> srMap,
             @NotNull String restrictionName,
             @NotNull String paramName) throws RepositoryException {
@@ -577,7 +578,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
      * @param privilegeLongestDepthMap the map of privileges to their longest depth
      */
     protected void processPostedPrivilegeAndRestrictionParams(@NotNull AccessControlManager acm,
-            @NotNull SlingHttpServletRequest request,
+            @NotNull SlingJakartaHttpServletRequest request,
             @NotNull Map<String, RestrictionDefinition> srMap,
             @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
             @NotNull Map<Privilege, Integer> privilegeLongestDepthMap) throws RepositoryException {

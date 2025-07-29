@@ -26,15 +26,15 @@ import static org.ops4j.pax.exam.cm.ConfigurationAdminOptions.newConfiguration;
 import java.io.IOException;
 import java.util.List;
 
-import jakarta.json.JsonException;
-import jakarta.json.JsonObject;
-import javax.servlet.http.HttpServletResponse;
-
 import org.apache.http.NameValuePair;
 import org.apache.http.auth.Credentials;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
 import org.ops4j.pax.exam.Option;
+
+import jakarta.json.JsonException;
+import jakarta.json.JsonObject;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * Base class for testing of the principal ACE operations

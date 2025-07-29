@@ -27,14 +27,13 @@ import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.jcr.security.AccessControlEntry;
 import javax.jcr.security.AccessControlPolicy;
-import javax.servlet.Servlet;
 
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlManager;
 import org.apache.jackrabbit.api.security.authorization.PrincipalAccessControlList;
 import org.apache.sling.jcr.jackrabbit.accessmanager.DeletePrincipalAces;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrincipalAceHelper;
+import org.apache.sling.servlets.post.JakartaPostResponseCreator;
 import org.apache.sling.servlets.post.Modification;
-import org.apache.sling.servlets.post.PostResponseCreator;
 import org.jetbrains.annotations.NotNull;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
@@ -42,6 +41,8 @@ import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.component.annotations.ReferencePolicyOption;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import jakarta.servlet.Servlet;
 
 /**
  * <p>
@@ -88,7 +89,7 @@ import org.slf4j.LoggerFactory;
                     bind = "bindPostResponseCreator",
                     cardinality = ReferenceCardinality.MULTIPLE,
                     policyOption = ReferencePolicyOption.GREEDY,
-                    service = PostResponseCreator.class)
+                    service = JakartaPostResponseCreator.class)
     })
 @SuppressWarnings("java:S110")
 public class DeletePrincipalAcesServlet extends DeleteAcesServlet implements DeletePrincipalAces {

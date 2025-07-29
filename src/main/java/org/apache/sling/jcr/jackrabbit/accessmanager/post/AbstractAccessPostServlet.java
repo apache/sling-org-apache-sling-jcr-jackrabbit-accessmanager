@@ -30,28 +30,28 @@ import javax.jcr.security.AccessControlList;
 import javax.jcr.security.AccessControlManager;
 import javax.jcr.security.AccessControlPolicy;
 import javax.jcr.security.AccessControlPolicyIterator;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
-import org.apache.sling.api.SlingHttpServletRequest;
-import org.apache.sling.api.SlingHttpServletResponse;
-import org.apache.sling.api.request.header.MediaRangeList;
+import org.apache.sling.api.SlingJakartaHttpServletRequest;
+import org.apache.sling.api.SlingJakartaHttpServletResponse;
+import org.apache.sling.api.request.header.JakartaMediaRangeList;
 import org.apache.sling.api.resource.ResourceNotFoundException;
 import org.apache.sling.api.resource.ResourceUtil;
 import org.apache.sling.api.wrappers.SlingRequestPaths;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrincipalAceHelper;
-import org.apache.sling.servlets.post.AbstractPostResponse;
-import org.apache.sling.servlets.post.HtmlResponse;
-import org.apache.sling.servlets.post.JSONResponse;
+import org.apache.sling.servlets.post.JakartaHtmlResponse;
+import org.apache.sling.servlets.post.JakartaJSONResponse;
+import org.apache.sling.servlets.post.JakartaPostResponse;
+import org.apache.sling.servlets.post.JakartaPostResponseCreator;
 import org.apache.sling.servlets.post.Modification;
-import org.apache.sling.servlets.post.PostResponse;
-import org.apache.sling.servlets.post.PostResponseCreator;
 import org.apache.sling.servlets.post.SlingPostConstants;
 import org.jetbrains.annotations.Nullable;
 import org.osgi.framework.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * Base class for all the POST servlets for the AccessManager operations
@@ -65,21 +65,21 @@ public abstract class AbstractAccessPostServlet extends AbstractAccessServlet {
     private final transient Logger log = LoggerFactory.getLogger(getClass());
 
     /** Sorted list of post response creator holders. */
-    private final List<PostResponseCreatorHolder> postResponseCreators = new ArrayList<>();
+    private final List<JakartaPostResponseCreatorHolder> postResponseCreators = new ArrayList<>();
 
     /** Cached array of post response creators used during request processing. */
-    private transient PostResponseCreator[] cachedPostResponseCreators = new PostResponseCreator[0];
+    private transient JakartaPostResponseCreator[] cachedPostResponseCreators = new JakartaPostResponseCreator[0];
 
 
     /* (non-Javadoc)
-     * @see org.apache.sling.api.servlets.SlingAllMethodsServlet#doPost(org.apache.sling.api.SlingHttpServletRequest, org.apache.sling.api.SlingHttpServletResponse)
+     * @see org.apache.sling.api.servlets.SlingJakartaAllMethodsServlet#doPost(org.apache.sling.api.SlingJakartaHttpServletRequest, org.apache.sling.api.SlingJakartaHttpServletResponse)
      */
     @Override
-    protected void doPost(SlingHttpServletRequest request,
-            SlingHttpServletResponse httpResponse) throws ServletException,
+    protected void doPost(SlingJakartaHttpServletRequest request,
+            SlingJakartaHttpServletResponse httpResponse) throws ServletException,
             IOException {
         // prepare the response
-        PostResponse response = createPostResponse(request);
+        JakartaPostResponse response = createPostResponse(request);
         response.setReferer(request.getHeader("referer"));
 
         // calculate the paths
@@ -177,21 +177,6 @@ public abstract class AbstractAccessPostServlet extends AbstractAccessServlet {
     }
 
     /**
-     * Creates an instance of a HtmlResponse.
-     * @param req The request being serviced
-     * @return a {@link org.apache.sling.servlets.post.JSONResponse} if any of these conditions are true:
-     * <ul>
-     *   <li>the response content type is application/json
-     * </ul>
-     * or a {@link org.apache.sling.servlets.post.HtmlResponse} otherwise
-     * @deprecated use {@link #createPostResponse(SlingHttpServletRequest)} instead
-     */
-    @Deprecated
-    protected AbstractPostResponse createHtmlResponse(SlingHttpServletRequest req) {
-        return (AbstractPostResponse)createPostResponse(req);
-    }
-
-    /**
      * Creates an instance of a PostResponse.
      * @param req The request being serviced
      * @return a {@link org.apache.sling.servlets.post.JSONResponse} if any of these conditions are true:
@@ -202,34 +187,34 @@ public abstract class AbstractAccessPostServlet extends AbstractAccessServlet {
      * </ul>
      * or a {@link org.apache.sling.api.servlets.PostResponse} otherwise
      */
-    PostResponse createPostResponse(final SlingHttpServletRequest req) {
-        for (final PostResponseCreator creator : cachedPostResponseCreators) {
-            final PostResponse response = creator.createPostResponse(req);
+    JakartaPostResponse createPostResponse(final SlingJakartaHttpServletRequest req) {
+        for (final JakartaPostResponseCreator creator : cachedPostResponseCreators) {
+            final JakartaPostResponse response = creator.createPostResponse(req);
             if (response != null) {
                 return response;
             }
         }
 
         //for backward compatibility, if no "accept" request param or header is supplied
-        // then prefer the SlingHttpServletRequest#getResponseContentType value
-        MediaRangeList mediaRangeList = null;
-        String queryParam = req.getParameter(MediaRangeList.PARAM_ACCEPT);
+        // then prefer the SlingJakartaHttpServletRequest#getResponseContentType value
+        JakartaMediaRangeList mediaRangeList = null;
+        String queryParam = req.getParameter(JakartaMediaRangeList.PARAM_ACCEPT);
         if (queryParam == null || queryParam.trim().length() == 0) {
-            String headerValue = req.getHeader(MediaRangeList.HEADER_ACCEPT);
+            String headerValue = req.getHeader(JakartaMediaRangeList.HEADER_ACCEPT);
             if (headerValue == null || headerValue.trim().length() == 0) {
                 //no param or header supplied, so try the response content type
-                mediaRangeList = new MediaRangeList(req.getResponseContentType());
+                mediaRangeList = new JakartaMediaRangeList(req.getResponseContentType());
             }
         }
 
         // Fall through to default behavior
         if (mediaRangeList == null) {
-            mediaRangeList = new MediaRangeList(req);
+            mediaRangeList = new JakartaMediaRangeList(req);
         }
-        if (JSONResponse.RESPONSE_CONTENT_TYPE.equals(mediaRangeList.prefer("text/html", JSONResponse.RESPONSE_CONTENT_TYPE))) {
-            return new JSONResponse();
+        if (JakartaJSONResponse.RESPONSE_CONTENT_TYPE.equals(mediaRangeList.prefer("text/html", JakartaJSONResponse.RESPONSE_CONTENT_TYPE))) {
+            return new JakartaJSONResponse();
         } else {
-            return new HtmlResponse();
+            return new JakartaHtmlResponse();
         }
     }
 
@@ -240,26 +225,9 @@ public abstract class AbstractAccessPostServlet extends AbstractAccessServlet {
      * @param response the response
      * @param changes the changes to report
      * @throws RepositoryException if any errors applying the changes 
-     * 
-     * @deprecated use {@link #handleOperation(SlingHttpServletRequest, PostResponse, List)} instead
      */
-    @Deprecated
-    protected void handleOperation(SlingHttpServletRequest request,
-            AbstractPostResponse response, List<Modification> changes) throws RepositoryException {
-        handleOperation(request, (PostResponse)response, changes);
-    }
-    
-    /**
-     * Extending Servlet should implement this operation to do the work
-     *
-     * @param request the sling http request to process
-     * @param response the response
-     * @param changes the changes to report
-     * @throws RepositoryException if any errors applying the changes 
-     */
-    protected abstract void handleOperation(SlingHttpServletRequest request,
-            PostResponse response, List<Modification> changes) throws RepositoryException;
-
+    protected abstract void handleOperation(SlingJakartaHttpServletRequest request,
+            JakartaPostResponse response, List<Modification> changes) throws RepositoryException;
 
     /**
      * compute redirect URL (SLING-126)
@@ -268,22 +236,8 @@ public abstract class AbstractAccessPostServlet extends AbstractAccessServlet {
      * @param ctx the post processor
      * @return the redirect location or <code>null</code>
      * @throws IOException if there is something invalid with the :redirect value
-     * @deprecated use {@link #getRedirectUrl(HttpServletRequest, PostResponse)} instead
      */
-    @Deprecated
-    protected String getRedirectUrl(HttpServletRequest request, AbstractPostResponse ctx) throws IOException {
-        return getRedirectUrl(request, (PostResponse)ctx);
-    }
-    
-    /**
-     * compute redirect URL (SLING-126)
-     *
-     * @param request the sling http request to process
-     * @param ctx the post processor
-     * @return the redirect location or <code>null</code>
-     * @throws IOException if there is something invalid with the :redirect value
-     */
-    protected String getRedirectUrl(HttpServletRequest request, PostResponse ctx) throws IOException {
+    protected String getRedirectUrl(HttpServletRequest request, JakartaPostResponse ctx) throws IOException {
         // redirect param has priority (but see below, magic star)
         String result = request.getParameter(SlingPostConstants.RP_REDIRECT_TO);
         if (result != null) {
@@ -329,7 +283,7 @@ public abstract class AbstractAccessPostServlet extends AbstractAccessServlet {
         return result;
     }
 
-    protected boolean isSetStatus(SlingHttpServletRequest request) {
+    protected boolean isSetStatus(SlingJakartaHttpServletRequest request) {
         String statusParam = request.getParameter(SlingPostConstants.RP_STATUS);
         if (statusParam == null) {
             log.debug(
@@ -368,7 +322,7 @@ public abstract class AbstractAccessPostServlet extends AbstractAccessServlet {
      * @param request the sling http request to process
      * @return the resolved path of the found item
      */
-    protected String getItemPath(SlingHttpServletRequest request) {
+    protected String getItemPath(SlingJakartaHttpServletRequest request) {
         if (allowNonExistingPaths()) {
             return PrincipalAceHelper.getEffectivePath(request);
         } else {
@@ -384,7 +338,7 @@ public abstract class AbstractAccessPostServlet extends AbstractAccessServlet {
      * @param path the path to externalize
      * @return the url
      */
-    protected String externalizePath(SlingHttpServletRequest request,
+    protected String externalizePath(SlingJakartaHttpServletRequest request,
             String path) {
         if (path == null) {
             if (allowNonExistingPaths()) {
@@ -530,8 +484,8 @@ public abstract class AbstractAccessPostServlet extends AbstractAccessServlet {
     // @Reference(service = PostResponseCreator.class,
     //         cardinality = ReferenceCardinality.MULTIPLE,
     //         policy = ReferencePolicy.DYNAMIC)
-    protected void bindPostResponseCreator(final PostResponseCreator creator, final Map<String, Object> properties) {
-        final PostResponseCreatorHolder nngh = new PostResponseCreatorHolder(creator, getRanking(properties));
+    protected void bindPostResponseCreator(final JakartaPostResponseCreator creator, final Map<String, Object> properties) {
+        final JakartaPostResponseCreatorHolder nngh = new JakartaPostResponseCreatorHolder(creator, getRanking(properties));
 
         synchronized ( this.postResponseCreators ) {
             int index = 0;
@@ -554,11 +508,11 @@ public abstract class AbstractAccessPostServlet extends AbstractAccessServlet {
      * @param creator the response creator service reference
      * @param properties the component properties for the service reference
      */
-    protected void unbindPostResponseCreator(final PostResponseCreator creator, final Map<String, Object> properties) {
+    protected void unbindPostResponseCreator(final JakartaPostResponseCreator creator, final Map<String, Object> properties) {
         synchronized ( this.postResponseCreators ) {
-            final Iterator<PostResponseCreatorHolder> i = this.postResponseCreators.iterator();
+            final Iterator<JakartaPostResponseCreatorHolder> i = this.postResponseCreators.iterator();
             while ( i.hasNext() ) {
-                final PostResponseCreatorHolder current = i.next();
+                final JakartaPostResponseCreatorHolder current = i.next();
                 if ( current.getCreator() == creator ) {
                     i.remove();
                 }
@@ -572,9 +526,9 @@ public abstract class AbstractAccessPostServlet extends AbstractAccessServlet {
      * This method is called by sync'ed methods, no need to add additional syncing.
      */
     private void updatePostResponseCreatorCache() {
-        final PostResponseCreator[] localCache = new PostResponseCreator[this.postResponseCreators.size()];
+        final JakartaPostResponseCreator[] localCache = new JakartaPostResponseCreator[this.postResponseCreators.size()];
         int index = 0;
-        for(final PostResponseCreatorHolder current : this.postResponseCreators) {
+        for(final JakartaPostResponseCreatorHolder current : this.postResponseCreators) {
             localCache[index] = current.getCreator();
             index++;
         }
@@ -586,16 +540,16 @@ public abstract class AbstractAccessPostServlet extends AbstractAccessServlet {
         return val instanceof Integer ? (Integer)val : 0;
     }
     
-    private static final class PostResponseCreatorHolder {
-        private final PostResponseCreator creator;
+    private static final class JakartaPostResponseCreatorHolder {
+        private final JakartaPostResponseCreator creator;
         private final int ranking;
 
-        public PostResponseCreatorHolder(PostResponseCreator creator, int ranking) {
+        public JakartaPostResponseCreatorHolder(JakartaPostResponseCreator creator, int ranking) {
             this.creator = creator;
             this.ranking = ranking;
         }
 
-        public PostResponseCreator getCreator() {
+        public JakartaPostResponseCreator getCreator() {
             return creator;
         }
 

@@ -102,13 +102,4 @@ public abstract class AbstractGetAceServlet extends AbstractAccessGetServlet {
     protected abstract Map<String, List<AccessControlEntry>> getAccessControlEntriesMap(Session session, String absPath, Principal principal,
             Map<Principal, Map<DeclarationType, Set<String>>> declaredAtPaths) throws RepositoryException;
 
-    /**
-     * @deprecated use {@link #getAccessControlEntriesMap(Session, String, Principal, Map)} instead
-     */
-    @Deprecated
-    protected AccessControlEntry[] getAccessControlEntries(Session session, String absPath, Principal principal) throws RepositoryException {
-        return getAccessControlEntriesMap(session, absPath, principal, new HashMap<>()).values().stream()
-            .toArray(size -> new AccessControlEntry[size]);
-    }
-
 }

@@ -27,16 +27,12 @@ import javax.inject.Inject;
 import javax.jcr.Node;
 import javax.jcr.PropertyType;
 import javax.jcr.RepositoryException;
-import javax.jcr.Session;
-import javax.jcr.SimpleCredentials;
 import javax.jcr.Value;
 import javax.jcr.ValueFactory;
-import jakarta.json.JsonObject;
 
 import org.apache.jackrabbit.oak.spi.security.authorization.accesscontrol.AccessControlConstants;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
 import org.apache.sling.api.resource.ResourceNotFoundException;
-import org.apache.sling.jcr.api.SlingRepository;
 import org.apache.sling.jcr.jackrabbit.accessmanager.GetAce;
 import org.apache.sling.jcr.jackrabbit.accessmanager.ModifyAce;
 import org.junit.After;
@@ -46,6 +42,8 @@ import org.junit.runner.RunWith;
 import org.ops4j.pax.exam.junit.PaxExam;
 import org.ops4j.pax.exam.spi.reactors.ExamReactorStrategy;
 import org.ops4j.pax.exam.spi.reactors.PerClass;
+
+import jakarta.json.JsonObject;
 
 /**
  * Tests for the 'modifyAce' inproc service
@@ -60,29 +58,27 @@ public class GetAceServiceIT extends AccessManagerClientTestSupport {
     @Inject
     private GetAce getAce;
 
-    @Inject
-    protected SlingRepository repository;
-
-    protected Session adminSession;
-
     private Node testNode;
 
     @Before
-    public void setup() throws RepositoryException {
-        adminSession = repository.login(new SimpleCredentials("admin", "admin".toCharArray()));
-        assertNotNull("Expected adminSession to not be null", adminSession);
+    @Override
+    public void before() throws Exception {
+        super.before();
+
         testNode = adminSession.getRootNode().addNode("testNode");
         adminSession.save();
     }
 
     @After
-    public void teardown() throws RepositoryException {
+    @Override
+    public void after() throws Exception {
         adminSession.refresh(false);
         testNode.remove();
         if (adminSession.hasPendingChanges()) {
             adminSession.save();
         }
-        adminSession.logout();
+
+        super.after();
     }
 
     protected JsonObject ace(String path, String principalId) throws RepositoryException {

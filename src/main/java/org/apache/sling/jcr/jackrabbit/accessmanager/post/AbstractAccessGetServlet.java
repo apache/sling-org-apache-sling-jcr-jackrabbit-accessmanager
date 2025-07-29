@@ -39,8 +39,6 @@ import javax.jcr.security.AccessControlEntry;
 import javax.jcr.security.AccessControlList;
 import javax.jcr.security.AccessControlPolicy;
 import javax.jcr.security.Privilege;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletResponse;
 
 import org.apache.jackrabbit.api.JackrabbitSession;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
@@ -48,8 +46,8 @@ import org.apache.jackrabbit.api.security.JackrabbitAccessControlList;
 import org.apache.jackrabbit.api.security.authorization.PrincipalAccessControlList;
 import org.apache.jackrabbit.api.security.principal.PrincipalManager;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionDefinition;
-import org.apache.sling.api.SlingHttpServletRequest;
-import org.apache.sling.api.SlingHttpServletResponse;
+import org.apache.sling.api.SlingJakartaHttpServletRequest;
+import org.apache.sling.api.SlingJakartaHttpServletResponse;
 import org.apache.sling.api.resource.ResourceNotFoundException;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
@@ -61,16 +59,18 @@ import org.jetbrains.annotations.Nullable;
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
 import jakarta.json.stream.JsonGenerator;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletResponse;
 
 @SuppressWarnings("serial")
 public abstract class AbstractAccessGetServlet extends AbstractAccessServlet {
 
     /* (non-Javadoc)
-     * @see org.apache.sling.api.servlets.SlingSafeMethodsServlet#doGet(org.apache.sling.api.SlingHttpServletRequest, org.apache.sling.api.SlingHttpServletResponse)
+     * @see org.apache.sling.api.servlets.SlingJakartaSafeMethodsServlet#doGet(org.apache.sling.api.SlingJakartaHttpServletRequest, org.apache.sling.api.SlingJakartaHttpServletResponse)
      */
     @Override
-    protected void doGet(SlingHttpServletRequest request,
-            SlingHttpServletResponse response) throws ServletException,
+    protected void doGet(SlingJakartaHttpServletRequest request,
+            SlingJakartaHttpServletResponse response) throws ServletException,
             IOException {
 
         try {
@@ -112,7 +112,7 @@ public abstract class AbstractAccessGetServlet extends AbstractAccessServlet {
     /**
      * Return the path where the action should be applied
      */
-    protected @Nullable String getItemPath(SlingHttpServletRequest request) {
+    protected @Nullable String getItemPath(SlingJakartaHttpServletRequest request) {
         return request.getResource().getPath();
     }
 

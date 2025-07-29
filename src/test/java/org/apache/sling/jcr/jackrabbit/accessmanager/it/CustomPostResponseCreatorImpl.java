@@ -18,21 +18,21 @@ package org.apache.sling.jcr.jackrabbit.accessmanager.it;
 
 import java.io.IOException;
 
-import javax.servlet.http.HttpServletResponse;
+import org.apache.sling.api.SlingJakartaHttpServletRequest;
+import org.apache.sling.servlets.post.AbstractJakartaPostResponse;
+import org.apache.sling.servlets.post.JakartaPostResponse;
+import org.apache.sling.servlets.post.JakartaPostResponseCreator;
 
-import org.apache.sling.api.SlingHttpServletRequest;
-import org.apache.sling.servlets.post.AbstractPostResponse;
-import org.apache.sling.servlets.post.PostResponse;
-import org.apache.sling.servlets.post.PostResponseCreator;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * Sample implementation of the PostResponseCreator interface.
  */
-public class CustomPostResponseCreatorImpl implements PostResponseCreator {
+public class CustomPostResponseCreatorImpl implements JakartaPostResponseCreator {
 
-    public PostResponse createPostResponse(SlingHttpServletRequest req) {
+    public JakartaPostResponse createPostResponse(SlingJakartaHttpServletRequest req) {
         if ("custom".equals(req.getParameter(":responseType"))) {
-            return new AbstractPostResponse() {
+            return new AbstractJakartaPostResponse() {
 
                 public void onChange(String type, String... arguments) {
                     // NO-OP
