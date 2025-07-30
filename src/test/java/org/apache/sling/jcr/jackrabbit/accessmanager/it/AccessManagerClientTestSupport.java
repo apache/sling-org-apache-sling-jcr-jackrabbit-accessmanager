@@ -38,9 +38,13 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Dictionary;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import javax.inject.Inject;
+import javax.jcr.LoginException;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.jcr.SimpleCredentials;
@@ -75,8 +79,10 @@ import org.apache.jackrabbit.api.security.user.Authorizable;
 import org.apache.jackrabbit.api.security.user.Group;
 import org.apache.jackrabbit.api.security.user.User;
 import org.apache.jackrabbit.api.security.user.UserManager;
+import org.apache.sling.api.resource.ResourceResolver;
 import org.apache.sling.api.resource.ResourceResolverFactory;
 import org.apache.sling.jcr.api.SlingRepository;
+import org.awaitility.Awaitility;
 import org.junit.After;
 import org.junit.Before;
 import org.ops4j.pax.exam.Option;
@@ -199,6 +205,21 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
 
         adminSession = repository.login(new SimpleCredentials("admin", "admin".toCharArray()));
         assertNotNull("Expected adminSession to not be null", adminSession);
+
+        // SLING-12081 - wait for the /content resource to be available to try to avoid flaky
+        //   failures
+        Awaitility.await("content resource available")
+            .atMost(10000, TimeUnit.MILLISECONDS)
+            .pollInterval(1000, TimeUnit.MILLISECONDS)
+            .ignoreException(LoginException.class)
+            .until(() -> {
+                    Map<String, Object> authInfo = new HashMap<>();
+                    authInfo.put(ResourceResolverFactory.USER, "admin");
+                    authInfo.put(ResourceResolverFactory.PASSWORD, "admin".toCharArray());
+                    try (ResourceResolver resourceResolver = resourceResolverFactory.getResourceResolver(authInfo)) {
+                        return resourceResolver.getResource("/content") != null;
+                    }
+                });
     }
 
     @After
