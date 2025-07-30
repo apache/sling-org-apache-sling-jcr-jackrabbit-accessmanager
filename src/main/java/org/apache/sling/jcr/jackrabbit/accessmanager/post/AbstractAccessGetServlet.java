@@ -221,17 +221,17 @@ public abstract class AbstractAccessGetServlet extends AbstractAccessServlet {
                     .forEach(entry -> {
                         DeclarationType dt = null;
                         String effectivePath = null;
-                        if (entry instanceof PrincipalAccessControlList.Entry) {
+                        if (entry instanceof PrincipalAccessControlList.Entry paclEntry) {
                             // for principal-based ACE, the effectivePath comes from the entry
-                            effectivePath = ((PrincipalAccessControlList.Entry)entry).getEffectivePath();
+                            effectivePath = paclEntry.getEffectivePath();
                             if (effectivePath == null) {
                                 // special case
                                 effectivePath = PrincipalAceHelper.RESOURCE_PATH_REPOSITORY;
                             }
                             dt = DeclarationType.PRINCIPAL;
-                        } else if (accessControlPolicy instanceof JackrabbitAccessControlList) {
+                        } else if (accessControlPolicy instanceof JackrabbitAccessControlList jacList) {
                             // for basic ACE, the effectivePath comes from the ACL path
-                            effectivePath = ((JackrabbitAccessControlList)accessControlPolicy).getPath();
+                            effectivePath = jacList.getPath();
                             dt = DeclarationType.NODE;
                         }
                         List<AccessControlEntry> entriesForPath = effectivePathToEntriesMap.computeIfAbsent(effectivePath, key -> new ArrayList<>());

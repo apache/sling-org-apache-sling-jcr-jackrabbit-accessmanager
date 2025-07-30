@@ -353,9 +353,9 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
     protected @Nullable JackrabbitAccessControlEntry getJackrabbitAccessControlEntry(@NotNull AccessControlEntry entry, @NotNull String resourcePath,
             @NotNull Principal forPrincipal) {
         JackrabbitAccessControlEntry jrEntry = null;
-        if (entry instanceof JackrabbitAccessControlEntry &&
+        if (entry instanceof JackrabbitAccessControlEntry jacEntry &&
                 entry.getPrincipal().equals(forPrincipal)) {
-            jrEntry = (JackrabbitAccessControlEntry)entry;
+            jrEntry = jacEntry;
         }
         return jrEntry;
     }
@@ -646,7 +646,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             List<PrivilegeValues> privilegeValues = paramValues.stream()
                 .map(PrivilegeValues::valueOfParam)
                 .sorted((v1, v2) -> Integer.compare(v2.ordinal(), v1.ordinal()))
-                .collect(Collectors.toList());
+                .toList();
             boolean none = false;
             boolean allow = false;
             Set<LocalRestriction> allowRestrictions = Collections.emptySet();
@@ -654,13 +654,11 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             Set<LocalRestriction> denyRestrictions = Collections.emptySet();
             for (PrivilegeValues value : privilegeValues) {
                 switch (value) {
-                case DENY:
-                case DENIED:
+                case DENY, DENIED:
                     deny = true;
                     denyRestrictions = postedRestrictionsForPrivilege(request, srMap, privilege, value, generalRestrictions);
                     break;
-                case ALLOW:
-                case GRANTED:
+                case ALLOW, GRANTED:
                     allow = true;
                     allowRestrictions = postedRestrictionsForPrivilege(request, srMap, privilege, value, generalRestrictions);
                     break;
@@ -731,8 +729,8 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
         AccessControlPolicy[] policies = acm.getPolicies(resourcePath);
         JackrabbitAccessControlList acl = null;
         for (AccessControlPolicy policy : policies) {
-            if (policy instanceof JackrabbitAccessControlList) {
-                acl = (JackrabbitAccessControlList) policy;
+            if (policy instanceof JackrabbitAccessControlList jacList) {
+                acl = jacList;
                 break;
             }
         }
@@ -740,8 +738,8 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             AccessControlPolicyIterator applicablePolicies = acm.getApplicablePolicies(resourcePath);
             while (applicablePolicies.hasNext()) {
                 AccessControlPolicy policy = applicablePolicies.nextAccessControlPolicy();
-                if (policy instanceof JackrabbitAccessControlList) {
-                    acl = (JackrabbitAccessControlList) policy;
+                if (policy instanceof JackrabbitAccessControlList jacList) {
+                    acl = jacList;
                     break;
                 }
             }
@@ -840,8 +838,8 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             }
 
             if (!privilegesSet.isEmpty()) {
-                if (acl instanceof PrincipalAccessControlList) {
-                    ((PrincipalAccessControlList)acl).addEntry(resourcePath, privilegesSet.toArray(new Privilege[privilegesSet.size()]), restrictions, mvRestrictions);
+                if (acl instanceof PrincipalAccessControlList pacList) {
+                    pacList.addEntry(resourcePath, privilegesSet.toArray(new Privilege[privilegesSet.size()]), restrictions, mvRestrictions);
                 } else {
                     acl.addEntry(principal, privilegesSet.toArray(new Privilege[privilegesSet.size()]), isAllow, restrictions, mvRestrictions);
                 }
@@ -874,9 +872,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
         if (order == null || order.length() == 0) {
             return; //nothing to do
         }
-        if (acl instanceof JackrabbitAccessControlList) {
-            JackrabbitAccessControlList jacl = (JackrabbitAccessControlList)acl;
-
+        if (acl instanceof JackrabbitAccessControlList jacl) {
             AccessControlEntry[] accessControlEntries = jacl.getAccessControlEntries();
             if (accessControlEntries.length <= 1) {
                 return; //only one ACE, so nothing to reorder.
@@ -1078,12 +1074,10 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
         // process the new privileges
         for (Entry<PrivilegeValues, Set<Privilege>> entry : privilegeValueToPrivilegesMap.entrySet()) {
             switch (entry.getKey()) {
-            case GRANTED:
-            case ALLOW:
+            case GRANTED, ALLOW:
                 PrivilegesHelper.allow(privilegeToLocalPrivilegesMap, localRestrictions, entry.getValue());
                 break;
-            case DENIED:
-            case DENY:
+            case DENIED, DENY:
                 PrivilegesHelper.deny(privilegeToLocalPrivilegesMap, localRestrictions, entry.getValue());
                 break;
             case NONE:

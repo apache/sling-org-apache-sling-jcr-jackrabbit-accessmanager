@@ -204,8 +204,7 @@ public class PrivilegesInfo {
                         }
                         if (privilege != null) {
                             JsonValue value = entry.getValue();
-                            if (value instanceof JsonObject) {
-                                JsonObject privilegeObj = (JsonObject)value;
+                            if (value instanceof JsonObject privilegeObj) {
                                 if (privilegeObj.containsKey(JsonConvert.KEY_ALLOW)) {
                                     rights.granted.add(privilege);
                                 }

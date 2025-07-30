@@ -410,8 +410,8 @@ public abstract class AbstractAccessPostServlet extends AbstractAccessServlet {
         // check for an existing access control list to edit
         AccessControlPolicy[] policies = accessControlManager.getPolicies(resourcePath);
         for (AccessControlPolicy policy : policies) {
-            if (policy instanceof AccessControlList) {
-                return (AccessControlList) policy;
+            if (policy instanceof AccessControlList acList) {
+                return acList;
             }
         }
 
@@ -420,8 +420,8 @@ public abstract class AbstractAccessPostServlet extends AbstractAccessServlet {
             AccessControlPolicyIterator applicablePolicies = accessControlManager.getApplicablePolicies(resourcePath);
             while (applicablePolicies.hasNext()) {
                 AccessControlPolicy policy = applicablePolicies.nextAccessControlPolicy();
-                if (policy instanceof AccessControlList) {
-                    return (AccessControlList) policy;
+                if (policy instanceof AccessControlList acList) {
+                    return acList;
                 }
             }
         }
@@ -454,8 +454,8 @@ public abstract class AbstractAccessPostServlet extends AbstractAccessServlet {
         // check for an existing access control list to edit
         AccessControlPolicy[] policies = accessControlManager.getPolicies(resourcePath);
         for (AccessControlPolicy policy : policies) {
-            if (policy instanceof AccessControlList) {
-                acl = (AccessControlList) policy;
+            if (policy instanceof AccessControlList acList) {
+                acl = acList;
             }
         }
 
@@ -464,8 +464,8 @@ public abstract class AbstractAccessPostServlet extends AbstractAccessServlet {
             AccessControlPolicyIterator applicablePolicies = accessControlManager.getApplicablePolicies(resourcePath);
             while (applicablePolicies.hasNext()) {
                 AccessControlPolicy policy = applicablePolicies.nextAccessControlPolicy();
-                if (policy instanceof AccessControlList) {
-                    acl = (AccessControlList) policy;
+                if (policy instanceof AccessControlList acList) {
+                    acl = acList;
                 }
             }
         }
@@ -490,7 +490,7 @@ public abstract class AbstractAccessPostServlet extends AbstractAccessServlet {
         synchronized ( this.postResponseCreators ) {
             int index = 0;
             while ( index < this.postResponseCreators.size() &&
-                    nngh.getRanking() < this.postResponseCreators.get(index).getRanking() ) {
+                    nngh.ranking() < this.postResponseCreators.get(index).ranking() ) {
                 index++;
             }
             if ( index == this.postResponseCreators.size() ) {
@@ -513,7 +513,7 @@ public abstract class AbstractAccessPostServlet extends AbstractAccessServlet {
             final Iterator<JakartaPostResponseCreatorHolder> i = this.postResponseCreators.iterator();
             while ( i.hasNext() ) {
                 final JakartaPostResponseCreatorHolder current = i.next();
-                if ( current.getCreator() == creator ) {
+                if ( current.creator() == creator ) {
                     i.remove();
                 }
             }
@@ -529,7 +529,7 @@ public abstract class AbstractAccessPostServlet extends AbstractAccessServlet {
         final JakartaPostResponseCreator[] localCache = new JakartaPostResponseCreator[this.postResponseCreators.size()];
         int index = 0;
         for(final JakartaPostResponseCreatorHolder current : this.postResponseCreators) {
-            localCache[index] = current.getCreator();
+            localCache[index] = current.creator();
             index++;
         }
         this.cachedPostResponseCreators = localCache;
@@ -537,25 +537,9 @@ public abstract class AbstractAccessPostServlet extends AbstractAccessServlet {
     
     private int getRanking(final Map<String, Object> properties) {
         final Object val = properties.get(Constants.SERVICE_RANKING);
-        return val instanceof Integer ? (Integer)val : 0;
+        return val instanceof Integer intVal ? intVal : 0;
     }
-    
-    private static final class JakartaPostResponseCreatorHolder {
-        private final JakartaPostResponseCreator creator;
-        private final int ranking;
 
-        public JakartaPostResponseCreatorHolder(JakartaPostResponseCreator creator, int ranking) {
-            this.creator = creator;
-            this.ranking = ranking;
-        }
+    private static final record JakartaPostResponseCreatorHolder(JakartaPostResponseCreator creator, int ranking) { }
 
-        public JakartaPostResponseCreator getCreator() {
-            return creator;
-        }
-
-        public int getRanking() {
-            return ranking;
-        }
-
-    }    
 }

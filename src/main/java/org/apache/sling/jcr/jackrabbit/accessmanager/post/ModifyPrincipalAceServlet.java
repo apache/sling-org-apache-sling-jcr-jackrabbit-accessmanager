@@ -163,20 +163,19 @@ public class ModifyPrincipalAceServlet extends ModifyAceServlet implements Modif
     protected JackrabbitAccessControlList getAcl(@NotNull AccessControlManager acm, String resourcePath, Principal principal)
             throws RepositoryException {
         JackrabbitAccessControlList acl = null;
-        if (acm instanceof JackrabbitAccessControlManager) {
-            JackrabbitAccessControlManager jacm = (JackrabbitAccessControlManager)acm;
+        if (acm instanceof JackrabbitAccessControlManager jacm) {
             AccessControlPolicy[] policies = jacm.getPolicies(principal);
             for (AccessControlPolicy policy : policies) {
-                if (policy instanceof PrincipalAccessControlList) {
-                    acl = (PrincipalAccessControlList) policy;
+                if (policy instanceof PrincipalAccessControlList pacList) {
+                    acl = pacList;
                     break;
                 }
             }
             if (acl == null) {
                 AccessControlPolicy[]  applicablePolicies = jacm.getApplicablePolicies(principal);
                 for (AccessControlPolicy policy : applicablePolicies) {
-                    if (policy instanceof PrincipalAccessControlList) {
-                        acl = (PrincipalAccessControlList) policy;
+                    if (policy instanceof PrincipalAccessControlList pacList) {
+                        acl = pacList;
                         break;
                     }
                 }

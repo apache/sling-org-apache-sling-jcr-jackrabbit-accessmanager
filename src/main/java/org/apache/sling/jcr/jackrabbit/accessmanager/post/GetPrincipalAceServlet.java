@@ -119,8 +119,7 @@ public class GetPrincipalAceServlet extends AbstractGetAceServlet implements Get
     protected Map<String, List<AccessControlEntry>> getAccessControlEntriesMap(Session session, String absPath,
             Principal principal, Map<Principal, Map<DeclarationType, Set<String>>> declaredAtPaths) throws RepositoryException {
         AccessControlManager acMgr = session.getAccessControlManager();
-        if (acMgr instanceof JackrabbitAccessControlManager) {
-            JackrabbitAccessControlManager jacMgr = (JackrabbitAccessControlManager)acMgr;
+        if (acMgr instanceof JackrabbitAccessControlManager jacMgr) {
             JackrabbitAccessControlPolicy[] policies = jacMgr.getPolicies(principal);
             return entriesSortedByEffectivePath(policies, ace -> matchesPrincipalAccessControlEntry(ace, absPath, principal), declaredAtPaths);
         } else {

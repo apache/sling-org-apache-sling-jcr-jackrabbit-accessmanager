@@ -178,8 +178,8 @@ public class DeletePrincipalAcesServlet extends DeleteAcesServlet implements Del
         // check for an existing access control list to edit
         AccessControlPolicy[] policies = jacm.getPolicies(principal);
         for (AccessControlPolicy policy : policies) {
-            if (policy instanceof PrincipalAccessControlList) {
-                acl = (PrincipalAccessControlList) policy;
+            if (policy instanceof PrincipalAccessControlList pacList) {
+                acl = pacList;
             }
         }
         return acl;

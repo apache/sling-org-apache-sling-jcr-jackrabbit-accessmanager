@@ -64,8 +64,10 @@ public abstract class PrincipalAceTestSupport extends AccessManagerClientTestSup
                     .asOption(),
                 factoryConfiguration("org.apache.sling.jcr.repoinit.RepositoryInitializer")
                     .put("scripts", new String[] {
-                                "create service user pacetestuser with path /home/users/system/sling\n" +
-                                "create service user pacetestuser2 with path /home/users/system/sling\n"
+                                """
+                                create service user pacetestuser with path /home/users/system/sling
+                                create service user pacetestuser2 with path /home/users/system/sling
+                                """
                             })
                     .asOption()
            ).getOptions();

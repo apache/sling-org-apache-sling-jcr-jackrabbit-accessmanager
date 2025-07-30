@@ -82,8 +82,8 @@ public class PrincipalAceHelper {
      */
     public static boolean matchesResourcePath(String resourcePath, AccessControlEntry entry) {
         boolean matches = false;
-        if (entry instanceof PrincipalAccessControlList.Entry) {
-            String effectivePath = ((PrincipalAccessControlList.Entry)entry).getEffectivePath();
+        if (entry instanceof PrincipalAccessControlList.Entry paclEntry) {
+            String effectivePath = paclEntry.getEffectivePath();
             if (resourcePath == null) {
                 matches = effectivePath == null;
             } else {

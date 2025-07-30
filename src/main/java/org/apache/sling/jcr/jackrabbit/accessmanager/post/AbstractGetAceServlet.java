@@ -66,8 +66,7 @@ public abstract class AbstractGetAceServlet extends AbstractAccessGetServlet {
         Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap = new HashMap<>();
         for (List<AccessControlEntry> accessControlEntries : effectivePathToEntriesMap.values()) {
             for (AccessControlEntry accessControlEntry : accessControlEntries) {
-                if (accessControlEntry instanceof JackrabbitAccessControlEntry) {
-                    JackrabbitAccessControlEntry jrAccessControlEntry = (JackrabbitAccessControlEntry)accessControlEntry;
+                if (accessControlEntry instanceof JackrabbitAccessControlEntry jrAccessControlEntry) {
                     Privilege[] privileges = jrAccessControlEntry.getPrivileges();
                     if (privileges != null) {
                         processACE(srMap, jrAccessControlEntry, privileges, privilegeToLocalPrivilegesMap);
