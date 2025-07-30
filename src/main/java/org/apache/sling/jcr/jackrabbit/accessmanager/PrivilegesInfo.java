@@ -101,41 +101,42 @@ public class PrivilegesInfo {
         }
 
         public String getPrivilegeSetDisplayName(Locale locale) {
-            if (denied != null && !denied.isEmpty()) {
+            String displayName = null;
+            ResourceBundle rb = getResourceBundle(locale);
+            if (!denied.isEmpty()) {
                 //if there are any denied privileges, then this is a custom privilege set
-                return getResourceBundle(locale).getString("privilegeset.custom");
+                displayName = rb.getString("privilegeset.custom");
             } else {
                 if (granted.isEmpty()) {
                     //appears to have an empty privilege set
-                    return getResourceBundle(locale).getString("privilegeset.none");
-                }
-
-                if (granted.size() == 1) {
+                    displayName = rb.getString("privilegeset.none");
+                } else if (granted.size() == 1) {
                     //check if the single privilege is jcr:all or jcr:read
                     Iterator<Privilege> iterator = granted.iterator();
                     Privilege next = iterator.next();
                     if (PrivilegeConstants.JCR_ALL.equals(next.getName())) {
                         //full control privilege set
-                        return getResourceBundle(locale).getString("privilegeset.all");
+                        displayName = rb.getString("privilegeset.all");
                     } else if (PrivilegeConstants.JCR_READ.equals(next.getName())) {
                         //readonly privilege set
-                        return getResourceBundle(locale).getString("privilegeset.readonly");
+                        displayName = rb.getString("privilegeset.readonly");
                     }
                 } else if (granted.size() == 2) {
                     //check if the two privileges are jcr:read and jcr:write
-                    Iterator<Privilege> iterator = granted.iterator();
-                    Privilege next = iterator.next();
-                    Privilege next2 = iterator.next();
-                    if ( (PrivilegeConstants.JCR_READ.equals(next.getName()) && PrivilegeConstants.JCR_WRITE.equals(next2.getName())) ||
-                            (PrivilegeConstants.JCR_READ.equals(next2.getName()) && PrivilegeConstants.JCR_WRITE.equals(next.getName())) ) {
+                    boolean hasRead = granted.stream().anyMatch(p -> PrivilegeConstants.JCR_READ.equals(p.getName()));
+                    boolean hasWrite = granted.stream().anyMatch(p -> PrivilegeConstants.JCR_WRITE.equals(p.getName()));
+                    if (hasRead && hasWrite) {
                         //read/write privileges
-                        return getResourceBundle(locale).getString("privilegeset.readwrite");
+                        displayName = rb.getString("privilegeset.readwrite");
                     }
                 }
 
                 //some other set of privileges
-                return getResourceBundle(locale).getString("privilegeset.custom");
+                if (displayName == null) {
+                    displayName = rb.getString("privilegeset.custom"); 
+                }
             }
+            return displayName;
         }
     }
 

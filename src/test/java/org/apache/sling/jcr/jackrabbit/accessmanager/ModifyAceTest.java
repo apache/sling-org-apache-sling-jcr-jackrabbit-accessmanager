@@ -16,14 +16,28 @@
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager;
 
-import java.util.Collection;
+import static org.junit.Assert.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.times;
+
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.jcr.UnsupportedRepositoryOperationException;
+import javax.jcr.Value;
+import javax.jcr.ValueFactory;
+import javax.jcr.security.Privilege;
 
+import org.apache.jackrabbit.value.ValueFactoryImpl;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 /**
  * Tests to verify the ModifyAce default methods
@@ -36,22 +50,35 @@ public class ModifyAceTest {
 
     @Test(expected = UnsupportedRepositoryOperationException.class)
     public void testModify1() throws RepositoryException {
-        modifyAce.modifyAce(null, null, null, (Map<String, String>)null, null, false);
+        modifyAce.modifyAce(Mockito.mock(Session.class), "resourcePath", "principalId",
+                Map.of("privilege1", "granted"), "order", false);
     }
 
-    @Test(expected = UnsupportedRepositoryOperationException.class)
+    @Test
     public void testModify2()  throws RepositoryException{
-        modifyAce.modifyAce(null, null, null, null, null, null, null, null);
+        modifyAce = Mockito.spy(modifyAce);
+        assertThrows(UnsupportedRepositoryOperationException.class, () -> {
+            ValueFactory vf = ValueFactoryImpl.getInstance();
+            modifyAce.modifyAce(Mockito.mock(Session.class), "resourcePath", "principalId",
+                    Map.of("privilege1", "granted"), "order", Map.of("restriction1", vf.createValue("value1")),
+                    Map.of("mvRestriction", new Value[] {vf.createValue("value2")}), Set.of("removeRestrition1"));
+        });
+        Mockito.verify(modifyAce, times(1)).modifyAce(any(Session.class), anyString(),
+                anyString(), anyMap(), anyString(), anyMap(), anyMap(), anySet(), anyBoolean());
     }
 
     @Test(expected = UnsupportedRepositoryOperationException.class)
     public void testModify3() throws RepositoryException {
-        modifyAce.modifyAce(null, null, null, null, null, null, null, null, false);
+        ValueFactory vf = ValueFactoryImpl.getInstance();
+        modifyAce.modifyAce(Mockito.mock(Session.class), "resourcePath", "principalId",
+                Map.of("privilege1", "granted"), "order", Map.of("restriction1", vf.createValue("value1")),
+                Map.of("mvRestriction", new Value[] {vf.createValue("value2")}), Set.of("removeRestrition1"), false);
     }
 
     @Test(expected = UnsupportedRepositoryOperationException.class)
     public void testModify4() throws RepositoryException {
-        modifyAce.modifyAce(null, null, null, (Collection<LocalPrivilege>)null, null, false);
+        modifyAce.modifyAce(Mockito.mock(Session.class), "resourcePath", "principalId",
+                List.of(new LocalPrivilege(Mockito.mock(Privilege.class))), "order", false);
     }
 
 
