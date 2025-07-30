@@ -71,7 +71,7 @@ public class LocalPrivilegeTest {
         return acm.privilegeFromName(privilegeName);
     }
 
-    private RestrictionDefinition rd(String restrictionName) throws Exception {
+    private RestrictionDefinition rd(String restrictionName) {
         if (srMap == null) {
             //make a temp map for quick lookup below
             @NotNull

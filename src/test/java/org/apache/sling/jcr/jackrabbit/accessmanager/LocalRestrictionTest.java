@@ -29,7 +29,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-import javax.jcr.RepositoryException;
 import javax.jcr.Value;
 import javax.jcr.ValueFactory;
 
@@ -58,11 +57,11 @@ public class LocalRestrictionTest {
     private Map<String, RestrictionDefinition> srMap;
 
     @Before
-    public void setup() throws RepositoryException {
+    public void setup() {
         context.registerService(new RestrictionProviderImpl());
     }
 
-    private RestrictionDefinition rd(String restrictionName) throws Exception {
+    private RestrictionDefinition rd(String restrictionName) {
         if (srMap == null) {
             //make a temp map for quick lookup below
             @NotNull
