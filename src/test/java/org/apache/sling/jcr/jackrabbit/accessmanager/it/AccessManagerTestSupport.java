@@ -18,19 +18,20 @@ package org.apache.sling.jcr.jackrabbit.accessmanager.it;
 
 import static org.apache.felix.hc.api.FormattingResultLog.msHumanReadable;
 import static org.apache.sling.testing.paxexam.SlingOptions.awaitility;
+import static org.apache.sling.testing.paxexam.SlingOptions.paxLoggingApi;
 import static org.apache.sling.testing.paxexam.SlingOptions.slingQuickstartOakTar;
 import static org.apache.sling.testing.paxexam.SlingOptions.versionResolver;
 import static org.awaitility.Awaitility.await;
 import static org.junit.Assert.assertNotNull;
 import static org.ops4j.pax.exam.CoreOptions.composite;
-import static org.ops4j.pax.exam.CoreOptions.frameworkProperty;
 import static org.ops4j.pax.exam.CoreOptions.junitBundles;
 import static org.ops4j.pax.exam.CoreOptions.mavenBundle;
 import static org.ops4j.pax.exam.CoreOptions.options;
 import static org.ops4j.pax.exam.CoreOptions.streamBundle;
+import static org.ops4j.pax.exam.CoreOptions.systemProperty;
 import static org.ops4j.pax.exam.CoreOptions.vmOption;
 import static org.ops4j.pax.exam.CoreOptions.when;
-import static org.ops4j.pax.tinybundles.core.TinyBundles.withBnd;
+import static org.ops4j.pax.tinybundles.TinyBundles.bndBuilder;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -57,8 +58,8 @@ import org.ops4j.pax.exam.Configuration;
 import org.ops4j.pax.exam.Option;
 import org.ops4j.pax.exam.options.ModifiableCompositeOption;
 import org.ops4j.pax.exam.options.extra.VMOption;
-import org.ops4j.pax.tinybundles.core.TinyBundle;
-import org.ops4j.pax.tinybundles.core.TinyBundles;
+import org.ops4j.pax.tinybundles.TinyBundle;
+import org.ops4j.pax.tinybundles.TinyBundles;
 import org.osgi.framework.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,17 +102,18 @@ public abstract class AccessManagerTestSupport extends TestSupport {
             vmOption = new VMOption(vmOpt);
         }
 
-        // newer version of sling.api and dependencies for SLING-10034
+        // SLING-12868 - newer version of sling.api and dependencies
         //   may remove at a later date if the superclass includes these versions or later
-        versionResolver.setVersion("org.apache.sling", "org.apache.sling.api", "2.27.2");
-        versionResolver.setVersion("org.apache.sling", "org.apache.sling.engine", "2.15.6");
-        versionResolver.setVersion("org.apache.sling", "org.apache.sling.resourceresolver", "1.10.0");
-        versionResolver.setVersion("org.apache.sling", "org.apache.sling.servlets.resolver", "2.9.14");
-
-        // workaround for FELIX-6656 - use jetty 4.x version instead of the 5.x version
-        //  may remove at a later date after http.jetty-5.1.2 is released and used
-        versionResolver.setVersion("org.apache.felix", "org.apache.felix.http.jetty", "4.2.0");
-        versionResolver.setVersion("org.apache.felix", "org.apache.felix.http.servlet-api", "2.0.0");
+        versionResolver.setVersionFromProject("org.apache.sling", "org.apache.sling.api");
+        versionResolver.setVersion("org.apache.sling", "org.apache.sling.engine", "3.0.0");
+        versionResolver.setVersion("org.apache.felix", "org.apache.felix.http.servlet-api", "6.1.0");
+        versionResolver.setVersion("org.apache.sling", "org.apache.sling.resourceresolver", "2.0.0");
+        versionResolver.setVersion("org.apache.sling", "org.apache.sling.auth.core", "2.0.0");
+        versionResolver.setVersion("commons-fileupload", "commons-fileupload", "1.6.0");
+        versionResolver.setVersion("org.apache.sling", "org.apache.sling.scripting.spi", "2.0.0");
+        versionResolver.setVersion("org.apache.sling", "org.apache.sling.scripting.core", "3.0.0");
+        versionResolver.setVersion("org.apache.sling", "org.apache.sling.servlets.resolver", "3.0.0");
+        versionResolver.setVersionFromProject("org.apache.sling", "org.apache.sling.servlets.post");
 
         return options(
             composite(
@@ -119,15 +121,21 @@ public abstract class AccessManagerTestSupport extends TestSupport {
                 when(vmOption != null).useOptions(vmOption),
                 optionalRemoteDebug(),
                 slingQuickstart(),
+                paxLoggingApi(), // newer version to provide the 2.x version of slf4j
+                systemProperty("org.ops4j.pax.logging.DefaultServiceLog.level").value("INFO"),
                 testBundle("bundle.filename"),
+                // SLING-12868 - begin extra bundles for sling api 3.x
+                mavenBundle()
+                        .groupId("org.apache.felix")
+                        .artifactId("org.apache.felix.http.wrappers")
+                        .version("6.1.0"),
+                mavenBundle()
+                        .groupId("org.apache.sling")
+                        .artifactId("org.apache.sling.commons.johnzon")
+                        .version("2.0.0"),
+                // end extra bundles for sling api 3.x
                 junitBundles(),
                 awaitility()
-            ).add(
-                // jakarta impl of JSON apis
-                frameworkProperty("org.apache.aries.spifly.auto.consumers").value("jakarta.json-api"),
-                frameworkProperty("org.apache.aries.spifly.auto.providers").value("org.eclipse.parsson"),
-                mavenBundle().groupId("jakarta.json").artifactId("jakarta.json-api").version("2.1.1"),
-                mavenBundle().groupId("org.eclipse.parsson").artifactId("parsson").version("1.1.1")
             ).add(
                 additionalOptions()
             ).remove(
@@ -263,7 +271,7 @@ public abstract class AccessManagerTestSupport extends TestSupport {
         try (final InputStream is = getClass().getResourceAsStream(resourcePath)) {
             assertNotNull("Expecting resource to be found:" + resourcePath, is);
             logger.info("Adding resource to bundle, path={}, resource={}", pathInBundle, resourcePath);
-            bundle.add(pathInBundle, is);
+            bundle.addResource(pathInBundle, is);
         }
     }
 
@@ -285,15 +293,15 @@ public abstract class AccessManagerTestSupport extends TestSupport {
      */
     protected Option buildBundleResourcesBundle(final String header, final Collection<String> content) throws IOException {
         final TinyBundle bundle = TinyBundles.bundle();
-        bundle.set(Constants.BUNDLE_SYMBOLICNAME, BUNDLE_SYMBOLICNAME);
-        bundle.set(SLING_BUNDLE_RESOURCES_HEADER, header);
-        bundle.set("Require-Capability", "osgi.extender;filter:=\"(&(osgi.extender=org.apache.sling.bundleresource)(version<=1.1.0)(!(version>=2.0.0)))\"");
+        bundle.setHeader(Constants.BUNDLE_SYMBOLICNAME, BUNDLE_SYMBOLICNAME);
+        bundle.setHeader(SLING_BUNDLE_RESOURCES_HEADER, header);
+        bundle.setHeader("Require-Capability", "osgi.extender;filter:=\"(&(osgi.extender=org.apache.sling.bundleresource)(version<=1.1.0)(!(version>=2.0.0)))\"");
 
         for (final String entry : content) {
             addContent(bundle, entry);
         }
         return streamBundle(
-            bundle.build(withBnd())
+            bundle.build(bndBuilder())
         ).start();
     }
 

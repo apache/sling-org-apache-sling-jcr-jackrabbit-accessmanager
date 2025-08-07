@@ -23,9 +23,7 @@ import static org.junit.Assert.assertTrue;
 import java.io.IOException;
 import java.util.List;
 
-import jakarta.json.JsonException;
-import jakarta.json.JsonObject;
-import javax.servlet.http.HttpServletResponse;
+import javax.jcr.RepositoryException;
 
 import org.apache.http.NameValuePair;
 import org.apache.http.auth.Credentials;
@@ -36,6 +34,10 @@ import org.junit.runner.RunWith;
 import org.ops4j.pax.exam.junit.PaxExam;
 import org.ops4j.pax.exam.spi.reactors.ExamReactorStrategy;
 import org.ops4j.pax.exam.spi.reactors.PerClass;
+
+import jakarta.json.JsonException;
+import jakarta.json.JsonObject;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * Tests for the 'acl' and 'eacl' Sling Get Operation
@@ -48,7 +50,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
      * Test for SLING-2600, Effective ACL servlet returns incorrect information
      */
     @Test
-    public void testEffectiveAclForUser() throws IOException, JsonException {
+    public void testEffectiveAclForUser() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
         testUserId2 = createTestUser();
 
@@ -110,7 +112,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
      * Test for SLING-2600, Effective ACL servlet returns incorrect information
      */
     @Test
-    public void testEffectiveAclMergeForUserReplacePrivilegeOnChild() throws IOException, JsonException {
+    public void testEffectiveAclMergeForUserReplacePrivilegeOnChild() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
 
         testFolderUrl = createTestFolder(null, "sling-tests",
@@ -153,7 +155,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
      * Test for SLING-2600, Effective ACL servlet returns incorrect information
      */
     @Test
-    public void testEffectiveAclMergeForUserFewerPrivilegesGrantedOnChild() throws IOException, JsonException {
+    public void testEffectiveAclMergeForUserFewerPrivilegesGrantedOnChild() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
 
         testFolderUrl = createTestFolder(null, "sling-tests",
@@ -195,7 +197,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
      * Test for SLING-2600, Effective ACL servlet returns incorrect information
      */
     @Test
-    public void testEffectiveAclMergeForUserMorePrivilegesGrantedOnChild() throws IOException, JsonException {
+    public void testEffectiveAclMergeForUserMorePrivilegesGrantedOnChild() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
 
         testFolderUrl = createTestFolder(null, "sling-tests",
@@ -237,7 +239,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
      * Test for SLING-2600, Effective ACL servlet returns incorrect information
      */
     @Test
-    public void testEffectiveAclMergeForUserSubsetOfPrivilegesDeniedOnChild2() throws IOException, JsonException {
+    public void testEffectiveAclMergeForUserSubsetOfPrivilegesDeniedOnChild2() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
 
         testFolderUrl = createTestFolder(null, "sling-tests",
@@ -294,7 +296,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
      * Test for SLING-2600, Effective ACL servlet returns incorrect information
      */
     @Test
-    public void testEffectiveAclMergeForUserSupersetOfPrivilegesDeniedOnChild() throws IOException, JsonException {
+    public void testEffectiveAclMergeForUserSupersetOfPrivilegesDeniedOnChild() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
 
         testFolderUrl = createTestFolder(null, "sling-tests",
@@ -335,7 +337,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
      * Test for SLING-2600, Effective ACL servlet returns incorrect information
      */
     @Test
-    public void testEffectiveAclMergeForUserSupersetOfPrivilegesDeniedOnChild2() throws IOException, JsonException {
+    public void testEffectiveAclMergeForUserSupersetOfPrivilegesDeniedOnChild2() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
 
         testFolderUrl = createTestFolder(null, "sling-tests",
@@ -376,7 +378,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
      * ACL servlet returns 404 when no read access rights permissions
      */
     @Test
-    public void testNoAccessToDeclaredAclForUser() throws IOException, JsonException {
+    public void testNoAccessToDeclaredAclForUser() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder(null, "sling-tests",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"child\" : { \"childPropOne\" : true } }");

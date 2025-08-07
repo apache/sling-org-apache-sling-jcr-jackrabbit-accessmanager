@@ -18,7 +18,6 @@ package org.apache.sling.jcr.jackrabbit.accessmanager;
 
 import java.security.Principal;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Locale;
@@ -31,21 +30,11 @@ import java.util.stream.Collectors;
 import javax.jcr.Node;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
-import javax.jcr.Value;
-import javax.jcr.ValueFactory;
-import javax.jcr.ValueFormatException;
 import javax.jcr.security.AccessControlManager;
 import javax.jcr.security.Privilege;
-import jakarta.json.JsonArray;
-import jakarta.json.JsonObject;
-import jakarta.json.JsonString;
-import jakarta.json.JsonValue;
-import jakarta.json.JsonValue.ValueType;
 
 import org.apache.jackrabbit.api.JackrabbitSession;
 import org.apache.jackrabbit.api.security.principal.PrincipalManager;
-import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionDefinition;
-import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.JsonConvert;
 import org.osgi.framework.Bundle;
@@ -54,6 +43,9 @@ import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.ServiceReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import jakarta.json.JsonObject;
+import jakarta.json.JsonValue;
 
 /**
  * Helper class to assist in the usage of access control from scripts.
@@ -109,41 +101,42 @@ public class PrivilegesInfo {
         }
 
         public String getPrivilegeSetDisplayName(Locale locale) {
-            if (denied != null && !denied.isEmpty()) {
+            String displayName = null;
+            ResourceBundle rb = getResourceBundle(locale);
+            if (!denied.isEmpty()) {
                 //if there are any denied privileges, then this is a custom privilege set
-                return getResourceBundle(locale).getString("privilegeset.custom");
+                displayName = rb.getString("privilegeset.custom");
             } else {
                 if (granted.isEmpty()) {
                     //appears to have an empty privilege set
-                    return getResourceBundle(locale).getString("privilegeset.none");
-                }
-
-                if (granted.size() == 1) {
+                    displayName = rb.getString("privilegeset.none");
+                } else if (granted.size() == 1) {
                     //check if the single privilege is jcr:all or jcr:read
                     Iterator<Privilege> iterator = granted.iterator();
                     Privilege next = iterator.next();
                     if (PrivilegeConstants.JCR_ALL.equals(next.getName())) {
                         //full control privilege set
-                        return getResourceBundle(locale).getString("privilegeset.all");
+                        displayName = rb.getString("privilegeset.all");
                     } else if (PrivilegeConstants.JCR_READ.equals(next.getName())) {
                         //readonly privilege set
-                        return getResourceBundle(locale).getString("privilegeset.readonly");
+                        displayName = rb.getString("privilegeset.readonly");
                     }
                 } else if (granted.size() == 2) {
                     //check if the two privileges are jcr:read and jcr:write
-                    Iterator<Privilege> iterator = granted.iterator();
-                    Privilege next = iterator.next();
-                    Privilege next2 = iterator.next();
-                    if ( (PrivilegeConstants.JCR_READ.equals(next.getName()) && PrivilegeConstants.JCR_WRITE.equals(next2.getName())) ||
-                            (PrivilegeConstants.JCR_READ.equals(next2.getName()) && PrivilegeConstants.JCR_WRITE.equals(next.getName())) ) {
+                    boolean hasRead = granted.stream().anyMatch(p -> PrivilegeConstants.JCR_READ.equals(p.getName()));
+                    boolean hasWrite = granted.stream().anyMatch(p -> PrivilegeConstants.JCR_WRITE.equals(p.getName()));
+                    if (hasRead && hasWrite) {
                         //read/write privileges
-                        return getResourceBundle(locale).getString("privilegeset.readwrite");
+                        displayName = rb.getString("privilegeset.readwrite");
                     }
                 }
 
                 //some other set of privileges
-                return getResourceBundle(locale).getString("privilegeset.custom");
+                if (displayName == null) {
+                    displayName = rb.getString("privilegeset.custom"); 
+                }
             }
+            return displayName;
         }
     }
 
@@ -212,8 +205,7 @@ public class PrivilegesInfo {
                         }
                         if (privilege != null) {
                             JsonValue value = entry.getValue();
-                            if (value instanceof JsonObject) {
-                                JsonObject privilegeObj = (JsonObject)value;
+                            if (value instanceof JsonObject privilegeObj) {
                                 if (privilegeObj.containsKey(JsonConvert.KEY_ALLOW)) {
                                     rights.granted.add(privilege);
                                 }
@@ -259,102 +251,6 @@ public class PrivilegesInfo {
         PrincipalManager principalManager = ((JackrabbitSession)session).getPrincipalManager();
         Principal principal = principalManager.getPrincipal(principalId);
         return declaredAccessRights.get(principal);
-    }
-
-    /**
-     * Returns the restrictions for the specified path.
-     *
-     * @param node the node to inspect
-     * @param principalId the principalId to get the access rights for
-     * @return map of restrictions (key is restriction name, value is Value or Value[])
-     * @throws RepositoryException if any errors reading the information
-     * @deprecated don't use this as it assumes that all the privileges have the same restrictions which may not be true
-     */
-    @Deprecated
-    public Map<String, Object> getDeclaredRestrictionsForPrincipal(Node node, String principalId) throws RepositoryException {
-        return getDeclaredRestrictionsForPrincipal(node.getSession(), node.getPath(), principalId);
-    }
-
-    /**
-     * Returns the restrictions for the specified path.
-     *
-     * @param session the session for the current user
-     * @param absPath the path to get the privileges for
-     * @param principalId the principalId to get the access rights for
-     * @return map of restrictions (key is restriction name, value is Value or Value[])
-     * @throws RepositoryException if any errors reading the information
-     * @deprecated don't use this as it assumes that all the privileges have the same restrictions which may not be true
-     */
-    @Deprecated
-    public Map<String, Object> getDeclaredRestrictionsForPrincipal(Session session, String absPath, String principalId) throws RepositoryException {
-        JsonObject aclJson = useGetAcl(json -> {
-            try {
-                return json.getAcl(session, absPath);
-            } catch (RepositoryException e) {
-                logger.warn("Failed to load Acl", e);
-            }
-            return null;
-        });
-
-        Map<String, Object> map;
-        if (aclJson == null) {
-            map = Collections.emptyMap();
-        } else {
-            Map<String, RestrictionDefinition> srMap = new HashMap<>();
-            useRestrictionProvider(restrictionProvider -> {
-                Set<RestrictionDefinition> supportedRestrictions = restrictionProvider.getSupportedRestrictions(absPath);
-                for (RestrictionDefinition restrictionDefinition : supportedRestrictions) {
-                    srMap.put(restrictionDefinition.getName(), restrictionDefinition);
-                }
-                return null;
-            });
-
-            ValueFactory valueFactory = session.getValueFactory();
-            map = new HashMap<>();
-            aclJson.values().stream()
-                    .filter(val -> val instanceof JsonObject && ((JsonObject)val).getString(JsonConvert.KEY_PRINCIPAL).equals(principalId))
-                    .forEach(item -> {
-                        JsonObject privilegesObj = ((JsonObject)item).getJsonObject(JsonConvert.KEY_PRIVILEGES);
-                        if (privilegesObj != null) {
-                            privilegesObj.values()
-                                .forEach(privItem -> {
-                                    if (privItem instanceof JsonObject) {
-                                        JsonObject privilegeObj = (JsonObject)privItem;
-                                        JsonValue jsonValue = privilegeObj.get(JsonConvert.KEY_ALLOW);
-                                        if (jsonValue instanceof JsonObject) {
-                                            JsonObject restriction = (JsonObject)jsonValue;
-                                            restriction.entrySet().stream()
-                                                .forEach(restrictionItem -> {
-                                                    String restrictionName = restrictionItem.getKey();
-                                                    int type = srMap.get(restrictionName).getRequiredType().tag();
-                                                    JsonValue value = restrictionItem.getValue();
-                                                    if (ValueType.ARRAY.equals(value.getValueType())) {
-                                                        JsonArray jsonArray = ((JsonArray)value);
-                                                        Value [] restrictionValues = new Value[jsonArray.size()];
-                                                        for (int i=0; i < jsonArray.size(); i++) {
-                                                            try {
-                                                                restrictionValues[i] = valueFactory.createValue(jsonArray.getString(i), type);
-                                                            } catch (ValueFormatException e) {
-                                                                logger.warn("Failed to create restriction value", e);
-                                                            }
-                                                        }
-                                                        map.put(restrictionName, restrictionValues);
-                                                    } else if (value instanceof JsonString){
-                                                        try {
-                                                            Value restrictionValue = valueFactory.createValue(((JsonString)value).getString(), type);
-                                                            map.put(restrictionName, restrictionValue);
-                                                        } catch (ValueFormatException e) {
-                                                            logger.warn("Failed to create restriction value", e);
-                                                        }
-                                                    }
-                                                });
-                                        }
-                                    }
-                                });
-                        }
-                    });
-        }
-        return map;
     }
 
     /**
@@ -673,10 +569,6 @@ public class PrivilegesInfo {
 
     private static <T> T useGetEffectiveAcl(Function<GetEffectiveAcl, T> fn) {
         return useSvc(GetEffectiveAcl.class, fn);
-    }
-
-    private static <T> T useRestrictionProvider(Function<RestrictionProvider, T> fn) {
-        return useSvc(RestrictionProvider.class, fn);
     }
 
 }

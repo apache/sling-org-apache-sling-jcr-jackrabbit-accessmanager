@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.sling.jcr.jackrabbit.accessmanager.post;
+package org.apache.sling.jcr.jackrabbit.accessmanager;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -29,7 +29,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-import javax.jcr.RepositoryException;
 import javax.jcr.Value;
 import javax.jcr.ValueFactory;
 
@@ -39,7 +38,6 @@ import org.apache.jackrabbit.oak.spi.security.authorization.restriction.Composit
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionDefinition;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.jackrabbit.value.ValueFactoryImpl;
-import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
 import org.apache.sling.testing.mock.sling.ResourceResolverType;
 import org.apache.sling.testing.mock.sling.junit.SlingContext;
 import org.jetbrains.annotations.NotNull;
@@ -59,11 +57,11 @@ public class LocalRestrictionTest {
     private Map<String, RestrictionDefinition> srMap;
 
     @Before
-    public void setup() throws RepositoryException {
+    public void setup() {
         context.registerService(new RestrictionProviderImpl());
     }
 
-    private RestrictionDefinition rd(String restrictionName) throws Exception {
+    private RestrictionDefinition rd(String restrictionName) {
         if (srMap == null) {
             //make a temp map for quick lookup below
             @NotNull

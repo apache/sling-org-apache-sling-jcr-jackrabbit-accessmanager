@@ -27,15 +27,15 @@ import javax.jcr.Session;
 import javax.jcr.security.AccessControlEntry;
 import javax.jcr.security.AccessControlList;
 import javax.jcr.security.AccessControlManager;
-import javax.servlet.Servlet;
+import jakarta.servlet.Servlet;
 
 import org.apache.jackrabbit.api.JackrabbitSession;
 import org.apache.jackrabbit.api.security.principal.PrincipalManager;
-import org.apache.sling.api.SlingHttpServletRequest;
+import org.apache.sling.api.SlingJakartaHttpServletRequest;
 import org.apache.sling.jcr.jackrabbit.accessmanager.DeleteAces;
 import org.apache.sling.servlets.post.Modification;
-import org.apache.sling.servlets.post.PostResponse;
-import org.apache.sling.servlets.post.PostResponseCreator;
+import org.apache.sling.servlets.post.JakartaPostResponse;
+import org.apache.sling.servlets.post.JakartaPostResponseCreator;
 import org.apache.sling.servlets.post.SlingPostConstants;
 import org.jetbrains.annotations.NotNull;
 import org.osgi.service.component.annotations.Component;
@@ -90,7 +90,7 @@ import org.slf4j.LoggerFactory;
                     bind = "bindPostResponseCreator",
                     cardinality = ReferenceCardinality.MULTIPLE,
                     policyOption = ReferencePolicyOption.GREEDY,
-                    service = PostResponseCreator.class)
+                    service = JakartaPostResponseCreator.class)
     })
 @SuppressWarnings("java:S110")
 public class DeleteAcesServlet extends AbstractAccessPostServlet implements DeleteAces {
@@ -102,11 +102,11 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
     private final transient Logger log = LoggerFactory.getLogger(getClass());
 
     /* (non-Javadoc)
-     * @see org.apache.sling.jackrabbit.accessmanager.post.AbstractAccessPostServlet#handleOperation(org.apache.sling.api.SlingHttpServletRequest, org.apache.sling.servlets.post.PostResponse, java.util.List)
+     * @see org.apache.sling.jackrabbit.accessmanager.post.AbstractAccessPostServlet#handleOperation(org.apache.sling.api.SlingJakartaHttpServletRequest, org.apache.sling.servlets.post.JakartaPostResponse, java.util.List)
      */
     @Override
-    protected void handleOperation(SlingHttpServletRequest request,
-            PostResponse htmlResponse, List<Modification> changes)
+    protected void handleOperation(SlingJakartaHttpServletRequest request,
+            JakartaPostResponse htmlResponse, List<Modification> changes)
             throws RepositoryException {
 
         Session session = request.getResourceResolver().adaptTo(Session.class);

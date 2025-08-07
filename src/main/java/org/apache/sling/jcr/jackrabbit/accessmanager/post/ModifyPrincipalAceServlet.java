@@ -29,7 +29,6 @@ import javax.jcr.security.AccessControlEntry;
 import javax.jcr.security.AccessControlManager;
 import javax.jcr.security.AccessControlPolicy;
 import javax.jcr.security.Privilege;
-import javax.servlet.Servlet;
 
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlList;
@@ -40,13 +39,15 @@ import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
 import org.apache.sling.jcr.jackrabbit.accessmanager.ModifyPrincipalAce;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrincipalAceHelper;
-import org.apache.sling.servlets.post.PostResponseCreator;
+import org.apache.sling.servlets.post.JakartaPostResponseCreator;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.component.annotations.ReferencePolicyOption;
+
+import jakarta.servlet.Servlet;
 
 /**
  * <p>
@@ -119,7 +120,7 @@ reference = {
                 bind = "bindPostResponseCreator",
                 cardinality = ReferenceCardinality.MULTIPLE,
                 policyOption = ReferencePolicyOption.GREEDY,
-                service = PostResponseCreator.class)
+                service = JakartaPostResponseCreator.class)
 })
 @SuppressWarnings("java:S110")
 public class ModifyPrincipalAceServlet extends ModifyAceServlet implements ModifyPrincipalAce {
@@ -162,20 +163,19 @@ public class ModifyPrincipalAceServlet extends ModifyAceServlet implements Modif
     protected JackrabbitAccessControlList getAcl(@NotNull AccessControlManager acm, String resourcePath, Principal principal)
             throws RepositoryException {
         JackrabbitAccessControlList acl = null;
-        if (acm instanceof JackrabbitAccessControlManager) {
-            JackrabbitAccessControlManager jacm = (JackrabbitAccessControlManager)acm;
+        if (acm instanceof JackrabbitAccessControlManager jacm) {
             AccessControlPolicy[] policies = jacm.getPolicies(principal);
             for (AccessControlPolicy policy : policies) {
-                if (policy instanceof PrincipalAccessControlList) {
-                    acl = (PrincipalAccessControlList) policy;
+                if (policy instanceof PrincipalAccessControlList pacList) {
+                    acl = pacList;
                     break;
                 }
             }
             if (acl == null) {
                 AccessControlPolicy[]  applicablePolicies = jacm.getApplicablePolicies(principal);
                 for (AccessControlPolicy policy : applicablePolicies) {
-                    if (policy instanceof PrincipalAccessControlList) {
-                        acl = (PrincipalAccessControlList) policy;
+                    if (policy instanceof PrincipalAccessControlList pacList) {
+                        acl = pacList;
                         break;
                     }
                 }

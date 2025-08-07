@@ -31,21 +31,15 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Stream;
 
-import jakarta.json.JsonArray;
-import jakarta.json.JsonException;
-import jakarta.json.JsonObject;
-import jakarta.json.JsonString;
-import jakarta.json.JsonValue;
-import jakarta.json.JsonValue.ValueType;
-import javax.servlet.http.HttpServletResponse;
+import javax.jcr.RepositoryException;
 
 import org.apache.http.NameValuePair;
 import org.apache.jackrabbit.JcrConstants;
 import org.apache.jackrabbit.oak.spi.security.authorization.accesscontrol.AccessControlConstants;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
-import org.apache.sling.servlets.post.JSONResponse;
-import org.apache.sling.servlets.post.PostResponseCreator;
+import org.apache.sling.servlets.post.JakartaJSONResponse;
+import org.apache.sling.servlets.post.JakartaPostResponseCreator;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -57,6 +51,14 @@ import org.osgi.framework.Bundle;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.ServiceRegistration;
 
+import jakarta.json.JsonArray;
+import jakarta.json.JsonException;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonString;
+import jakarta.json.JsonValue;
+import jakarta.json.JsonValue.ValueType;
+import jakarta.servlet.http.HttpServletResponse;
+
 /**
  * Tests for the 'modifyAce' Sling Post Operation
  */
@@ -64,7 +66,7 @@ import org.osgi.framework.ServiceRegistration;
 @ExamReactorStrategy(PerClass.class)
 public class ModifyAceIT extends AccessManagerClientTestSupport {
 
-    private ServiceRegistration<PostResponseCreator> serviceReg;
+    private ServiceRegistration<JakartaPostResponseCreator> serviceReg;
     private ServiceRegistration<RestrictionProvider> serviceReg2;
     private VerifyAce verifyTrue = jsonValue -> assertEquals(ValueType.TRUE, jsonValue.getValueType());
 
@@ -73,7 +75,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
     public void before() throws Exception {
         Bundle bundle = FrameworkUtil.getBundle(getClass());
         Dictionary<String, Object> props = new Hashtable<>(); // NOSONAR
-        serviceReg = bundle.getBundleContext().registerService(PostResponseCreator.class,
+        serviceReg = bundle.getBundleContext().registerService(JakartaPostResponseCreator.class,
                 new CustomPostResponseCreatorImpl(), props);
         serviceReg2 = bundle.getBundleContext().registerService(RestrictionProvider.class,
                 new CustomRestrictionProviderImpl(), props);
@@ -95,7 +97,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
     }
 
     @Test
-    public void testModifyAceForUser() throws IOException, JsonException {
+    public void testModifyAceForUser() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
 
         testFolderUrl = createTestFolder();
@@ -127,7 +129,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * Test for SLING-7831
      */
     @Test
-    public void testModifyAceCustomPostResponse() throws IOException, JsonException {
+    public void testModifyAceCustomPostResponse() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
 
         testFolderUrl = createTestFolder();
@@ -144,7 +146,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
     }
 
     @Test
-    public void testModifyAceForGroup() throws IOException, JsonException {
+    public void testModifyAceForGroup() throws IOException, JsonException, RepositoryException {
         testGroupId = createTestGroup();
 
         testFolderUrl = createTestFolder();
@@ -180,7 +182,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * request.
      */
     @Test
-    public void testMergeAceForUser() throws IOException, JsonException {
+    public void testMergeAceForUser() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder();
 
@@ -251,7 +253,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * request.
      */
     @Test
-    public void testMergeAceForUserSplitAggregatePrincipal() throws IOException, JsonException {
+    public void testMergeAceForUserSplitAggregatePrincipal() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder();
 
@@ -297,7 +299,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * request.
      */
     @Test
-    public void testMergeAceForUserCombineAggregatePrivilege() throws IOException, JsonException {
+    public void testMergeAceForUserCombineAggregatePrivilege() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder();
 
@@ -353,7 +355,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * a grant privilege
      */
     @Test
-    public void testMergeAceForUserDenyPrivilegeAfterGrantPrivilege() throws IOException, JsonException {
+    public void testMergeAceForUserDenyPrivilegeAfterGrantPrivilege() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder();
 
@@ -399,7 +401,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         assertPrivilege(privilegesObject2, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_NODE_TYPE_MANAGEMENT);
     }
 
-    protected void commonAddAceOrderBy(String order) throws IOException {
+    protected void commonAddAceOrderBy(String order) throws IOException, RepositoryException {
         createAceOrderTestFolderWithOneAce();
 
         testGroupId = createTestGroup();
@@ -425,7 +427,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * the ACL
      */
     @Test
-    public void testAddAceOrderByEmpty() throws IOException, JsonException {
+    public void testAddAceOrderByEmpty() throws IOException, JsonException, RepositoryException {
         commonAddAceOrderBy("");
     }
 
@@ -434,7 +436,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * the ACL
      */
     @Test
-    public void testAddAceOrderByNull() throws IOException, JsonException {
+    public void testAddAceOrderByNull() throws IOException, JsonException, RepositoryException {
         commonAddAceOrderBy(null);
     }
 
@@ -443,7 +445,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * the ACL
      */
     @Test
-    public void testAddAceOrderByFirst() throws IOException, JsonException {
+    public void testAddAceOrderByFirst() throws IOException, JsonException, RepositoryException {
         createAceOrderTestFolderWithOneAce();
 
         testGroupId = createTestGroup();
@@ -469,7 +471,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * the ACL
      */
     @Test
-    public void testAddAceOrderByLast() throws IOException, JsonException {
+    public void testAddAceOrderByLast() throws IOException, JsonException, RepositoryException {
         createAceOrderTestFolderWithOneAce();
 
         testGroupId = createTestGroup();
@@ -496,7 +498,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * the ACL
      */
     @Test
-    public void testAddAceOrderByBefore() throws IOException, JsonException {
+    public void testAddAceOrderByBefore() throws IOException, JsonException, RepositoryException {
         createAceOrderTestFolderWithOneAce();
 
         testGroupId = createTestGroup();
@@ -522,7 +524,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * the ACL
      */
     @Test
-    public void testAddAceOrderByAfter() throws IOException, JsonException {
+    public void testAddAceOrderByAfter() throws IOException, JsonException, RepositoryException {
         createAceOrderTestFolderWithOneAce();
 
         testGroupId = createTestGroup();
@@ -548,7 +550,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * the ACL
      */
     @Test
-    public void testAddAceOrderByNumeric() throws IOException, JsonException {
+    public void testAddAceOrderByNumeric() throws IOException, JsonException, RepositoryException {
         createAceOrderTestFolderWithOneAce();
 
         testGroupId = createTestGroup();
@@ -598,7 +600,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * leaves the ACE in the same position in the ACL
      */
     @Test
-    public void testUpdateAcePreservePosition() throws IOException, JsonException {
+    public void testUpdateAcePreservePosition() throws IOException, JsonException, RepositoryException {
         createAceOrderTestFolderWithOneAce();
 
         testGroupId = createTestGroup();
@@ -626,7 +628,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
     /**
      * Helper to create a test folder with a single ACE pre-created
      */
-    private void createAceOrderTestFolderWithOneAce() throws IOException, JsonException {
+    private void createAceOrderTestFolderWithOneAce() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
 
         testFolderUrl = createTestFolder();
@@ -688,7 +690,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * Test for SLING-1677
      */
     @Test
-    public void testModifyAceResponseAsJSON() throws IOException, JsonException {
+    public void testModifyAceResponseAsJSON() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
 
         testFolderUrl = createTestFolder();
@@ -711,7 +713,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * Test for SLING-3010
      */
     @Test
-    public void testMergeAceForUserGrantNestedAggregatePrivilegeAfterDenySuperAggregatePrivilege() throws IOException, JsonException {
+    public void testMergeAceForUserGrantNestedAggregatePrivilegeAfterDenySuperAggregatePrivilege() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
 
         testFolderUrl = createTestFolder();
@@ -756,7 +758,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * Test for SLING-3010
      */
     @Test
-    public void testMergeAceForUserGrantAggregatePrivilegePartsAfterDenyAggregatePrivilege() throws IOException, JsonException {
+    public void testMergeAceForUserGrantAggregatePrivilegePartsAfterDenyAggregatePrivilege() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
 
         testFolderUrl = createTestFolder();
@@ -801,7 +803,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * the ACL
      */
     @Test
-    public void testAddAceWithRestriction() throws IOException, JsonException {
+    public void testAddAceWithRestriction() throws IOException, JsonException, RepositoryException {
         createAceOrderTestFolderWithOneAce();
 
         testGroupId = createTestGroup();
@@ -871,7 +873,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * the ACL
      */
     @Test
-    public void testUpdateAceToMergeNewRestriction() throws IOException, JsonException {
+    public void testUpdateAceToMergeNewRestriction() throws IOException, JsonException, RepositoryException {
         createAceOrderTestFolderWithOneAce();
 
         testGroupId = createTestGroup();
@@ -958,7 +960,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * SLING-8117 - Test to verify removing a restriction from an ACE
      */
     @Test
-    public void testUpdateAceToRemoveRestriction() throws IOException, JsonException {
+    public void testUpdateAceToRemoveRestriction() throws IOException, JsonException, RepositoryException {
         createAceOrderTestFolderWithOneAce();
 
         testGroupId = createTestGroup();
@@ -1040,7 +1042,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * if a new value with the same name has also been supplied
      */
     @Test
-    public void testUpdateAceToRemoveRestrictionWithConflict() throws IOException, JsonException {
+    public void testUpdateAceToRemoveRestrictionWithConflict() throws IOException, JsonException, RepositoryException {
         createAceOrderTestFolderWithOneAce();
 
         testGroupId = createTestGroup();
@@ -1128,7 +1130,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
 
         // update the ACE
         List<NameValuePair> postParams = new AcePostParamsBuilder(invalidUserId)
-                .with(":http-equiv-accept", JSONResponse.RESPONSE_CONTENT_TYPE)
+                .with(":http-equiv-accept", JakartaJSONResponse.RESPONSE_CONTENT_TYPE)
                 .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
                 .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.DENY)
                 .withPrivilege(PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL, PrivilegeValues.BOGUS)//invalid value should be ignored.
@@ -1145,14 +1147,14 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * returns the list of principals that were changed
      */
     @Test
-    public void testModifyAceChangesInResponse() throws IOException, JsonException {
+    public void testModifyAceChangesInResponse() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
 
         testFolderUrl = createTestFolder();
 
         // update the ACE
         List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
-                .with(":http-equiv-accept", JSONResponse.RESPONSE_CONTENT_TYPE)
+                .with(":http-equiv-accept", JakartaJSONResponse.RESPONSE_CONTENT_TYPE)
                 .withPrivilege(PrivilegeConstants.JCR_READ, PrivilegeValues.ALLOW)
                 .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.DENY)
                 .withPrivilege(PrivilegeConstants.JCR_MODIFY_ACCESS_CONTROL, PrivilegeValues.BOGUS)//invalid value should be ignored.
@@ -1169,7 +1171,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         assertEquals(testUserId, change.getString("argument"));
     }
 
-    private void testModifyAceRedirect(String redirectTo, int expectedStatus) throws IOException {
+    private void testModifyAceRedirect(String redirectTo, int expectedStatus) throws IOException, RepositoryException {
         testUserId = createTestUser();
 
         testFolderUrl = createTestFolder();
@@ -1183,17 +1185,17 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
     }
 
     @Test
-    public void testModifyAceValidRedirect() throws IOException, JsonException {
+    public void testModifyAceValidRedirect() throws IOException, JsonException, RepositoryException {
         testModifyAceRedirect("/*.html", HttpServletResponse.SC_MOVED_TEMPORARILY);
     }
 
     @Test
-    public void testModifyAceInvalidRedirectWithAuthority() throws IOException, JsonException {
+    public void testModifyAceInvalidRedirectWithAuthority() throws IOException, JsonException, RepositoryException {
         testModifyAceRedirect("https://sling.apache.org", SC_UNPROCESSABLE_ENTITY);
     }
 
     @Test
-    public void testModifyAceInvalidRedirectWithInvalidURI() throws IOException, JsonException {
+    public void testModifyAceInvalidRedirectWithInvalidURI() throws IOException, JsonException, RepositoryException {
         testModifyAceRedirect("https://", SC_UNPROCESSABLE_ENTITY);
     }
 
@@ -1202,7 +1204,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * SLING-11243 - Test to verify adding an ACE with privilege restriction
      */
     @Test
-    public void testModifyAceAddAllowPrivilegeRestriction() throws IOException, JsonException {
+    public void testModifyAceAddAllowPrivilegeRestriction() throws IOException, JsonException, RepositoryException {
         testFolderUrl = createTestFolder();
         testGroupId = createTestGroup();
 
@@ -1251,7 +1253,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * SLING-11243 - Test to verify adding an ACE with privilege restriction
      */
     @Test
-    public void testModifyAceAddDenyPrivilegeRestriction() throws IOException, JsonException {
+    public void testModifyAceAddDenyPrivilegeRestriction() throws IOException, JsonException, RepositoryException {
         testFolderUrl = createTestFolder();
         testGroupId = createTestGroup();
 
@@ -1300,7 +1302,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * SLING-11243 - Test to verify adding an ACE with privilege restriction
      */
     @Test
-    public void testModifyAceAddAllowAndDenyPrivilegeRestriction() throws IOException, JsonException {
+    public void testModifyAceAddAllowAndDenyPrivilegeRestriction() throws IOException, JsonException, RepositoryException {
         testFolderUrl = createTestFolder();
         testGroupId = createTestGroup();
 
@@ -1349,7 +1351,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * SLING-11243 - Test to verify modifying an ACE to remove a privilege
      */
     @Test
-    public void testModifyAceDeleteWriteAllowPrivilege() throws IOException, JsonException {
+    public void testModifyAceDeleteWriteAllowPrivilege() throws IOException, JsonException, RepositoryException {
         commonModifyAceDeleteWritePrivilege();
 
         // remove just the allow privilege and leave the deny privilege active
@@ -1379,7 +1381,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * SLING-11243 - Test to verify modifying an ACE to remove a privilege
      */
     @Test
-    public void testModifyAceDeleteWritePrivilegeWithInvalidValue() throws IOException, JsonException {
+    public void testModifyAceDeleteWritePrivilegeWithInvalidValue() throws IOException, JsonException, RepositoryException {
         commonModifyAceDeleteWritePrivilege();
 
         // remove with an invalid value
@@ -1418,7 +1420,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * SLING-11243 - Test to verify modifying an ACE to remove a privilege
      */
     @Test
-    public void testModifyAceDeleteWriteDenyPrivilege() throws IOException, JsonException {
+    public void testModifyAceDeleteWriteDenyPrivilege() throws IOException, JsonException, RepositoryException {
         commonModifyAceDeleteWritePrivilege();
 
         // remove just the deny privilege and leave the allow privilege active
@@ -1448,7 +1450,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * SLING-11243 - Test to verify modifying an ACE to remove a privilege
      */
     @Test
-    public void testModifyAceDeleteWriteAllPrivilege() throws IOException, JsonException {
+    public void testModifyAceDeleteWriteAllPrivilege() throws IOException, JsonException, RepositoryException {
         commonModifyAceDeleteWritePrivilege();
 
         // remove both the allow and the deny privilege
@@ -1465,7 +1467,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
         assertPrivilege(groupPrivilegesObject2, false, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE);
     }
 
-    protected void commonModifyAceDeleteWritePrivilege() throws IOException {
+    protected void commonModifyAceDeleteWritePrivilege() throws IOException, RepositoryException {
         testFolderUrl = createTestFolder();
         testGroupId = createTestGroup();
 
@@ -1508,7 +1510,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * The allow restriction wins out and the deny restriction is ignored
      */
     @Test
-    public void testModifyAceAllowWinsOverDenyWithSameRestrictions() throws IOException, JsonException {
+    public void testModifyAceAllowWinsOverDenyWithSameRestrictions() throws IOException, JsonException, RepositoryException {
         testFolderUrl = createTestFolder();
         testGroupId = createTestGroup();
 
@@ -1540,7 +1542,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * SLING-11243 - Test to verify adding an ACE with privilege restriction
      */
     @Test
-    public void testModifyAceDeleteAllowPrivilegeRestriction() throws IOException, JsonException {
+    public void testModifyAceDeleteAllowPrivilegeRestriction() throws IOException, JsonException, RepositoryException {
         testModifyAceAddAllowAndDenyPrivilegeRestriction();
 
         // update the ACE
@@ -1576,7 +1578,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * SLING-11243 - Test to verify adding an ACE with privilege restriction
      */
     @Test
-    public void testModifyAceDeletePrivilegeRestrictionWithInvalidValue() throws IOException, JsonException {
+    public void testModifyAceDeletePrivilegeRestrictionWithInvalidValue() throws IOException, JsonException, RepositoryException {
         testModifyAceAddAllowAndDenyPrivilegeRestriction();
 
         // update the ACE
@@ -1624,7 +1626,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * SLING-11243 - Test to verify adding an ACE with privilege restriction
      */
     @Test
-    public void testModifyAceDeleteDenyPrivilegeRestriction() throws IOException, JsonException {
+    public void testModifyAceDeleteDenyPrivilegeRestriction() throws IOException, JsonException, RepositoryException {
         testModifyAceAddAllowAndDenyPrivilegeRestriction();
 
         // update the ACE
@@ -1660,7 +1662,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * SLING-11243 - Test to verify adding an ACE with privilege restriction
      */
     @Test
-    public void testModifyAceDeleteAllowAndDenyPrivilegeRestriction() throws IOException, JsonException {
+    public void testModifyAceDeleteAllowAndDenyPrivilegeRestriction() throws IOException, JsonException, RepositoryException {
         testModifyAceAddAllowAndDenyPrivilegeRestriction();
 
         // update the ACE
@@ -1684,7 +1686,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * SLING-11243 - Test to verify adding an ACE with privilege restriction
      */
     @Test
-    public void testModifyAceAddPrivilegeRestrictionOnAggregateLeaf() throws IOException, JsonException {
+    public void testModifyAceAddPrivilegeRestrictionOnAggregateLeaf() throws IOException, JsonException, RepositoryException {
         testFolderUrl = createTestFolder();
         testGroupId = createTestGroup();
 
@@ -1727,7 +1729,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * SLING-11243 - Test to verify adding an ACE with privilege restriction
      */
     @Test
-    public void testModifyAceAddSamePrivilegeRestrictionOnAllAggregateLeafs() throws IOException, JsonException {
+    public void testModifyAceAddSamePrivilegeRestrictionOnAllAggregateLeafs() throws IOException, JsonException, RepositoryException {
         testFolderUrl = createTestFolder();
         testGroupId = createTestGroup();
 
@@ -1760,7 +1762,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * SLING-11243 - Test to verify adding an ACE with privilege restriction
      */
     @Test
-    public void testModifyAceAllowAllDenyReadAccessControl() throws IOException, JsonException {
+    public void testModifyAceAllowAllDenyReadAccessControl() throws IOException, JsonException, RepositoryException {
         testFolderUrl = createTestFolder();
         testGroupId = createTestGroup();
 
@@ -1800,7 +1802,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * SLING-11243 - Test to verify adding an ACE with privilege restriction
      */
     @Test
-    public void testModifyAceDenyAllAllowReadAccessControl() throws IOException, JsonException {
+    public void testModifyAceDenyAllAllowReadAccessControl() throws IOException, JsonException, RepositoryException {
         testFolderUrl = createTestFolder();
         testGroupId = createTestGroup();
 
@@ -1840,7 +1842,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * SLING-11243 - Test to verify adding an ACE with privilege restriction
      */
     @Test
-    public void testModifyAceDenyAllAllowReadProperties() throws IOException, JsonException {
+    public void testModifyAceDenyAllAllowReadProperties() throws IOException, JsonException, RepositoryException {
         testFolderUrl = createTestFolder();
         testGroupId = createTestGroup();
 
@@ -1882,7 +1884,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * SLING-11243 - Test to verify adding an ACE with privilege restriction
      */
     @Test
-    public void testModifyAceDenyAllGrantLeafsOfRepWrite() throws IOException, JsonException {
+    public void testModifyAceDenyAllGrantLeafsOfRepWrite() throws IOException, JsonException, RepositoryException {
         testFolderUrl = createTestFolder();
         testGroupId = createTestGroup();
 
@@ -1925,7 +1927,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * SLING-11243 - Test to verify adding an ACE with privilege restriction
      */
     @Test
-    public void testModifyAceDenyAllGrantModifyPropertiesAndOtherLeafsOfRepWrite() throws IOException, JsonException {
+    public void testModifyAceDenyAllGrantModifyPropertiesAndOtherLeafsOfRepWrite() throws IOException, JsonException, RepositoryException {
         testFolderUrl = createTestFolder();
         testGroupId = createTestGroup();
 
@@ -1967,7 +1969,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * SLING-11243 - Test to verify adding an ACE with privilege restriction
      */
     @Test
-    public void testModifyAceDenyAllGrantJcrWriteAndOtherLeafsOfRepWrite() throws IOException, JsonException {
+    public void testModifyAceDenyAllGrantJcrWriteAndOtherLeafsOfRepWrite() throws IOException, JsonException, RepositoryException {
         testFolderUrl = createTestFolder();
         testGroupId = createTestGroup();
 
@@ -2007,7 +2009,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * SLING-11243 - Test to verify adding an ACE with privilege restriction
      */
     @Test
-    public void testModifyAceAllowAllDenyJcrWriteAndOtherLeafsOfRepWrite() throws IOException, JsonException {
+    public void testModifyAceAllowAllDenyJcrWriteAndOtherLeafsOfRepWrite() throws IOException, JsonException, RepositoryException {
         testFolderUrl = createTestFolder();
         testGroupId = createTestGroup();
 
@@ -2048,7 +2050,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * The allow restriction wins out and the deny restriction is ignored
      */
     @Test
-    public void testModifyAceAllowReadAndDenyRead() throws IOException, JsonException {
+    public void testModifyAceAllowReadAndDenyRead() throws IOException, JsonException, RepositoryException {
         testFolderUrl = createTestFolder();
         testGroupId = createTestGroup();
 
@@ -2077,7 +2079,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * The allow restriction wins out and the deny restriction is ignored
      */
     @Test
-    public void testModifyAceDenyReadAndAllowRead() throws IOException, JsonException {
+    public void testModifyAceDenyReadAndAllowRead() throws IOException, JsonException, RepositoryException {
         testFolderUrl = createTestFolder();
         testGroupId = createTestGroup();
 
@@ -2106,7 +2108,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * The allow restriction wins out and the deny restriction is ignored
      */
     @Test
-    public void testModifyAceAllowReadAndNoneRead() throws IOException, JsonException {
+    public void testModifyAceAllowReadAndNoneRead() throws IOException, JsonException, RepositoryException {
         testFolderUrl = createTestFolder();
         testGroupId = createTestGroup();
 
@@ -2136,7 +2138,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * The allow restriction wins out and the deny restriction is ignored
      */
     @Test
-    public void testModifyAceAllowReadRestrictionAndDenySameReadRestriction() throws IOException, JsonException {
+    public void testModifyAceAllowReadRestrictionAndDenySameReadRestriction() throws IOException, JsonException, RepositoryException {
         testFolderUrl = createTestFolder();
         testGroupId = createTestGroup();
 
@@ -2175,7 +2177,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * The allow restriction wins out and the deny restriction is ignored
      */
     @Test
-    public void testModifyAceDenyReadRestrictionAndAllowSameReadRestriction() throws IOException, JsonException {
+    public void testModifyAceDenyReadRestrictionAndAllowSameReadRestriction() throws IOException, JsonException, RepositoryException {
         testFolderUrl = createTestFolder();
         testGroupId = createTestGroup();
 
@@ -2214,7 +2216,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * The allow restriction wins out and the deny restriction is ignored
      */
     @Test
-    public void testModifyAceAllowReadRestrictionAndNoneSameReadRestriction() throws IOException, JsonException {
+    public void testModifyAceAllowReadRestrictionAndNoneSameReadRestriction() throws IOException, JsonException, RepositoryException {
         testFolderUrl = createTestFolder();
         testGroupId = createTestGroup();
 
@@ -2249,14 +2251,14 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
     }
 
     @Test
-    public void testModifyAceForInvalidRestrictionName() throws IOException, JsonException {
+    public void testModifyAceForInvalidRestrictionName() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
 
         testFolderUrl = createTestFolder();
 
         // update the ACE
         List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
-                .with(":http-equiv-accept", JSONResponse.RESPONSE_CONTENT_TYPE)
+                .with(":http-equiv-accept", JakartaJSONResponse.RESPONSE_CONTENT_TYPE)
                 .withRestriction("invalid_name", "hello")
                 .build();
         String json = addOrUpdateAce(testFolderUrl, postParams, CONTENT_TYPE_JSON, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
@@ -2267,14 +2269,14 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
     }
 
     @Test
-    public void testModifyAceForInvalidPrivilegeName() throws IOException, JsonException {
+    public void testModifyAceForInvalidPrivilegeName() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
 
         testFolderUrl = createTestFolder();
 
         // update the ACE
         List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
-                .with(":http-equiv-accept", JSONResponse.RESPONSE_CONTENT_TYPE)
+                .with(":http-equiv-accept", JakartaJSONResponse.RESPONSE_CONTENT_TYPE)
                 .withPrivilege("invalid_name", PrivilegeValues.ALLOW)
                 .build();
         String json = addOrUpdateAce(testFolderUrl, postParams, CONTENT_TYPE_JSON, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
@@ -2285,14 +2287,14 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
     }
 
     @Test
-    public void testModifyAceForInvalidDeleteRestrictionName() throws IOException, JsonException {
+    public void testModifyAceForInvalidDeleteRestrictionName() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
 
         testFolderUrl = createTestFolder();
 
         // update the ACE
         List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
-                .with(":http-equiv-accept", JSONResponse.RESPONSE_CONTENT_TYPE)
+                .with(":http-equiv-accept", JakartaJSONResponse.RESPONSE_CONTENT_TYPE)
                 .withDeletePrivilegeRestriction(PrivilegeConstants.JCR_READ, "invalid_name", DeleteValues.ALLOW)
                 .build();
         String json = addOrUpdateAce(testFolderUrl, postParams, CONTENT_TYPE_JSON, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
@@ -2303,14 +2305,14 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
     }
 
     @Test
-    public void testModifyAceForInvalidDeleteRestrictionPrivilegeName() throws IOException, JsonException {
+    public void testModifyAceForInvalidDeleteRestrictionPrivilegeName() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
 
         testFolderUrl = createTestFolder();
 
         // update the ACE
         List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
-                .with(":http-equiv-accept", JSONResponse.RESPONSE_CONTENT_TYPE)
+                .with(":http-equiv-accept", JakartaJSONResponse.RESPONSE_CONTENT_TYPE)
                 .withDeletePrivilegeRestriction("invalid_name", AccessControlConstants.REP_GLOB, DeleteValues.ALLOW)
                 .build();
         String json = addOrUpdateAce(testFolderUrl, postParams, CONTENT_TYPE_JSON, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
@@ -2325,7 +2327,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * the ACL
      */
     @Test
-    public void testAddAceWithCustomRestriction() throws IOException, JsonException {
+    public void testAddAceWithCustomRestriction() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder();
 
@@ -2371,7 +2373,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * when there is a deny child privilege with the same restrictions as the parent
      */
     @Test
-    public void testNoAggregateAllowWhenDenyChildHasSameRestriction() throws IOException, JsonException {
+    public void testNoAggregateAllowWhenDenyChildHasSameRestriction() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder();
 
@@ -2419,7 +2421,7 @@ public class ModifyAceIT extends AccessManagerClientTestSupport {
      * when there is an allow child privilege with the same restrictions as the parent
      */
     @Test
-    public void testNoAggregateDenyWhenAllowChildHasSameRestriction() throws IOException, JsonException {
+    public void testNoAggregateDenyWhenAllowChildHasSameRestriction() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder();
 

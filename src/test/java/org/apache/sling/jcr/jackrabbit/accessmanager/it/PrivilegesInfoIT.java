@@ -16,13 +16,11 @@
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager.it;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import java.io.IOException;
 import java.security.Principal;
 import java.util.Collections;
 import java.util.HashMap;
@@ -42,7 +40,6 @@ import javax.jcr.security.Privilege;
 
 import org.apache.jackrabbit.oak.spi.security.authorization.accesscontrol.AccessControlConstants;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
-import org.apache.sling.jcr.api.SlingRepository;
 import org.apache.sling.jcr.jackrabbit.accessmanager.ModifyAce;
 import org.apache.sling.jcr.jackrabbit.accessmanager.PrivilegesInfo;
 import org.apache.sling.jcr.jackrabbit.accessmanager.PrivilegesInfo.AccessRights;
@@ -63,20 +60,17 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
     @Inject
     private ModifyAce modifyAce;
 
-    @Inject
-    protected SlingRepository repository;
-
-    protected Session adminSession;
     protected Session testUserSession;
 
     private Node testNodeForAdmin;
     private Node testNodeForTestUser;
 
     @Before
-    public void setup() throws RepositoryException, IOException {
+    @Override
+    public void before() throws Exception {
+        super.before();
+
         testUserId = createTestUser();
-        adminSession = repository.login(new SimpleCredentials("admin", "admin".toCharArray()));
-        assertNotNull("Expected adminSession to not be null", adminSession);
         testNodeForAdmin = adminSession.getRootNode().addNode("testNode");
         setupTestUserAce();
         adminSession.save();
@@ -101,14 +95,16 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
     }
 
     @After
-    public void teardown() throws RepositoryException {
+    @Override
+    public void after() throws Exception {
         adminSession.refresh(false);
         testNodeForAdmin.remove();
         if (adminSession.hasPendingChanges()) {
             adminSession.save();
         }
-        adminSession.logout();
         testUserSession.logout();
+
+        super.after();
     }
 
     /**
@@ -224,38 +220,6 @@ public class PrivilegesInfoIT extends AccessManagerClientTestSupport {
         assertNotNull(rights);
         Privilege jcrReadPrivilege = adminSession.getAccessControlManager().privilegeFromName(PrivilegeConstants.JCR_READ);
         assertTrue(rights.getGranted().contains(jcrReadPrivilege));
-    }
-
-    /**
-     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.PrivilegesInfo#getDeclaredRestrictionsForPrincipal(javax.jcr.Node, java.lang.String)}.
-     * @deprecated api deprecated, test left for regression testing
-     */
-    @Deprecated
-    @Test
-    public void testGetDeclaredRestrictionsForPrincipalNodeString() throws RepositoryException {
-        setupEveryoneAce();
-
-        PrivilegesInfo pi = new PrivilegesInfo();
-        Map<String, Object> restrictions = pi.getDeclaredRestrictionsForPrincipal(testNodeForAdmin, "everyone");
-        assertNotNull(restrictions);
-        assertEquals(val(PropertyType.STRING, "/hello"), restrictions.get(AccessControlConstants.REP_GLOB));
-        assertArrayEquals(vals(PropertyType.NAME, "child1", "child2"), (Value[])restrictions.get(AccessControlConstants.REP_ITEM_NAMES));
-    }
-
-    /**
-     * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.PrivilegesInfo#getDeclaredRestrictionsForPrincipal(javax.jcr.Session, java.lang.String, java.lang.String)}.
-     * @deprecated api deprecated, test left for regression testing
-     */
-    @Deprecated
-    @Test
-    public void testGetDeclaredRestrictionsForPrincipalSessionStringString() throws RepositoryException {
-        setupEveryoneAce();
-
-        PrivilegesInfo pi = new PrivilegesInfo();
-        Map<String, Object> restrictions = pi.getDeclaredRestrictionsForPrincipal(adminSession, testNodeForAdmin.getPath(), "everyone");
-        assertNotNull(restrictions);
-        assertEquals(val(PropertyType.STRING, "/hello"), restrictions.get(AccessControlConstants.REP_GLOB));
-        assertArrayEquals(vals(PropertyType.NAME, "child1", "child2"), (Value[])restrictions.get(AccessControlConstants.REP_ITEM_NAMES));
     }
 
     /**

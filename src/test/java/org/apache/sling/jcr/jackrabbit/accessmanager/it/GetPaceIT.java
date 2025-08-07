@@ -25,12 +25,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.stream.Stream;
 
-import jakarta.json.JsonArray;
-import jakarta.json.JsonException;
-import jakarta.json.JsonObject;
-import jakarta.json.JsonString;
-import jakarta.json.JsonValue;
-import javax.servlet.http.HttpServletResponse;
+import javax.jcr.RepositoryException;
 
 import org.apache.http.NameValuePair;
 import org.apache.http.auth.Credentials;
@@ -42,6 +37,13 @@ import org.junit.runner.RunWith;
 import org.ops4j.pax.exam.junit.PaxExam;
 import org.ops4j.pax.exam.spi.reactors.ExamReactorStrategy;
 import org.ops4j.pax.exam.spi.reactors.PerClass;
+
+import jakarta.json.JsonArray;
+import jakarta.json.JsonException;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonString;
+import jakarta.json.JsonValue;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * Tests for the 'pace' Sling Get Operation
@@ -90,7 +92,7 @@ public class GetPaceIT extends PrincipalAceTestSupport {
      * Privilege ACE servlet returns 404 when no read access rights permissions
      */
     @Test
-    public void testNoAccessToPrivilegeAceForUser() throws IOException, JsonException {
+    public void testNoAccessToPrivilegeAceForUser() throws IOException, JsonException, RepositoryException {
         String testServiceUserId = "pacetestuser";
         testFolderUrl = createTestFolder(null, "sling-tests1",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"child\" : { \"childPropOne\" : true } }");

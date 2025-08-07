@@ -26,18 +26,13 @@ import java.util.Dictionary;
 import java.util.Hashtable;
 import java.util.List;
 
-import jakarta.json.JsonArray;
-import jakarta.json.JsonException;
-import jakarta.json.JsonObject;
-import javax.servlet.http.HttpServletResponse;
-
 import org.apache.http.NameValuePair;
 import org.apache.http.auth.Credentials;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
-import org.apache.sling.servlets.post.JSONResponse;
-import org.apache.sling.servlets.post.PostResponseCreator;
+import org.apache.sling.servlets.post.JakartaJSONResponse;
+import org.apache.sling.servlets.post.JakartaPostResponseCreator;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -49,6 +44,11 @@ import org.osgi.framework.Bundle;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.ServiceRegistration;
 
+import jakarta.json.JsonArray;
+import jakarta.json.JsonException;
+import jakarta.json.JsonObject;
+import jakarta.servlet.http.HttpServletResponse;
+
 /**
  * Tests for the 'removeAce' Sling POST operation
  */
@@ -56,14 +56,14 @@ import org.osgi.framework.ServiceRegistration;
 @ExamReactorStrategy(PerClass.class)
 public class RemovePrincipalAcesIT extends PrincipalAceTestSupport {
 
-    private ServiceRegistration<PostResponseCreator> serviceReg;
+    private ServiceRegistration<JakartaPostResponseCreator> serviceReg;
 
     @Before
     @Override
     public void before() throws Exception {
         Bundle bundle = FrameworkUtil.getBundle(getClass());
         Dictionary<String, Object> props = new Hashtable<>(); // NOSONAR
-        serviceReg = bundle.getBundleContext().registerService(PostResponseCreator.class,
+        serviceReg = bundle.getBundleContext().registerService(JakartaPostResponseCreator.class,
                 new CustomPostResponseCreatorImpl(), props);
 
         super.before();
@@ -219,7 +219,7 @@ public class RemovePrincipalAcesIT extends PrincipalAceTestSupport {
         String postUrl = testFolderUrl + ".deletePAce.json";
 
         List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair(":http-equiv-accept", JSONResponse.RESPONSE_CONTENT_TYPE));
+        postParams.add(new BasicNameValuePair(":http-equiv-accept", JakartaJSONResponse.RESPONSE_CONTENT_TYPE));
         postParams.add(new BasicNameValuePair(":applyTo", "pacetestuser"));
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
@@ -245,7 +245,7 @@ public class RemovePrincipalAcesIT extends PrincipalAceTestSupport {
         String postUrl = folderUrl + ".deletePAce.json";
 
         List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair(":http-equiv-accept", JSONResponse.RESPONSE_CONTENT_TYPE));
+        postParams.add(new BasicNameValuePair(":http-equiv-accept", JakartaJSONResponse.RESPONSE_CONTENT_TYPE));
         postParams.add(new BasicNameValuePair(":applyTo", invalidUserId));
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
@@ -267,7 +267,7 @@ public class RemovePrincipalAcesIT extends PrincipalAceTestSupport {
         String postUrl = folderUrl + ".deletePAce.json";
 
         List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair(":http-equiv-accept", JSONResponse.RESPONSE_CONTENT_TYPE));
+        postParams.add(new BasicNameValuePair(":http-equiv-accept", JakartaJSONResponse.RESPONSE_CONTENT_TYPE));
         postParams.add(new BasicNameValuePair(":applyTo", "pacetestuser"));
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");

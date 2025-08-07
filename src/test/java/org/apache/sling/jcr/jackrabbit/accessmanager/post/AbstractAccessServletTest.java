@@ -27,11 +27,10 @@ import org.junit.Test;
  * Simple test of the common AbstractAccessServlet
  */
 public class AbstractAccessServletTest {
+    private TestAccessServlet tas = new TestAccessServlet();
 
     @Test
     public void testBindRestrictionProvider() {
-        TestAccessServlet tas = new TestAccessServlet();
-
         //starts out empty
         assertEquals("Expected the empty RestrictionProvider", RestrictionProvider.EMPTY, tas.getRestrictionProvider());
 
@@ -53,7 +52,6 @@ public class AbstractAccessServletTest {
 
     @Test
     public void testUnbindRestrictionProvider() {
-        TestAccessServlet tas = new TestAccessServlet();
         CustomRestrictionProviderImpl customRestrictionProvider = new CustomRestrictionProviderImpl();
         tas.bindRestrictionProvider(customRestrictionProvider);
         CustomRestrictionProviderImpl customRestrictionProvider2 = new CustomRestrictionProviderImpl();
@@ -74,7 +72,6 @@ public class AbstractAccessServletTest {
 
     @Test
     public void testGetRestrictionProvider() {
-        TestAccessServlet tas = new TestAccessServlet();
         assertNotNull(tas.getRestrictionProvider());
     }
 

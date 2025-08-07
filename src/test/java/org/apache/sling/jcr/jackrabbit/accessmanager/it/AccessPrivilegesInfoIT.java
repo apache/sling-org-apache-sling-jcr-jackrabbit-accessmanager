@@ -27,10 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import jakarta.json.JsonArray;
-import jakarta.json.JsonException;
-import jakarta.json.JsonObject;
-import javax.servlet.http.HttpServletResponse;
+import javax.jcr.RepositoryException;
 
 import org.apache.http.NameValuePair;
 import org.apache.http.auth.Credentials;
@@ -43,6 +40,11 @@ import org.ops4j.pax.exam.Option;
 import org.ops4j.pax.exam.junit.PaxExam;
 import org.ops4j.pax.exam.spi.reactors.ExamReactorStrategy;
 import org.ops4j.pax.exam.spi.reactors.PerClass;
+
+import jakarta.json.JsonArray;
+import jakarta.json.JsonException;
+import jakarta.json.JsonObject;
+import jakarta.servlet.http.HttpServletResponse;
 
 @RunWith(PaxExam.class)
 @ExamReactorStrategy(PerClass.class)
@@ -59,7 +61,7 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
      * testuser granted read / denied write
      */
     @Test
-    public void testDeniedWriteForUser() throws IOException, JsonException {
+    public void testDeniedWriteForUser() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder();
 
@@ -97,7 +99,7 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
      * testuser granted read / granted write
      */
     @Test
-    public void testGrantedWriteForUser() throws IOException, JsonException {
+    public void testGrantedWriteForUser() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder();
 
@@ -153,7 +155,7 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
      * group testuser granted read / denied write
      */
     @Test
-    public void testDeniedWriteForGroup() throws IOException, JsonException {
+    public void testDeniedWriteForGroup() throws IOException, JsonException, RepositoryException {
         testGroupId = createTestGroup();
         testUserId = createTestUser();
         testFolderUrl = createTestFolder();
@@ -161,10 +163,7 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
         Credentials adminCreds = new UsernamePasswordCredentials("admin", "admin");
 
         //add testUserId to testGroup
-        String groupPostUrl = String.format("%s/system/userManager/group/%s.update.html", baseServerUri, testGroupId);
-        List<NameValuePair> groupPostParams = new ArrayList<>();
-        groupPostParams.add(new BasicNameValuePair(":member", testUserId));
-        assertAuthenticatedPostStatus(adminCreds, groupPostUrl, HttpServletResponse.SC_OK, groupPostParams, null);
+        addUserToGroup(testUserId, testGroupId);
 
         //assign some privileges
         String postUrl = testFolderUrl + ".modifyAce.html";
@@ -198,7 +197,7 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
      * group testuser granted read / granted write
      */
     @Test
-    public void testGrantedWriteForGroup() throws IOException, JsonException {
+    public void testGrantedWriteForGroup() throws IOException, JsonException, RepositoryException {
         testGroupId = createTestGroup();
         testUserId = createTestUser();
         testFolderUrl = createTestFolder();
@@ -206,10 +205,7 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
         Credentials adminCreds = new UsernamePasswordCredentials("admin", "admin");
 
         //add testUserId to testGroup
-        String groupPostUrl = String.format("%s/system/userManager/group/%s.update.html", baseServerUri, testGroupId);
-        List<NameValuePair> groupPostParams = new ArrayList<>();
-        groupPostParams.add(new BasicNameValuePair(":member", testUserId));
-        assertAuthenticatedPostStatus(adminCreds, groupPostUrl, HttpServletResponse.SC_OK, groupPostParams, null);
+        addUserToGroup(testUserId, testGroupId);
 
         //assign some privileges
         String postUrl = testFolderUrl + ".modifyAce.html";
@@ -263,7 +259,7 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
      * Test the fix for SLING-1090
      */
     @Test
-    public void testSLING1090() throws IOException {
+    public void testSLING1090() throws IOException, RepositoryException {
         testUserId = createTestUser();
 
         //grant jcr: removeChildNodes to the root node
@@ -298,7 +294,7 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
      * Test for SLING-7835, PrivilegesInfo#getDeclaredAccessRights returns incorrect information
      */
     @Test
-    public void testDeclaredAclForUser() throws IOException, JsonException {
+    public void testDeclaredAclForUser() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
         testUserId2 = createTestUser();
 
@@ -399,7 +395,7 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
      * Test for SLING-7835, PrivilegesInfo#getEffectiveAccessRights returns incorrect information
      */
     @Test
-    public void testEffectiveAclForUser() throws IOException, JsonException {
+    public void testEffectiveAclForUser() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
         testUserId2 = createTestUser();
 

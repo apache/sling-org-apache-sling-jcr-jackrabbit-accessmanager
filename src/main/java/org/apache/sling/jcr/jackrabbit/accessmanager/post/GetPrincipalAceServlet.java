@@ -28,15 +28,13 @@ import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.jcr.security.AccessControlEntry;
 import javax.jcr.security.AccessControlManager;
-import jakarta.json.JsonObject;
-import javax.servlet.Servlet;
 
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlManager;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlPolicy;
 import org.apache.jackrabbit.api.security.authorization.PrincipalAccessControlList;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
-import org.apache.sling.api.SlingHttpServletRequest;
+import org.apache.sling.api.SlingJakartaHttpServletRequest;
 import org.apache.sling.jcr.jackrabbit.accessmanager.GetPrincipalAce;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrincipalAceHelper;
 import org.jetbrains.annotations.NotNull;
@@ -45,6 +43,9 @@ import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.component.annotations.ReferencePolicyOption;
+
+import jakarta.json.JsonObject;
+import jakarta.servlet.Servlet;
 
 /**
  * <p>
@@ -99,7 +100,7 @@ public class GetPrincipalAceServlet extends AbstractGetAceServlet implements Get
     private static final long serialVersionUID = 1654062732084983394L;
 
     @Override
-    protected @Nullable String getItemPath(SlingHttpServletRequest request) {
+    protected @Nullable String getItemPath(SlingJakartaHttpServletRequest request) {
         return PrincipalAceHelper.getEffectivePath(request);
     }
 
@@ -118,8 +119,7 @@ public class GetPrincipalAceServlet extends AbstractGetAceServlet implements Get
     protected Map<String, List<AccessControlEntry>> getAccessControlEntriesMap(Session session, String absPath,
             Principal principal, Map<Principal, Map<DeclarationType, Set<String>>> declaredAtPaths) throws RepositoryException {
         AccessControlManager acMgr = session.getAccessControlManager();
-        if (acMgr instanceof JackrabbitAccessControlManager) {
-            JackrabbitAccessControlManager jacMgr = (JackrabbitAccessControlManager)acMgr;
+        if (acMgr instanceof JackrabbitAccessControlManager jacMgr) {
             JackrabbitAccessControlPolicy[] policies = jacMgr.getPolicies(principal);
             return entriesSortedByEffectivePath(policies, ace -> matchesPrincipalAccessControlEntry(ace, absPath, principal), declaredAtPaths);
         } else {

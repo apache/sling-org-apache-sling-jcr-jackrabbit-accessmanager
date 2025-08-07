@@ -26,8 +26,6 @@ import javax.jcr.Session;
 import javax.jcr.security.AccessControlEntry;
 import javax.jcr.security.AccessControlManager;
 import javax.jcr.security.AccessControlPolicy;
-import jakarta.json.JsonObject;
-import javax.servlet.Servlet;
 
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.sling.jcr.jackrabbit.accessmanager.GetAcl;
@@ -35,6 +33,9 @@ import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.component.annotations.ReferencePolicyOption;
+
+import jakarta.json.JsonObject;
+import jakarta.servlet.Servlet;
 
 /**
  * <p>

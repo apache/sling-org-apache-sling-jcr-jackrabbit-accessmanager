@@ -21,14 +21,12 @@ import static org.junit.Assert.assertNotNull;
 import javax.inject.Inject;
 import javax.jcr.Node;
 import javax.jcr.RepositoryException;
-import javax.jcr.Session;
-import javax.jcr.SimpleCredentials;
-import jakarta.json.JsonObject;
 
-import org.apache.sling.jcr.api.SlingRepository;
 import org.apache.sling.jcr.jackrabbit.accessmanager.GetPrincipalAce;
 import org.junit.After;
 import org.junit.Before;
+
+import jakarta.json.JsonObject;
 
 /**
  * Base class for testing of the principal ACE operations
@@ -38,19 +36,12 @@ public abstract class PrincipalAceServiceTestSupport extends PrincipalAceTestSup
     @Inject
     protected GetPrincipalAce getPrincipalAce;
 
-    @Inject
-    protected SlingRepository repository;
-
-    protected Session adminSession;
-
     protected Node testNode;
 
     @Override
     @Before
     public void before() throws Exception {
         super.before();
-        adminSession = repository.login(new SimpleCredentials("admin", "admin".toCharArray()));
-        assertNotNull("Expected adminSession to not be null", adminSession);
         testNode = adminSession.getRootNode().addNode("testNode");
         adminSession.save();
     }
@@ -64,7 +55,6 @@ public abstract class PrincipalAceServiceTestSupport extends PrincipalAceTestSup
             if (adminSession.hasPendingChanges()) {
                 adminSession.save();
             }
-            adminSession.logout();
         }
         super.after();
     }

@@ -24,11 +24,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.stream.Stream;
 
-import jakarta.json.JsonException;
-import jakarta.json.JsonObject;
-import jakarta.json.JsonString;
-import jakarta.json.JsonValue;
-import javax.servlet.http.HttpServletResponse;
+import javax.jcr.RepositoryException;
 
 import org.apache.http.NameValuePair;
 import org.apache.http.auth.Credentials;
@@ -41,6 +37,12 @@ import org.ops4j.pax.exam.junit.PaxExam;
 import org.ops4j.pax.exam.spi.reactors.ExamReactorStrategy;
 import org.ops4j.pax.exam.spi.reactors.PerClass;
 
+import jakarta.json.JsonException;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonString;
+import jakarta.json.JsonValue;
+import jakarta.servlet.http.HttpServletResponse;
+
 /**
  * Tests for the 'ace' Sling Get Operation
  */
@@ -48,7 +50,7 @@ import org.ops4j.pax.exam.spi.reactors.PerClass;
 @ExamReactorStrategy(PerClass.class)
 public class GetAceIT extends AccessManagerClientTestSupport {
 
-    protected void commonDeclaredAceForUser(String selector) throws IOException {
+    protected void commonDeclaredAceForUser(String selector) throws IOException, RepositoryException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder(null, "sling-tests",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"child\" : { \"childPropOne\" : true } }");
@@ -82,7 +84,7 @@ public class GetAceIT extends AccessManagerClientTestSupport {
      * ACE servlet returns correct information
      */
     @Test
-    public void testDeclaredAceForUser() throws IOException, JsonException {
+    public void testDeclaredAceForUser() throws IOException, JsonException, RepositoryException {
         commonDeclaredAceForUser("ace");
     }
 
@@ -90,7 +92,7 @@ public class GetAceIT extends AccessManagerClientTestSupport {
      * ACE servlet returns correct information
      */
     @Test
-    public void testTidyDeclaredAceForUser() throws IOException, JsonException {
+    public void testTidyDeclaredAceForUser() throws IOException, JsonException, RepositoryException {
         commonDeclaredAceForUser("tidy.ace");
     }
 
@@ -98,7 +100,7 @@ public class GetAceIT extends AccessManagerClientTestSupport {
      * ACE servlet returns 404 when no declared ACE
      */
     @Test
-    public void testNoDeclaredAceForUser() throws IOException, JsonException {
+    public void testNoDeclaredAceForUser() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder(null, "sling-tests",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"child\" : { \"childPropOne\" : true } }");
@@ -121,7 +123,7 @@ public class GetAceIT extends AccessManagerClientTestSupport {
      * ACE servlet returns 404 when no read access rights permissions
      */
     @Test
-    public void testNoAccessToDeclaredAceForUser() throws IOException, JsonException {
+    public void testNoAccessToDeclaredAceForUser() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder(null, "sling-tests",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"child\" : { \"childPropOne\" : true } }");
@@ -144,7 +146,7 @@ public class GetAceIT extends AccessManagerClientTestSupport {
      * ACE servlet returns restriction details for leaf of also allowed aggregate
      */
     @Test
-    public void testDeclaredAceWithLeafRestrictionForUser() throws IOException, JsonException {
+    public void testDeclaredAceWithLeafRestrictionForUser() throws IOException, JsonException, RepositoryException {
         commonDeclaredAceWithLeafRestrictionForUser(1);
     }
 
@@ -153,11 +155,11 @@ public class GetAceIT extends AccessManagerClientTestSupport {
      * update to verify that the ordering doesn't get broken during update
      */
     @Test
-    public void testDeclaredAceWithLeafRestrictionForUserAfterSecondUpdate() throws IOException, JsonException {
+    public void testDeclaredAceWithLeafRestrictionForUserAfterSecondUpdate() throws IOException, JsonException, RepositoryException {
         commonDeclaredAceWithLeafRestrictionForUser(2);
     }
 
-    protected void commonDeclaredAceWithLeafRestrictionForUser(int numberOfUpdateAceCalls) throws IOException {
+    protected void commonDeclaredAceWithLeafRestrictionForUser(int numberOfUpdateAceCalls) throws IOException, RepositoryException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder(null, "sling-tests",
                 "{ \"jcr:primaryType\": \"nt:unstructured\" }");

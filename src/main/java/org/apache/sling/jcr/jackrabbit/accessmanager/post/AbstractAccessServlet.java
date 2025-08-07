@@ -21,12 +21,12 @@ import java.util.Set;
 
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.CompositeRestrictionProvider;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
-import org.apache.sling.api.servlets.SlingAllMethodsServlet;
+import org.apache.sling.api.servlets.SlingJakartaAllMethodsServlet;
 
 /**
  * Base class for all the servlets for the AccessManager operations
  */
-public abstract class AbstractAccessServlet extends SlingAllMethodsServlet {
+public abstract class AbstractAccessServlet extends SlingJakartaAllMethodsServlet {
     private static final long serialVersionUID = 6615497265938616188L;
 
     private transient RestrictionProvider compositeRestrictionProvider = null;
