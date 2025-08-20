@@ -1,24 +1,24 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager.it;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import javax.jcr.RepositoryException;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -27,8 +27,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import javax.jcr.RepositoryException;
-
+import jakarta.json.JsonArray;
+import jakarta.json.JsonException;
+import jakarta.json.JsonObject;
+import jakarta.servlet.http.HttpServletResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.auth.Credentials;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -41,10 +43,9 @@ import org.ops4j.pax.exam.junit.PaxExam;
 import org.ops4j.pax.exam.spi.reactors.ExamReactorStrategy;
 import org.ops4j.pax.exam.spi.reactors.PerClass;
 
-import jakarta.json.JsonArray;
-import jakarta.json.JsonException;
-import jakarta.json.JsonObject;
-import jakarta.servlet.http.HttpServletResponse;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 @RunWith(PaxExam.class)
 @ExamReactorStrategy(PerClass.class)
@@ -65,7 +66,7 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder();
 
-        //assign some privileges
+        // assign some privileges
         String postUrl = testFolderUrl + ".modifyAce.html";
 
         List<NameValuePair> postParams = new ArrayList<>();
@@ -79,7 +80,7 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
 
         String getUrl = testFolderUrl + ".privileges-info.json";
 
-        //fetch the JSON for the test page to verify the settings.
+        // fetch the JSON for the test page to verify the settings.
         Credentials testUserCreds = new UsernamePasswordCredentials(testUserId, "testPwd");
 
         String json = getAuthenticatedContent(testUserCreds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
@@ -103,7 +104,7 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder();
 
-        //assign some privileges
+        // assign some privileges
         String postUrl = testFolderUrl + ".modifyAce.html";
 
         List<NameValuePair> postParams = new ArrayList<>();
@@ -118,7 +119,7 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
 
         String getUrl = testFolderUrl + ".privileges-info.json";
 
-        //fetch the JSON for the test page to verify the settings.
+        // fetch the JSON for the test page to verify the settings.
         Credentials testUserCreds = new UsernamePasswordCredentials(testUserId, "testPwd");
 
         String json = getAuthenticatedContent(testUserCreds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
@@ -127,13 +128,13 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
 
         assertEquals(true, jsonObj.getBoolean("canAddChildren"));
         assertEquals(true, jsonObj.getBoolean("canDeleteChildren"));
-        //the parent node must also have jcr:removeChildren granted for 'canDelete' to be true
+        // the parent node must also have jcr:removeChildren granted for 'canDelete' to be true
         assertEquals(false, jsonObj.getBoolean("canDelete"));
         assertEquals(true, jsonObj.getBoolean("canModifyProperties"));
         assertEquals(true, jsonObj.getBoolean("canReadAccessControl"));
         assertEquals(true, jsonObj.getBoolean("canModifyAccessControl"));
 
-        //add a child node to verify the 'canDelete' use case
+        // add a child node to verify the 'canDelete' use case
         String parentPath = testFolderUrl.substring(baseServerUri.toString().length());
         String childFolderUrl = createTestFolder(parentPath, "testFolder");
         String childPostUrl = childFolderUrl + ".modifyAce.html";
@@ -145,7 +146,8 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
         assertAuthenticatedPostStatus(adminCreds, childPostUrl, HttpServletResponse.SC_OK, postParams, null);
 
         String childGetUrl = childFolderUrl + ".privileges-info.json";
-        String childJson = getAuthenticatedContent(testUserCreds, childGetUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
+        String childJson =
+                getAuthenticatedContent(testUserCreds, childGetUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
         assertNotNull(childJson);
         JsonObject childJsonObj = parseJson(childJson);
         assertEquals(true, childJsonObj.getBoolean("canDelete"));
@@ -162,10 +164,10 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
 
         Credentials adminCreds = new UsernamePasswordCredentials("admin", "admin");
 
-        //add testUserId to testGroup
+        // add testUserId to testGroup
         addUserToGroup(testUserId, testGroupId);
 
-        //assign some privileges
+        // assign some privileges
         String postUrl = testFolderUrl + ".modifyAce.html";
 
         List<NameValuePair> postParams = new ArrayList<>();
@@ -178,7 +180,7 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
 
         String getUrl = testFolderUrl + ".privileges-info.json";
 
-        //fetch the JSON for the test page to verify the settings.
+        // fetch the JSON for the test page to verify the settings.
         Credentials testUserCreds = new UsernamePasswordCredentials(testUserId, "testPwd");
 
         String json = getAuthenticatedContent(testUserCreds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
@@ -204,10 +206,10 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
 
         Credentials adminCreds = new UsernamePasswordCredentials("admin", "admin");
 
-        //add testUserId to testGroup
+        // add testUserId to testGroup
         addUserToGroup(testUserId, testGroupId);
 
-        //assign some privileges
+        // assign some privileges
         String postUrl = testFolderUrl + ".modifyAce.html";
 
         List<NameValuePair> postParams = new ArrayList<>();
@@ -221,7 +223,7 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
 
         String getUrl = testFolderUrl + ".privileges-info.json";
 
-        //fetch the JSON for the test page to verify the settings.
+        // fetch the JSON for the test page to verify the settings.
         Credentials testUserCreds = new UsernamePasswordCredentials(testUserId, "testPwd");
 
         String json = getAuthenticatedContent(testUserCreds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
@@ -230,13 +232,13 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
 
         assertEquals(true, jsonObj.getBoolean("canAddChildren"));
         assertEquals(true, jsonObj.getBoolean("canDeleteChildren"));
-        //the parent node must also have jcr:removeChildren granted for 'canDelete' to be true
+        // the parent node must also have jcr:removeChildren granted for 'canDelete' to be true
         assertEquals(false, jsonObj.getBoolean("canDelete"));
         assertEquals(true, jsonObj.getBoolean("canModifyProperties"));
         assertEquals(true, jsonObj.getBoolean("canReadAccessControl"));
         assertEquals(true, jsonObj.getBoolean("canModifyAccessControl"));
 
-        //add a child node to verify the 'canDelete' use case
+        // add a child node to verify the 'canDelete' use case
         String parentPath = testFolderUrl.substring(baseServerUri.toString().length());
         String childFolderUrl = createTestFolder(parentPath, "testFolder");
         String childPostUrl = childFolderUrl + ".modifyAce.html";
@@ -248,12 +250,12 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
         assertAuthenticatedPostStatus(adminCreds, childPostUrl, HttpServletResponse.SC_OK, postParams, null);
 
         String childGetUrl = childFolderUrl + ".privileges-info.json";
-        String childJson = getAuthenticatedContent(testUserCreds, childGetUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
+        String childJson =
+                getAuthenticatedContent(testUserCreds, childGetUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
         assertNotNull(childJson);
         JsonObject childJsonObj = parseJson(childJson);
         assertEquals(true, childJsonObj.getBoolean("canDelete"));
     }
-
 
     /**
      * Test the fix for SLING-1090
@@ -262,26 +264,31 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
     public void testSLING1090() throws IOException, RepositoryException {
         testUserId = createTestUser();
 
-        //grant jcr: removeChildNodes to the root node
+        // grant jcr: removeChildNodes to the root node
         ArrayList<NameValuePair> postParams = new ArrayList<>();
         postParams.add(new BasicNameValuePair("principalId", testUserId));
         postParams.add(new BasicNameValuePair("privilege@jcr:read", "granted"));
         postParams.add(new BasicNameValuePair("privilege@jcr:removeChildNodes", "granted"));
         Credentials adminCreds = new UsernamePasswordCredentials("admin", "admin");
-        assertAuthenticatedPostStatus(adminCreds, String.format("%s/.modifyAce.html", baseServerUri), HttpServletResponse.SC_OK, postParams, null);
+        assertAuthenticatedPostStatus(
+                adminCreds,
+                String.format("%s/.modifyAce.html", baseServerUri),
+                HttpServletResponse.SC_OK,
+                postParams,
+                null);
 
-        //create a node as a child of the root folder
+        // create a node as a child of the root folder
         testFolderUrl = createTestFolder("/", "testSLING1090");
         String postUrl = testFolderUrl + ".modifyAce.html";
 
-        //grant jcr:removeNode to the test node
+        // grant jcr:removeNode to the test node
         postParams = new ArrayList<>();
         postParams.add(new BasicNameValuePair("principalId", testUserId));
         postParams.add(new BasicNameValuePair("privilege@jcr:read", "granted"));
         postParams.add(new BasicNameValuePair("privilege@jcr:removeNode", "granted"));
         assertAuthenticatedPostStatus(adminCreds, postUrl, HttpServletResponse.SC_OK, postParams, null);
 
-        //fetch the JSON for the test page to verify the settings.
+        // fetch the JSON for the test page to verify the settings.
         String getUrl = testFolderUrl + ".privileges-info.json";
         Credentials testUserCreds = new UsernamePasswordCredentials(testUserId, "testPwd");
         String json = getAuthenticatedContent(testUserCreds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
@@ -298,12 +305,14 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
         testUserId = createTestUser();
         testUserId2 = createTestUser();
 
-        testFolderUrl = createTestFolder(null, "sling-tests",
+        testFolderUrl = createTestFolder(
+                null,
+                "sling-tests",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"propOne\" : \"propOneValue\", \"child\" : { \"childPropOne\" : true } }");
 
         String postUrl = testFolderUrl + ".modifyAce.html";
 
-        //1. create an initial set of privileges
+        // 1. create an initial set of privileges
         List<NameValuePair> postParams = new ArrayList<>();
         postParams.add(new BasicNameValuePair("principalId", testUserId));
         postParams.add(new BasicNameValuePair("privilege@jcr:write", "granted"));
@@ -324,8 +333,7 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
         postUrl = testFolderUrl + "/child.modifyAce.html";
         assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
 
-
-        //fetch the JSON for the eacl to verify the settings.
+        // fetch the JSON for the eacl to verify the settings.
         String getUrl = testFolderUrl + "/child.privileges-info.json";
         Credentials testUserCreds = new UsernamePasswordCredentials("admin", "admin");
         String json = getAuthenticatedContent(testUserCreds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
@@ -342,7 +350,7 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
         assertNotNull(grantedArray2);
         assertEquals(1, grantedArray2.size());
         Set<String> grantedPrivilegeNames2 = new HashSet<>();
-        for (int i=0; i < grantedArray2.size(); i++) {
+        for (int i = 0; i < grantedArray2.size(); i++) {
             grantedPrivilegeNames2.add(grantedArray2.getString(i));
         }
         assertPrivilege(grantedPrivilegeNames2, true, "jcr:lockManagement");
@@ -350,7 +358,6 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
         JsonArray deniedArray2 = aceObject2.getJsonArray("denied");
         assertNotNull(deniedArray2);
         assertEquals(0, deniedArray2.size());
-
 
         getUrl = testFolderUrl + ".privileges-info.json";
         json = getAuthenticatedContent(testUserCreds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
@@ -365,10 +372,10 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
         assertNotNull(grantedArray);
         assertEquals(1, grantedArray.size());
         Set<String> grantedPrivilegeNames = new HashSet<>();
-        for (int i=0; i < grantedArray.size(); i++) {
+        for (int i = 0; i < grantedArray.size(); i++) {
             grantedPrivilegeNames.add(grantedArray.getString(i));
         }
-        assertPrivilege(grantedPrivilegeNames,true, PrivilegeConstants.JCR_WRITE);
+        assertPrivilege(grantedPrivilegeNames, true, PrivilegeConstants.JCR_WRITE);
 
         JsonArray deniedArray = aceObject.getJsonArray("denied");
         assertNotNull(deniedArray);
@@ -381,7 +388,7 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
         assertNotNull(grantedArray2);
         assertEquals(1, grantedArray2.size());
         grantedPrivilegeNames2 = new HashSet<>();
-        for (int i=0; i < grantedArray2.size(); i++) {
+        for (int i = 0; i < grantedArray2.size(); i++) {
             grantedPrivilegeNames2.add(grantedArray2.getString(i));
         }
         assertPrivilege(grantedPrivilegeNames2, true, PrivilegeConstants.JCR_WRITE);
@@ -399,12 +406,14 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
         testUserId = createTestUser();
         testUserId2 = createTestUser();
 
-        testFolderUrl = createTestFolder(null, "sling-tests",
+        testFolderUrl = createTestFolder(
+                null,
+                "sling-tests",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"propOne\" : \"propOneValue\", \"child\" : { \"childPropOne\" : true } }");
 
         String postUrl = testFolderUrl + ".modifyAce.html";
 
-        //1. create an initial set of privileges
+        // 1. create an initial set of privileges
         List<NameValuePair> postParams = new ArrayList<>();
         postParams.add(new BasicNameValuePair("principalId", testUserId));
         postParams.add(new BasicNameValuePair("privilege@jcr:write", "granted"));
@@ -425,8 +434,7 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
         postUrl = testFolderUrl + "/child.modifyAce.html";
         assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
 
-
-        //fetch the JSON for the eacl to verify the settings.
+        // fetch the JSON for the eacl to verify the settings.
         String getUrl = testFolderUrl + "/child.privileges-info.json";
         Credentials testUserCreds = new UsernamePasswordCredentials("admin", "admin");
         String json = getAuthenticatedContent(testUserCreds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
@@ -441,10 +449,10 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
         assertNotNull(grantedArray);
         assertEquals(1, grantedArray.size());
         Set<String> grantedPrivilegeNames = new HashSet<>();
-        for (int i=0; i < grantedArray.size(); i++) {
+        for (int i = 0; i < grantedArray.size(); i++) {
             grantedPrivilegeNames.add(grantedArray.getString(i));
         }
-        assertPrivilege(grantedPrivilegeNames,true, PrivilegeConstants.JCR_WRITE);
+        assertPrivilege(grantedPrivilegeNames, true, PrivilegeConstants.JCR_WRITE);
 
         JsonArray deniedArray = aceObject.getJsonArray("denied");
         assertNotNull(deniedArray);
@@ -457,7 +465,7 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
         assertNotNull(grantedArray2);
         assertEquals(2, grantedArray2.size());
         Set<String> grantedPrivilegeNames2 = new HashSet<>();
-        for (int i=0; i < grantedArray2.size(); i++) {
+        for (int i = 0; i < grantedArray2.size(); i++) {
             grantedPrivilegeNames2.add(grantedArray2.getString(i));
         }
         assertPrivilege(grantedPrivilegeNames2, true, PrivilegeConstants.JCR_WRITE);
@@ -467,5 +475,4 @@ public class AccessPrivilegesInfoIT extends AccessManagerClientTestSupport {
         assertNotNull(deniedArray2);
         assertEquals(0, deniedArray2.size());
     }
-
 }

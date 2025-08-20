@@ -1,32 +1,22 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
 
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
@@ -34,6 +24,12 @@ import javax.jcr.Value;
 import javax.jcr.ValueFactory;
 import javax.jcr.security.AccessControlManager;
 import javax.jcr.security.Privilege;
+
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 import org.apache.jackrabbit.oak.security.authorization.restriction.RestrictionProviderImpl;
 import org.apache.jackrabbit.oak.spi.security.authorization.accesscontrol.AccessControlConstants;
@@ -48,6 +44,12 @@ import org.jetbrains.annotations.NotNull;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for {@link LocalPrivilege}
@@ -73,9 +75,8 @@ public class LocalPrivilegeTest {
 
     private RestrictionDefinition rd(String restrictionName) {
         if (srMap == null) {
-            //make a temp map for quick lookup below
-            @NotNull
-            RestrictionProvider[] services = context.getServices(RestrictionProvider.class, null);
+            // make a temp map for quick lookup below
+            @NotNull RestrictionProvider[] services = context.getServices(RestrictionProvider.class, null);
             RestrictionProvider restrictionProvider = CompositeRestrictionProvider.newInstance(services);
             Set<RestrictionDefinition> supportedRestrictions = restrictionProvider.getSupportedRestrictions("/");
             srMap = new HashMap<>();
@@ -89,7 +90,8 @@ public class LocalPrivilegeTest {
     private Value val(String value) {
         return ValueFactoryImpl.getInstance().createValue(value);
     }
-    private Value[] vals(String ... value) {
+
+    private Value[] vals(String... value) {
         Value[] values = new Value[value.length];
         ValueFactory vf = ValueFactoryImpl.getInstance();
         for (int i = 0; i < value.length; i++) {
@@ -236,19 +238,22 @@ public class LocalPrivilegeTest {
 
         Set<LocalRestriction> newAllowRestrictions1 = new HashSet<>();
         newAllowRestrictions1.add(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")));
-        newAllowRestrictions1.add(new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2")));
+        newAllowRestrictions1.add(
+                new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2")));
         lp1.setAllowRestrictions(newAllowRestrictions1);
         assertFalse(lp1.sameAllowRestrictions(lp2.getAllowRestrictions()));
 
         Set<LocalRestriction> newAllowRestrictions2 = new HashSet<>();
         newAllowRestrictions2.add(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")));
-        newAllowRestrictions2.add(new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2")));
+        newAllowRestrictions2.add(
+                new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2")));
         lp2.setAllowRestrictions(newAllowRestrictions2);
         assertTrue(lp1.sameAllowRestrictions(lp2.getAllowRestrictions()));
 
         Set<LocalRestriction> newAllowRestrictions3 = new HashSet<>();
         newAllowRestrictions3.add(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")));
-        newAllowRestrictions3.add(new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2_changed")));
+        newAllowRestrictions3.add(
+                new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2_changed")));
         lp2.setAllowRestrictions(newAllowRestrictions3);
         assertFalse(lp1.sameAllowRestrictions(lp2.getAllowRestrictions()));
     }
@@ -264,19 +269,22 @@ public class LocalPrivilegeTest {
 
         Set<LocalRestriction> newDenyRestrictions1 = new HashSet<>();
         newDenyRestrictions1.add(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")));
-        newDenyRestrictions1.add(new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2")));
+        newDenyRestrictions1.add(
+                new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2")));
         lp1.setDenyRestrictions(newDenyRestrictions1);
         assertFalse(lp1.sameDenyRestrictions(lp2.getDenyRestrictions()));
 
         Set<LocalRestriction> newDenyRestrictions2 = new HashSet<>();
         newDenyRestrictions2.add(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")));
-        newDenyRestrictions2.add(new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2")));
+        newDenyRestrictions2.add(
+                new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2")));
         lp2.setDenyRestrictions(newDenyRestrictions2);
         assertTrue(lp1.sameDenyRestrictions(lp2.getDenyRestrictions()));
 
         Set<LocalRestriction> newDenyRestrictions3 = new HashSet<>();
         newDenyRestrictions3.add(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")));
-        newDenyRestrictions3.add(new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2_changed")));
+        newDenyRestrictions3.add(
+                new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2_changed")));
         lp2.setDenyRestrictions(newDenyRestrictions3);
         assertFalse(lp1.sameDenyRestrictions(lp2.getDenyRestrictions()));
     }
@@ -291,19 +299,22 @@ public class LocalPrivilegeTest {
 
         Set<LocalRestriction> newDenyRestrictions1 = new HashSet<>();
         newDenyRestrictions1.add(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")));
-        newDenyRestrictions1.add(new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2")));
+        newDenyRestrictions1.add(
+                new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2")));
         lp1.setDenyRestrictions(newDenyRestrictions1);
         assertFalse(lp1.sameAllowAndDenyRestrictions());
 
         Set<LocalRestriction> newAllowRestrictions1 = new HashSet<>();
         newAllowRestrictions1.add(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")));
-        newAllowRestrictions1.add(new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2")));
+        newAllowRestrictions1.add(
+                new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2")));
         lp1.setAllowRestrictions(newAllowRestrictions1);
         assertTrue(lp1.sameAllowAndDenyRestrictions());
 
         Set<LocalRestriction> newAllowRestrictions2 = new HashSet<>();
         newAllowRestrictions2.add(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")));
-        newAllowRestrictions2.add(new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2_changed")));
+        newAllowRestrictions2.add(
+                new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2_changed")));
         lp1.setAllowRestrictions(newAllowRestrictions2);
         assertFalse(lp1.sameAllowAndDenyRestrictions());
     }
@@ -360,12 +371,14 @@ public class LocalPrivilegeTest {
         assertNotEquals(lp10, lp11);
 
         LocalPrivilege lp12 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
-        lp12.setAllowRestrictions(new HashSet<>(Arrays.asList(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")))));
+        lp12.setAllowRestrictions(
+                new HashSet<>(Arrays.asList(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")))));
         LocalPrivilege lp13 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
         assertNotEquals(lp12, lp13);
 
         LocalPrivilege lp14 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
-        lp14.setDenyRestrictions(new HashSet<>(Arrays.asList(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")))));
+        lp14.setDenyRestrictions(
+                new HashSet<>(Arrays.asList(new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello")))));
         LocalPrivilege lp15 = new LocalPrivilege(priv(PrivilegeConstants.JCR_READ));
         assertNotEquals(lp14, lp15);
 
@@ -393,5 +406,4 @@ public class LocalPrivilegeTest {
         lp25.setDenyRestrictions(null);
         assertEquals(lp24, lp25);
     }
-
 }

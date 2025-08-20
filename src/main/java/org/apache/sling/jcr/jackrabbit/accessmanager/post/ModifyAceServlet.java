@@ -1,20 +1,35 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager.post;
+
+import javax.jcr.RepositoryException;
+import javax.jcr.Session;
+import javax.jcr.UnsupportedRepositoryOperationException;
+import javax.jcr.Value;
+import javax.jcr.ValueFactory;
+import javax.jcr.security.AccessControlEntry;
+import javax.jcr.security.AccessControlException;
+import javax.jcr.security.AccessControlList;
+import javax.jcr.security.AccessControlManager;
+import javax.jcr.security.AccessControlPolicy;
+import javax.jcr.security.AccessControlPolicyIterator;
+import javax.jcr.security.Privilege;
 
 import java.security.Principal;
 import java.util.ArrayList;
@@ -34,19 +49,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.jcr.RepositoryException;
-import javax.jcr.Session;
-import javax.jcr.UnsupportedRepositoryOperationException;
-import javax.jcr.Value;
-import javax.jcr.ValueFactory;
-import javax.jcr.security.AccessControlEntry;
-import javax.jcr.security.AccessControlException;
-import javax.jcr.security.AccessControlList;
-import javax.jcr.security.AccessControlManager;
-import javax.jcr.security.AccessControlPolicy;
-import javax.jcr.security.AccessControlPolicyIterator;
-import javax.jcr.security.Privilege;
-
+import jakarta.servlet.Servlet;
 import org.apache.jackrabbit.api.JackrabbitSession;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlList;
@@ -71,8 +74,6 @@ import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.component.annotations.ReferencePolicyOption;
 
-import jakarta.servlet.Servlet;
-
 /**
  * <p>
  * Sling Post Servlet implementation for modifying the ACEs for a principal on a JCR
@@ -94,7 +95,7 @@ import jakarta.servlet.Servlet;
  * <dd>The principal of the ACEs to modify in the ACL specified by the path.</dd>
  * <dt>privilege@[privilege_name]</dt>
  * <dd>One or more privileges which will be applied to the ACE. Any permissions that are present in an
- * existing ACE for the principal but not in the request are left untouched. The parameter value must be either 'allow', 'deny' or 'all'. 
+ * existing ACE for the principal but not in the request are left untouched. The parameter value must be either 'allow', 'deny' or 'all'.
  * For backward compatibility, 'granted' or 'denied' may also be used for the parameter value as an alias for 'allow' or 'deny'.</dd>
  * <dt>restriction@[restriction_name]</dt>
  * <dd>One or more restrictions which will be applied to the ACE. The value is the target value of the restriction to be set.</dd>
@@ -104,7 +105,7 @@ import jakarta.servlet.Servlet;
  * <dd>One param for each privilege to delete. The parameter value must be either 'allow', 'deny' or 'all' to specify which state to delete from</dd>
  * <dt>restriction@[privilege_name]@[restriction_name]@Allow</dt>
  * <dt>restriction@[privilege_name]@[restriction_name]@Deny</dt>
- * <dd>One param for each restriction value. The same parameter name may be used again for multi-value restrictions. The @Allow or @Deny suffix 
+ * <dd>One param for each restriction value. The same parameter name may be used again for multi-value restrictions. The @Allow or @Deny suffix
  *     specifies whether to apply the restriction to the 'allow' or 'deny' privilege.  The value is the target value of the restriction to be set.</dd>
  * <dt>restriction@[privilege_name]@[restriction_name]@Delete</dt>
  * <dd>One param for each restriction to delete. The parameter value must be either 'allow', 'deny' or 'all' to specify which state to delete from.</dd>
@@ -127,41 +128,44 @@ import jakarta.servlet.Servlet;
  * will not be added to the group. The group will only contain granted privileges.
  * </p>
  */
-
-@Component(service = {Servlet.class, ModifyAce.class},
-property= {
-        "sling.servlet.resourceTypes=sling/servlet/default",
-        "sling.servlet.methods=POST",
-        "sling.servlet.selectors=modifyAce",
-        "sling.servlet.prefix:Integer=-1"
-},
-reference = {
-        @Reference(name="RestrictionProvider",
-                bind = "bindRestrictionProvider",
-                cardinality = ReferenceCardinality.MULTIPLE,
-                policyOption = ReferencePolicyOption.GREEDY,
-                service = RestrictionProvider.class),
-        @Reference(name = "PostResponseCreator",
-                bind = "bindPostResponseCreator",
-                cardinality = ReferenceCardinality.MULTIPLE,
-                policyOption = ReferencePolicyOption.GREEDY,
-                service = JakartaPostResponseCreator.class)
-})
+@Component(
+        service = {Servlet.class, ModifyAce.class},
+        property = {
+            "sling.servlet.resourceTypes=sling/servlet/default",
+            "sling.servlet.methods=POST",
+            "sling.servlet.selectors=modifyAce",
+            "sling.servlet.prefix:Integer=-1"
+        },
+        reference = {
+            @Reference(
+                    name = "RestrictionProvider",
+                    bind = "bindRestrictionProvider",
+                    cardinality = ReferenceCardinality.MULTIPLE,
+                    policyOption = ReferencePolicyOption.GREEDY,
+                    service = RestrictionProvider.class),
+            @Reference(
+                    name = "PostResponseCreator",
+                    bind = "bindPostResponseCreator",
+                    cardinality = ReferenceCardinality.MULTIPLE,
+                    policyOption = ReferencePolicyOption.GREEDY,
+                    service = JakartaPostResponseCreator.class)
+        })
 @SuppressWarnings("java:S110")
 public class ModifyAceServlet extends AbstractAccessPostServlet implements ModifyAce {
     private static final long serialVersionUID = -9182485466670280437L;
-    private static final String INVALID_OR_NOT_SUPPORTED_RESTRICTION_NAME_WAS_SUPPLIED = "Invalid restriction name was supplied";
+    private static final String INVALID_OR_NOT_SUPPORTED_RESTRICTION_NAME_WAS_SUPPLIED =
+            "Invalid restriction name was supplied";
 
     /**
      * Possible values for a privilege parameter
      */
     private enum PrivilegeValues {
-            ALLOW("allow"),
-            GRANTED("granted"),
-            NONE("none"),
-            DENIED("denied"),
-            DENY("deny"),
-            INVALID("*");
+        ALLOW("allow"),
+        GRANTED("granted"),
+        NONE("none"),
+        DENIED("denied"),
+        DENY("deny"),
+        INVALID("*");
 
         private String paramValue;
 
@@ -175,9 +179,9 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
 
         public static PrivilegeValues valueOfParam(String value) {
             return Stream.of(PrivilegeValues.values())
-                .filter(item -> item.paramValue.equalsIgnoreCase(value))
-                .findFirst()
-                .orElse(INVALID);
+                    .filter(item -> item.paramValue.equalsIgnoreCase(value))
+                    .findFirst()
+                    .orElse(INVALID);
         }
     }
 
@@ -198,26 +202,26 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
 
         public static DeleteValues valueOfParam(String value) {
             return Stream.of(DeleteValues.values())
-                .filter(item -> item.paramValue.equalsIgnoreCase(value))
-                .findFirst()
-                .orElse(INVALID);
+                    .filter(item -> item.paramValue.equalsIgnoreCase(value))
+                    .findFirst()
+                    .orElse(INVALID);
         }
     }
 
-    private static final Pattern PRIVILEGE_PATTERN = Pattern.compile(String.format("^privilege@(.+)(?<!%s)$",
-            SlingPostConstants.SUFFIX_DELETE));
-    private static final Pattern PRIVILEGE_PATTERN_DELETE = Pattern.compile(String.format("^privilege@(.+)%s$",
-            SlingPostConstants.SUFFIX_DELETE));
+    private static final Pattern PRIVILEGE_PATTERN =
+            Pattern.compile(String.format("^privilege@(.+)(?<!%s)$", SlingPostConstants.SUFFIX_DELETE));
+    private static final Pattern PRIVILEGE_PATTERN_DELETE =
+            Pattern.compile(String.format("^privilege@(.+)%s$", SlingPostConstants.SUFFIX_DELETE));
     private static final Pattern RESTRICTION_PATTERN = Pattern.compile("^restriction@([^@]+)(@([^@]+)@(Allow|Deny))?$");
-    private static final Pattern RESTRICTION_PATTERN_DELETE = Pattern.compile(String.format("^restriction@([^@]+)(@([^@]+))?%s$",
-                SlingPostConstants.SUFFIX_DELETE));
+    private static final Pattern RESTRICTION_PATTERN_DELETE =
+            Pattern.compile(String.format("^restriction@([^@]+)(@([^@]+))?%s$", SlingPostConstants.SUFFIX_DELETE));
 
     /* (non-Javadoc)
      * @see org.apache.sling.jackrabbit.accessmanager.post.AbstractAccessPostServlet#handleOperation(org.apache.sling.api.SlingJakartaHttpServletRequest, org.apache.sling.servlets.post.JakartaPostResponse, java.util.List)
      */
     @Override
-    protected void handleOperation(SlingJakartaHttpServletRequest request,
-            JakartaPostResponse response, List<Modification> changes)
+    protected void handleOperation(
+            SlingJakartaHttpServletRequest request, JakartaPostResponse response, List<Modification> changes)
             throws RepositoryException {
         Session session = request.getResourceResolver().adaptTo(Session.class);
         String resourcePath = getItemPath(request);
@@ -230,18 +234,22 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
         // Use for fast lookup during the calls below.
         Map<String, RestrictionDefinition> srMap = buildRestrictionNameToDefinitionMap(resourcePath);
         AccessControlManager acm = session.getAccessControlManager();
-        Map<Privilege, Integer> privilegeLongestDepthMap = PrivilegesHelper.buildPrivilegeLongestDepthMap(acm.privilegeFromName(PrivilegeConstants.JCR_ALL));
+        Map<Privilege, Integer> privilegeLongestDepthMap =
+                PrivilegesHelper.buildPrivilegeLongestDepthMap(acm.privilegeFromName(PrivilegeConstants.JCR_ALL));
 
         // first calculate what is currently stored in the ace
-        Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap = loadStoredAce(acm, resourcePath, principal, srMap);
+        Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap =
+                loadStoredAce(acm, resourcePath, principal, srMap);
 
         // and now merge the changes from the request parameters
         processPostedPrivilegeDeleteParams(acm, request, privilegeToLocalPrivilegesMap);
         processPostedRestrictionDeleteParams(acm, request, srMap, privilegeToLocalPrivilegesMap);
-        processPostedPrivilegeAndRestrictionParams(acm, request, srMap, privilegeToLocalPrivilegesMap, privilegeLongestDepthMap);
+        processPostedPrivilegeAndRestrictionParams(
+                acm, request, srMap, privilegeToLocalPrivilegesMap, privilegeLongestDepthMap);
 
         // consolidate any aggregates that are still valid
-        PrivilegesHelper.consolidateAggregates(session, resourcePath, privilegeToLocalPrivilegesMap, privilegeLongestDepthMap);
+        PrivilegesHelper.consolidateAggregates(
+                session, resourcePath, privilegeToLocalPrivilegesMap, privilegeLongestDepthMap);
 
         // and then store it
         modifyAce(session, resourcePath, principalId, privilegeToLocalPrivilegesMap.values(), order, false, changes);
@@ -249,19 +257,21 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
 
     /**
      * Verify that the user supplied arguments are valid
-     * 
+     *
      * @param jcrSession the JCR session
      * @param resourcePath the resource path
      * @param principalId the principal id
      * @return the principal for the requested principalId
      */
-    protected @NotNull Principal validateArgs(Session jcrSession, String resourcePath, String principalId) throws RepositoryException {
+    protected @NotNull Principal validateArgs(Session jcrSession, String resourcePath, String principalId)
+            throws RepositoryException {
         if (jcrSession == null) {
             throw new RepositoryException("JCR Session not found");
         }
 
         if (RestrictionProvider.EMPTY.equals(getRestrictionProvider())) {
-            throw new IllegalStateException("No restriction provider is available so unable to process POSTed restriction values");
+            throw new IllegalStateException(
+                    "No restriction provider is available so unable to process POSTed restriction values");
         }
 
         if (principalId == null) {
@@ -269,7 +279,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
         }
 
         // validate that the submitted name is valid
-        PrincipalManager principalManager = ((JackrabbitSession)jcrSession).getPrincipalManager();
+        PrincipalManager principalManager = ((JackrabbitSession) jcrSession).getPrincipalManager();
         Principal principal = principalManager.getPrincipal(principalId);
         if (principal == null) {
             throw new RepositoryException("Invalid principalId was submitted.");
@@ -288,12 +298,14 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
 
     /**
      * Calculate a map of restriction names to the restriction definition
-     * 
+     *
      * @param resourcePath the path of the resource
      * @return map of restriction names to definition
      */
-    protected @NotNull Map<String, RestrictionDefinition> buildRestrictionNameToDefinitionMap(@NotNull String resourcePath) {
-        Set<RestrictionDefinition> supportedRestrictions = getRestrictionProvider().getSupportedRestrictions(resourcePath);
+    protected @NotNull Map<String, RestrictionDefinition> buildRestrictionNameToDefinitionMap(
+            @NotNull String resourcePath) {
+        Set<RestrictionDefinition> supportedRestrictions =
+                getRestrictionProvider().getSupportedRestrictions(resourcePath);
         Map<String, RestrictionDefinition> srMap = new HashMap<>();
         for (RestrictionDefinition restrictionDefinition : supportedRestrictions) {
             srMap.put(restrictionDefinition.getName(), restrictionDefinition);
@@ -304,7 +316,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
     /**
      * Loads the state for the currently stored ACE for the specified principal.
      * The state for any aggregate privilege is expanded to make it easier to merge changes.
-     * 
+     *
      * @param acm the access control manager
      * @param resourcePath the resource path
      * @param forPrincipal the principal to load the ace for
@@ -312,37 +324,45 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
      * @return the privileges from the ace as a map where the key is the privilege
      *          and the value is the LocalPrivilege that encapsulates the state
      */
-    protected @NotNull Map<Privilege, LocalPrivilege> loadStoredAce(@NotNull AccessControlManager acm, @NotNull String resourcePath,
-            @NotNull Principal forPrincipal, @NotNull Map<String, RestrictionDefinition> srMap) throws RepositoryException {
+    protected @NotNull Map<Privilege, LocalPrivilege> loadStoredAce(
+            @NotNull AccessControlManager acm,
+            @NotNull String resourcePath,
+            @NotNull Principal forPrincipal,
+            @NotNull Map<String, RestrictionDefinition> srMap)
+            throws RepositoryException {
         Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap = new HashMap<>();
         JackrabbitAccessControlList acl = getAcl(acm, resourcePath, forPrincipal);
         AccessControlEntry[] accessControlEntries = acl.getAccessControlEntries();
         for (AccessControlEntry accessControlEntry : accessControlEntries) {
-            JackrabbitAccessControlEntry jrAccessControlEntry = getJackrabbitAccessControlEntry(accessControlEntry, resourcePath, forPrincipal);
+            JackrabbitAccessControlEntry jrAccessControlEntry =
+                    getJackrabbitAccessControlEntry(accessControlEntry, resourcePath, forPrincipal);
             if (jrAccessControlEntry != null) {
                 Privilege[] privileges = jrAccessControlEntry.getPrivileges();
                 if (privileges != null) {
                     boolean isAllow = jrAccessControlEntry.isAllow();
                     // populate the declared restrictions
-                    @NotNull
-                    String[] restrictionNames = jrAccessControlEntry.getRestrictionNames();
+                    @NotNull String[] restrictionNames = jrAccessControlEntry.getRestrictionNames();
                     Set<LocalRestriction> restrictionItems = new HashSet<>();
                     for (String restrictionName : restrictionNames) {
                         RestrictionDefinition rd = srMap.get(restrictionName);
                         if (rd != null) { // should never get null value here
                             boolean isMulti = rd.getRequiredType().isArray();
                             if (isMulti) {
-                                restrictionItems.add(new LocalRestriction(rd, jrAccessControlEntry.getRestrictions(restrictionName)));
+                                restrictionItems.add(new LocalRestriction(
+                                        rd, jrAccessControlEntry.getRestrictions(restrictionName)));
                             } else {
-                                restrictionItems.add(new LocalRestriction(rd, jrAccessControlEntry.getRestriction(restrictionName)));
+                                restrictionItems.add(
+                                        new LocalRestriction(rd, jrAccessControlEntry.getRestriction(restrictionName)));
                             }
                         }
                     }
 
                     if (isAllow) {
-                        PrivilegesHelper.allow(privilegeToLocalPrivilegesMap, restrictionItems, Arrays.asList(privileges));
+                        PrivilegesHelper.allow(
+                                privilegeToLocalPrivilegesMap, restrictionItems, Arrays.asList(privileges));
                     } else {
-                        PrivilegesHelper.deny(privilegeToLocalPrivilegesMap, restrictionItems, Arrays.asList(privileges));
+                        PrivilegesHelper.deny(
+                                privilegeToLocalPrivilegesMap, restrictionItems, Arrays.asList(privileges));
                     }
                 }
             }
@@ -350,11 +370,11 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
         return privilegeToLocalPrivilegesMap;
     }
 
-    protected @Nullable JackrabbitAccessControlEntry getJackrabbitAccessControlEntry(@NotNull AccessControlEntry entry, @NotNull String resourcePath,
-            @NotNull Principal forPrincipal) {
+    protected @Nullable JackrabbitAccessControlEntry getJackrabbitAccessControlEntry(
+            @NotNull AccessControlEntry entry, @NotNull String resourcePath, @NotNull Principal forPrincipal) {
         JackrabbitAccessControlEntry jrEntry = null;
-        if (entry instanceof JackrabbitAccessControlEntry jacEntry &&
-                entry.getPrincipal().equals(forPrincipal)) {
+        if (entry instanceof JackrabbitAccessControlEntry jacEntry
+                && entry.getPrincipal().equals(forPrincipal)) {
             jrEntry = jacEntry;
         }
         return jrEntry;
@@ -366,7 +386,8 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
      * @param pattern the regex pattern to match
      * @return map of parameter names to Matcher that match the pattern
      */
-    protected @NotNull Map<String, Matcher> getMatchedRequestParameterNames(@NotNull SlingJakartaHttpServletRequest request, @NotNull Pattern pattern) {
+    protected @NotNull Map<String, Matcher> getMatchedRequestParameterNames(
+            @NotNull SlingJakartaHttpServletRequest request, @NotNull Pattern pattern) {
         Map<String, Matcher> keys = new HashMap<>();
         Enumeration<String> parameterNames = request.getParameterNames();
         while (parameterNames.hasMoreElements()) {
@@ -382,16 +403,19 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
     /**
      * Merge into the privilegeToLocalPrivilegesMap the changes requested in privilege
      * delete request parameters.
-     * 
+     *
      * @param acm the access control manager
      * @param request the current request
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      */
-    protected void processPostedPrivilegeDeleteParams(@NotNull AccessControlManager acm,
+    protected void processPostedPrivilegeDeleteParams(
+            @NotNull AccessControlManager acm,
             @NotNull SlingJakartaHttpServletRequest request,
-            @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap) throws RepositoryException {
+            @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap)
+            throws RepositoryException {
         @NotNull
-        Map<String, Matcher> postedPrivilegeDeleteNames = getMatchedRequestParameterNames(request, PRIVILEGE_PATTERN_DELETE);
+        Map<String, Matcher> postedPrivilegeDeleteNames =
+                getMatchedRequestParameterNames(request, PRIVILEGE_PATTERN_DELETE);
         for (Entry<String, Matcher> entry : postedPrivilegeDeleteNames.entrySet()) {
             String paramName = entry.getKey();
             Matcher matcher = entry.getValue();
@@ -400,12 +424,10 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             String paramValue = request.getParameter(paramName);
             DeleteValues value = DeleteValues.valueOfParam(paramValue);
             if (DeleteValues.ALL.equals(value) || DeleteValues.ALLOW.equals(value)) {
-                PrivilegesHelper.unallow(privilegeToLocalPrivilegesMap,
-                        Collections.singleton(privilege));
+                PrivilegesHelper.unallow(privilegeToLocalPrivilegesMap, Collections.singleton(privilege));
             }
             if (DeleteValues.ALL.equals(value) || DeleteValues.DENY.equals(value)) {
-                PrivilegesHelper.undeny(privilegeToLocalPrivilegesMap,
-                        Collections.singleton(privilege));
+                PrivilegesHelper.undeny(privilegeToLocalPrivilegesMap, Collections.singleton(privilege));
             }
         }
     }
@@ -413,18 +435,21 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
     /**
      * Merge into the privilegeToLocalPrivilegesMap the changes requested in restriction
      * delete request parameters.
-     * 
+     *
      * @param acm the access control manager
      * @param request the current request
      * @param srMap map of restriction names to the restriction definition
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      */
-    protected void processPostedRestrictionDeleteParams(@NotNull AccessControlManager acm,
+    protected void processPostedRestrictionDeleteParams(
+            @NotNull AccessControlManager acm,
             @NotNull SlingJakartaHttpServletRequest request,
             @NotNull Map<String, RestrictionDefinition> srMap,
-            @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap) throws RepositoryException {
+            @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap)
+            throws RepositoryException {
         @NotNull
-        Map<String, Matcher> postedRestrictionDeleteNames = getMatchedRequestParameterNames(request, RESTRICTION_PATTERN_DELETE);
+        Map<String, Matcher> postedRestrictionDeleteNames =
+                getMatchedRequestParameterNames(request, RESTRICTION_PATTERN_DELETE);
         for (Entry<String, Matcher> entry : postedRestrictionDeleteNames.entrySet()) {
             String paramName = entry.getKey();
             Matcher matcher = entry.getValue();
@@ -439,7 +464,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             }
             RestrictionDefinition rd = srMap.get(restrictionName);
             if (rd == null) {
-                //illegal restriction name?
+                // illegal restriction name?
                 throw new AccessControlException(INVALID_OR_NOT_SUPPORTED_RESTRICTION_NAME_WAS_SUPPLIED);
             }
             Collection<Privilege> privileges;
@@ -455,28 +480,26 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             if (privilegeName == null) {
                 // for backward compatibility, the restriction@[restriction_name]@Delete syntax
                 //   deletes from both 'allow' and 'deny'
-                parameterValues = new String[] { "all" };
+                parameterValues = new String[] {"all"};
             } else {
                 parameterValues = request.getParameterValues(paramName);
             }
             for (String allowOrDeny : parameterValues) {
                 DeleteValues value = DeleteValues.valueOfParam(allowOrDeny);
                 switch (value) {
-                case ALL:
-                    // not specified try both the deny and allow sets
-                    PrivilegesHelper.unallowOrUndenyRestriction(privilegeToLocalPrivilegesMap,
-                            restrictionName, privileges);
-                    break;
-                case ALLOW:
-                    PrivilegesHelper.unallowRestriction(privilegeToLocalPrivilegesMap,
-                            restrictionName, privileges);
-                    break;
-                case DENY:
-                    PrivilegesHelper.undenyRestriction(privilegeToLocalPrivilegesMap,
-                            restrictionName, privileges);
-                    break;
-                default:
-                    break;
+                    case ALL:
+                        // not specified try both the deny and allow sets
+                        PrivilegesHelper.unallowOrUndenyRestriction(
+                                privilegeToLocalPrivilegesMap, restrictionName, privileges);
+                        break;
+                    case ALLOW:
+                        PrivilegesHelper.unallowRestriction(privilegeToLocalPrivilegesMap, restrictionName, privileges);
+                        break;
+                    case DENY:
+                        PrivilegesHelper.undenyRestriction(privilegeToLocalPrivilegesMap, restrictionName, privileges);
+                        break;
+                    default:
+                        break;
                 }
             }
         }
@@ -485,7 +508,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
     /**
      * Populate the restrictions that that were posted and applicable
      * to the requested privilege
-     * 
+     *
      * @param request the current request
      * @param srMap map of restriction names to the restriction definition
      * @param forPrivilege the privilege to load the restrictions for
@@ -497,7 +520,8 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             @NotNull Map<String, RestrictionDefinition> srMap,
             @NotNull Privilege forPrivilege,
             @NotNull PrivilegeValues forAllowOrDeny,
-            @NotNull Set<LocalRestriction> generalRestrictions) throws RepositoryException {
+            @NotNull Set<LocalRestriction> generalRestrictions)
+            throws RepositoryException {
         Set<LocalRestriction> restrictions = new HashSet<>(generalRestrictions);
 
         @NotNull
@@ -518,8 +542,8 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
                 allowOrDeny = null;
             }
 
-            if ((privilegeName == null || forPrivilege.getName().equals(privilegeName)) &&
-                    (allowOrDeny == null || forAllowOrDeny.equals(allowOrDeny))) {
+            if ((privilegeName == null || forPrivilege.getName().equals(privilegeName))
+                    && (allowOrDeny == null || forAllowOrDeny.equals(allowOrDeny))) {
                 LocalRestriction localRestriction = toLocalRestriction(request, srMap, restrictionName, paramName);
                 restrictions.removeIf(r -> r.getName().equals(localRestriction.getName()));
                 restrictions.add(localRestriction);
@@ -531,7 +555,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
 
     /**
      * Construct a LocalRestriction using data a request parameter
-     * 
+     *
      * @param request the current request
      * @param srMap map of restriction names to the restriction definition
      * @param restrictionName the name of the restriction
@@ -541,10 +565,11 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             @NotNull SlingJakartaHttpServletRequest request,
             @NotNull Map<String, RestrictionDefinition> srMap,
             @NotNull String restrictionName,
-            @NotNull String paramName) throws RepositoryException {
+            @NotNull String paramName)
+            throws RepositoryException {
         RestrictionDefinition rd = srMap.get(restrictionName);
         if (rd == null) {
-            //illegal restriction name?
+            // illegal restriction name?
             throw new AccessControlException(INVALID_OR_NOT_SUPPORTED_RESTRICTION_NAME_WAS_SUPPLIED);
         }
         Session session = request.getResourceResolver().adaptTo(Session.class);
@@ -570,18 +595,20 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
     /**
      * Merge into the privilegeToLocalPrivilegesMap the changes requested in privilege and
      * restriction request parameters.
-     * 
+     *
      * @param acm the access control manager
      * @param request the current request
      * @param srMap map of restriction names to the restriction definition
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param privilegeLongestDepthMap the map of privileges to their longest depth
      */
-    protected void processPostedPrivilegeAndRestrictionParams(@NotNull AccessControlManager acm,
+    protected void processPostedPrivilegeAndRestrictionParams(
+            @NotNull AccessControlManager acm,
             @NotNull SlingJakartaHttpServletRequest request,
             @NotNull Map<String, RestrictionDefinition> srMap,
             @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
-            @NotNull Map<Privilege, Integer> privilegeLongestDepthMap) throws RepositoryException {
+            @NotNull Map<Privilege, Integer> privilegeLongestDepthMap)
+            throws RepositoryException {
         @NotNull
         Map<String, Matcher> postedPrivilegeNameKeys = getMatchedRequestParameterNames(request, PRIVILEGE_PATTERN);
 
@@ -596,18 +623,18 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             paramValues.addAll(Arrays.asList(request.getParameterValues(paramName)));
         }
 
-        //also check for any restriction params
+        // also check for any restriction params
         Set<LocalRestriction> generalRestrictions = new HashSet<>();
         Map<String, Matcher> postedRestrictionParams = getMatchedRequestParameterNames(request, RESTRICTION_PATTERN);
         for (Entry<String, Matcher> entry : postedRestrictionParams.entrySet()) {
             Matcher matcher = entry.getValue();
             if (matcher.group(2) != null) {
                 PrivilegeValues allowOrDeny = PrivilegeValues.valueOfParam(matcher.group(4));
-                if (PrivilegeValues.ALLOW.equals(allowOrDeny) ||
-                        PrivilegeValues.DENY.equals(allowOrDeny)) {
+                if (PrivilegeValues.ALLOW.equals(allowOrDeny) || PrivilegeValues.DENY.equals(allowOrDeny)) {
                     String privilegeName = matcher.group(1);
                     Privilege privilege = acm.privilegeFromName(privilegeName);
-                    Set<String> paramValues = privilegeToParamValuesMap.computeIfAbsent(privilege, p -> new HashSet<>());
+                    Set<String> paramValues =
+                            privilegeToParamValuesMap.computeIfAbsent(privilege, p -> new HashSet<>());
                     paramValues.add(allowOrDeny.getParamValue());
                 }
             } else {
@@ -627,16 +654,22 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
                 Privilege p = entry.getKey();
                 if (!privilegeToParamValuesMap.containsKey(p)) {
                     LocalPrivilege lp = entry.getValue();
-                    applyPrivilegeAndRestrictions(privilegeToLocalPrivilegesMap, p, 
-                            lp.isAllow(), generalRestrictions, 
-                            lp.isDeny(), generalRestrictions);
+                    applyPrivilegeAndRestrictions(
+                            privilegeToLocalPrivilegesMap,
+                            p,
+                            lp.isAllow(),
+                            generalRestrictions,
+                            lp.isDeny(),
+                            generalRestrictions);
                 }
             }
         }
 
         List<Entry<Privilege, Set<String>>> sortedEntries = new ArrayList<>(privilegeToParamValuesMap.entrySet());
         // sort the entries to process the most shallow last
-        Collections.sort(sortedEntries, (e1, e2) -> privilegeLongestDepthMap.get(e1.getKey()).compareTo(privilegeLongestDepthMap.get(e2.getKey())));
+        Collections.sort(sortedEntries, (e1, e2) -> privilegeLongestDepthMap
+                .get(e1.getKey())
+                .compareTo(privilegeLongestDepthMap.get(e2.getKey())));
         for (Entry<Privilege, Set<String>> entry : sortedEntries) {
             Set<String> paramValues = entry.getValue();
             Privilege privilege = entry.getKey();
@@ -644,9 +677,9 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             // convert and sort the values to ensure that allow goes after
             //  deny or none when there is a conflict
             List<PrivilegeValues> privilegeValues = paramValues.stream()
-                .map(PrivilegeValues::valueOfParam)
-                .sorted((v1, v2) -> Integer.compare(v2.ordinal(), v1.ordinal()))
-                .toList();
+                    .map(PrivilegeValues::valueOfParam)
+                    .sorted((v1, v2) -> Integer.compare(v2.ordinal(), v1.ordinal()))
+                    .toList();
             boolean none = false;
             boolean allow = false;
             Set<LocalRestriction> allowRestrictions = Collections.emptySet();
@@ -654,33 +687,34 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             Set<LocalRestriction> denyRestrictions = Collections.emptySet();
             for (PrivilegeValues value : privilegeValues) {
                 switch (value) {
-                case DENY, DENIED:
-                    deny = true;
-                    denyRestrictions = postedRestrictionsForPrivilege(request, srMap, privilege, value, generalRestrictions);
-                    break;
-                case ALLOW, GRANTED:
-                    allow = true;
-                    allowRestrictions = postedRestrictionsForPrivilege(request, srMap, privilege, value, generalRestrictions);
-                    break;
-                case NONE:
-                    none = true;
-                    break;
-                default:
-                    break;
+                    case DENY, DENIED:
+                        deny = true;
+                        denyRestrictions =
+                                postedRestrictionsForPrivilege(request, srMap, privilege, value, generalRestrictions);
+                        break;
+                    case ALLOW, GRANTED:
+                        allow = true;
+                        allowRestrictions =
+                                postedRestrictionsForPrivilege(request, srMap, privilege, value, generalRestrictions);
+                        break;
+                    case NONE:
+                        none = true;
+                        break;
+                    default:
+                        break;
                 }
             }
             if (none) {
                 PrivilegesHelper.none(privilegeToLocalPrivilegesMap, Collections.singleton(privilege));
             }
-            applyPrivilegeAndRestrictions(privilegeToLocalPrivilegesMap, privilege,
-                    allow, allowRestrictions, 
-                    deny, denyRestrictions);
+            applyPrivilegeAndRestrictions(
+                    privilegeToLocalPrivilegesMap, privilege, allow, allowRestrictions, deny, denyRestrictions);
         }
     }
 
     /**
      * Apply the privilege and restrictions to the local privileges
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param p the privilege
      * @param allow true if the privilege is to be allowed
@@ -690,24 +724,33 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
      */
     protected void applyPrivilegeAndRestrictions(
             @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
-            @NotNull Privilege p, 
-            boolean allow, @NotNull Set<LocalRestriction> allowRestrictions,
-            boolean deny, @NotNull Set<LocalRestriction> denyRestrictions) throws RepositoryException {
+            @NotNull Privilege p,
+            boolean allow,
+            @NotNull Set<LocalRestriction> allowRestrictions,
+            boolean deny,
+            @NotNull Set<LocalRestriction> denyRestrictions)
+            throws RepositoryException {
         if (allow) {
             // clear out the state that we are replacing
-            PrivilegesHelper.unallowRestrictions(privilegeToLocalPrivilegesMap,
+            PrivilegesHelper.unallowRestrictions(
+                    privilegeToLocalPrivilegesMap,
                     allowRestrictions.stream().map(LocalRestriction::getName).collect(Collectors.toSet()),
                     Collections.singleton(p));
         }
         if (deny) {
             // clear out the state that we are replacing
-            PrivilegesHelper.undenyRestrictions(privilegeToLocalPrivilegesMap,
+            PrivilegesHelper.undenyRestrictions(
+                    privilegeToLocalPrivilegesMap,
                     denyRestrictions.stream().map(LocalRestriction::getName).collect(Collectors.toSet()),
                     Collections.singleton(p));
         }
         if (allow && deny) {
-            PrivilegesHelper.allowAndDeny(privilegeToLocalPrivilegesMap, 
-                    allow, allowRestrictions, deny, denyRestrictions,
+            PrivilegesHelper.allowAndDeny(
+                    privilegeToLocalPrivilegesMap,
+                    allow,
+                    allowRestrictions,
+                    deny,
+                    denyRestrictions,
                     Collections.singleton(p));
         } else if (allow) {
             PrivilegesHelper.allow(privilegeToLocalPrivilegesMap, allowRestrictions, Collections.singleton(p));
@@ -718,14 +761,14 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
 
     /**
      * Lookup the ACL for the given resource
-     * 
+     *
      * @param acm the access control manager
      * @param resourcePath the resource path
      * @param principal the principal for principalbased ACL
      * @return the found ACL object
      */
-    protected JackrabbitAccessControlList getAcl(@NotNull AccessControlManager acm, String resourcePath, Principal principal)
-            throws RepositoryException {
+    protected JackrabbitAccessControlList getAcl(
+            @NotNull AccessControlManager acm, String resourcePath, Principal principal) throws RepositoryException {
         AccessControlPolicy[] policies = acm.getPolicies(resourcePath);
         JackrabbitAccessControlList acl = null;
         for (AccessControlPolicy policy : policies) {
@@ -749,18 +792,22 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
 
     /**
      * Remove all of the ACEs for the specified principal from the ACL
-     * 
+     *
      * @param order the requested order (may be null)
      * @param principal the principal whose aces should be removed
      * @param acl the access control list to update
-     * @return the original order if it was supplied, otherwise the order of the first ACE 
+     * @return the original order if it was supplied, otherwise the order of the first ACE
      */
-    protected String removeAces(@NotNull String resourcePath, @Nullable String order, @NotNull Principal principal, @NotNull JackrabbitAccessControlList acl) // NOSONAR
+    protected String removeAces(
+            @NotNull String resourcePath,
+            @Nullable String order,
+            @NotNull Principal principal,
+            @NotNull JackrabbitAccessControlList acl) // NOSONAR
             throws RepositoryException {
         AccessControlEntry[] existingAccessControlEntries = acl.getAccessControlEntries();
 
         if (order == null || order.length() == 0) {
-            //order not specified, so keep track of the original ACE position.
+            // order not specified, so keep track of the original ACE position.
             Set<Principal> processedPrincipals = new HashSet<>();
             for (int j = 0; j < existingAccessControlEntries.length; j++) {
                 AccessControlEntry ace = existingAccessControlEntries[j];
@@ -786,42 +833,46 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
     /**
      * Add ACEs for the specified principal to the ACL.  One ACE is added for each unique
      * restriction set.
-     * 
+     *
      * @param resourcePath the path of the resource
      * @param principal the principal whose aces should be added
      * @param restrictionsToLocalPrivilegesMap the map containing the restrictions mapped to the LocalPrivlege items with those resrictions
      * @param isAllow true for 'allow' ACE, false for 'deny' ACE
      * @param acl the access control list to update
      */
-    protected void addAces(@NotNull String resourcePath, @NotNull Principal principal,
+    protected void addAces(
+            @NotNull String resourcePath,
+            @NotNull Principal principal,
             @NotNull Map<Set<LocalRestriction>, List<LocalPrivilege>> restrictionsToLocalPrivilegesMap,
             boolean isAllow,
             @NotNull JackrabbitAccessControlList acl,
-            Map<Privilege, Integer> privilegeLongestDepthMap) throws RepositoryException {
+            Map<Privilege, Integer> privilegeLongestDepthMap)
+            throws RepositoryException {
 
-        List<Entry<Set<LocalRestriction>, List<LocalPrivilege>>> sortedEntries = new ArrayList<>(restrictionsToLocalPrivilegesMap.entrySet());
+        List<Entry<Set<LocalRestriction>, List<LocalPrivilege>>> sortedEntries =
+                new ArrayList<>(restrictionsToLocalPrivilegesMap.entrySet());
         // sort the entries by the most shallow depth of the contained privileges
         Collections.sort(sortedEntries, (e1, e2) -> {
-                        int shallowestDepth1 = Integer.MAX_VALUE;
-                        for (LocalPrivilege lp : e1.getValue()) {
-                            Integer depth = privilegeLongestDepthMap.get(lp.getPrivilege());
-                            if (depth != null && depth.intValue() < shallowestDepth1) {
-                                shallowestDepth1 = depth.intValue();
-                            }
-                        }
-                        int shallowestDepth2 = Integer.MAX_VALUE;
-                        for (LocalPrivilege lp : e2.getValue()) {
-                            Integer depth = privilegeLongestDepthMap.get(lp.getPrivilege());
-                            if (depth != null && depth.intValue() < shallowestDepth2) {
-                                shallowestDepth2 = depth.intValue();
-                            }
-                        }
-                        return Integer.compare(shallowestDepth1, shallowestDepth2);
-                    });
+            int shallowestDepth1 = Integer.MAX_VALUE;
+            for (LocalPrivilege lp : e1.getValue()) {
+                Integer depth = privilegeLongestDepthMap.get(lp.getPrivilege());
+                if (depth != null && depth.intValue() < shallowestDepth1) {
+                    shallowestDepth1 = depth.intValue();
+                }
+            }
+            int shallowestDepth2 = Integer.MAX_VALUE;
+            for (LocalPrivilege lp : e2.getValue()) {
+                Integer depth = privilegeLongestDepthMap.get(lp.getPrivilege());
+                if (depth != null && depth.intValue() < shallowestDepth2) {
+                    shallowestDepth2 = depth.intValue();
+                }
+            }
+            return Integer.compare(shallowestDepth1, shallowestDepth2);
+        });
 
-        for (Entry<Set<LocalRestriction>, List<LocalPrivilege>> entry: sortedEntries) {
+        for (Entry<Set<LocalRestriction>, List<LocalPrivilege>> entry : sortedEntries) {
             Set<Privilege> privilegesSet = new HashSet<>();
-            Map<String, Value> restrictions = new HashMap<>(); 
+            Map<String, Value> restrictions = new HashMap<>();
             Map<String, Value[]> mvRestrictions = new HashMap<>();
 
             Set<LocalRestriction> localRestrictions = entry.getKey();
@@ -839,9 +890,18 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
 
             if (!privilegesSet.isEmpty()) {
                 if (acl instanceof PrincipalAccessControlList pacList) {
-                    pacList.addEntry(resourcePath, privilegesSet.toArray(new Privilege[privilegesSet.size()]), restrictions, mvRestrictions);
+                    pacList.addEntry(
+                            resourcePath,
+                            privilegesSet.toArray(new Privilege[privilegesSet.size()]),
+                            restrictions,
+                            mvRestrictions);
                 } else {
-                    acl.addEntry(principal, privilegesSet.toArray(new Privilege[privilegesSet.size()]), isAllow, restrictions, mvRestrictions);
+                    acl.addEntry(
+                            principal,
+                            privilegesSet.toArray(new Privilege[privilegesSet.size()]),
+                            isAllow,
+                            restrictions,
+                            mvRestrictions);
                 }
             }
         }
@@ -867,15 +927,15 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
      * @throws UnsupportedRepositoryOperationException
      * @throws AccessControlException
      */
-    private static void reorderAccessControlEntries(AccessControlList acl,
-            Principal principal, String order) throws RepositoryException {
+    private static void reorderAccessControlEntries(AccessControlList acl, Principal principal, String order)
+            throws RepositoryException {
         if (order == null || order.length() == 0) {
-            return; //nothing to do
+            return; // nothing to do
         }
         if (acl instanceof JackrabbitAccessControlList jacl) {
             AccessControlEntry[] accessControlEntries = jacl.getAccessControlEntries();
             if (accessControlEntries.length <= 1) {
-                return; //only one ACE, so nothing to reorder.
+                return; // only one ACE, so nothing to reorder.
             }
 
             AccessControlEntry beforeEntry = null;
@@ -886,30 +946,33 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             } else if (order.startsWith("before ")) {
                 String beforePrincipalName = order.substring(7);
 
-                //find the index of the ACE of the 'before' principal
-                for (int i=0; i < accessControlEntries.length; i++) {
-                    if (beforePrincipalName.equals(accessControlEntries[i].getPrincipal().getName())) {
-                        //found it!
+                // find the index of the ACE of the 'before' principal
+                for (int i = 0; i < accessControlEntries.length; i++) {
+                    if (beforePrincipalName.equals(
+                            accessControlEntries[i].getPrincipal().getName())) {
+                        // found it!
                         beforeEntry = accessControlEntries[i];
                         break;
                     }
                 }
 
                 if (beforeEntry == null) {
-                    //didn't find an ACE that matched the 'before' principal
-                    throw new IllegalArgumentException("No ACE was found for the specified principal: " + beforePrincipalName);
+                    // didn't find an ACE that matched the 'before' principal
+                    throw new IllegalArgumentException(
+                            "No ACE was found for the specified principal: " + beforePrincipalName);
                 }
             } else if (order.startsWith("after ")) {
                 String afterPrincipalName = order.substring(6);
 
-                //find the index of the ACE of the 'after' principal
+                // find the index of the ACE of the 'after' principal
                 for (int i = accessControlEntries.length - 1; i >= 0; i--) {
-                    if (afterPrincipalName.equals(accessControlEntries[i].getPrincipal().getName())) {
-                        //found it!
+                    if (afterPrincipalName.equals(
+                            accessControlEntries[i].getPrincipal().getName())) {
+                        // found it!
 
                         // the 'before' ACE is the next one after the 'after' ACE
                         if (i >= accessControlEntries.length - 1) {
-                            //the after is the last one in the list
+                            // the after is the last one in the list
                             beforeEntry = null;
                         } else {
                             beforeEntry = accessControlEntries[i + 1];
@@ -919,23 +982,24 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
                 }
 
                 if (beforeEntry == null) {
-                    //didn't find an ACE that matched the 'after' principal
-                    throw new IllegalArgumentException("No ACE was found for the specified principal: " + afterPrincipalName);
+                    // didn't find an ACE that matched the 'after' principal
+                    throw new IllegalArgumentException(
+                            "No ACE was found for the specified principal: " + afterPrincipalName);
                 }
             } else {
                 int index = -1;
                 try {
                     index = Integer.parseInt(order);
                 } catch (NumberFormatException nfe) {
-                    //not a number.
+                    // not a number.
                     throw new IllegalArgumentException("Illegal value for the order parameter: " + order);
                 }
                 if (index > accessControlEntries.length) {
-                    //invalid index
+                    // invalid index
                     throw new IndexOutOfBoundsException("Index value is too large: " + index);
                 }
 
-                //the index value is the index of the principal.  A principal may have more
+                // the index value is the index of the principal.  A principal may have more
                 // than one ACEs (deny + grant), so we need to compensate.
                 Map<Principal, Integer> principalToIndex = new HashMap<>();
                 for (int i = 0; i < accessControlEntries.length; i++) {
@@ -943,9 +1007,8 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
                     Integer idx = i;
                     principalToIndex.computeIfAbsent(principal2, key -> idx);
                 }
-                Integer[] sortedIndexes = principalToIndex.values().stream()
-                        .sorted()
-                        .toArray(size -> new Integer[size]);
+                Integer[] sortedIndexes =
+                        principalToIndex.values().stream().sorted().toArray(size -> new Integer[size]);
                 if (index >= 0 && index < sortedIndexes.length - 1) {
                     int idx = sortedIndexes[index];
                     beforeEntry = accessControlEntries[idx];
@@ -953,11 +1016,11 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             }
 
             if (beforeEntry != null) {
-                //now loop through the entries to move the affected ACEs to the specified
+                // now loop through the entries to move the affected ACEs to the specified
                 // position.
                 for (AccessControlEntry ace : accessControlEntries) {
                     if (principal.equals(ace.getPrincipal())) {
-                        //this ACE is for the specified principal.
+                        // this ACE is for the specified principal.
                         jacl.orderBefore(ace, beforeEntry);
                     }
                 }
@@ -971,47 +1034,92 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
      * @see org.apache.sling.jcr.jackrabbit.accessmanager.ModifyAce#modifyAce(javax.jcr.Session, java.lang.String, java.lang.String, java.util.Map, java.lang.String, boolean)
      */
     @Override
-    public void modifyAce(Session jcrSession, String resourcePath, String principalId, Map<String, String> privileges,
-            String order, boolean autoSave) throws RepositoryException {
-        modifyAce(jcrSession, resourcePath, principalId, privileges, order, 
-                null, null, null, autoSave);
+    public void modifyAce(
+            Session jcrSession,
+            String resourcePath,
+            String principalId,
+            Map<String, String> privileges,
+            String order,
+            boolean autoSave)
+            throws RepositoryException {
+        modifyAce(jcrSession, resourcePath, principalId, privileges, order, null, null, null, autoSave);
     }
 
     /* (non-Javadoc)
      * @see org.apache.sling.jcr.jackrabbit.accessmanager.ModifyAce#modifyAce(javax.jcr.Session, java.lang.String, java.lang.String, java.util.Map, java.lang.String)
      */
-    public void modifyAce(Session jcrSession, String resourcePath,
-            String principalId, Map<String, String> privileges, String order)
+    public void modifyAce(
+            Session jcrSession, String resourcePath, String principalId, Map<String, String> privileges, String order)
             throws RepositoryException {
         modifyAce(jcrSession, resourcePath, principalId, privileges, order, true);
     }
-    
+
     /* (non-Javadoc)
      * @see org.apache.sling.jcr.jackrabbit.accessmanager.ModifyAce#modifyAce(javax.jcr.Session, java.lang.String, java.lang.String, java.util.Map, java.lang.String, java.util.Map, java.util.Map, java.util.Set)
      */
     @Override
-    public void modifyAce(Session jcrSession, String resourcePath, String principalId, Map<String, String> privileges,
-            String order, Map<String, Value> restrictions, Map<String, Value[]> mvRestrictions,
-            Set<String> removeRestrictionNames) throws RepositoryException {
-        modifyAce(jcrSession, resourcePath, principalId, privileges, order, 
-                restrictions, mvRestrictions, removeRestrictionNames, true);
+    public void modifyAce(
+            Session jcrSession,
+            String resourcePath,
+            String principalId,
+            Map<String, String> privileges,
+            String order,
+            Map<String, Value> restrictions,
+            Map<String, Value[]> mvRestrictions,
+            Set<String> removeRestrictionNames)
+            throws RepositoryException {
+        modifyAce(
+                jcrSession,
+                resourcePath,
+                principalId,
+                privileges,
+                order,
+                restrictions,
+                mvRestrictions,
+                removeRestrictionNames,
+                true);
     }
 
     /* (non-Javadoc)
      * @see org.apache.sling.jcr.jackrabbit.accessmanager.ModifyAce#modifyAce(javax.jcr.Session, java.lang.String, java.lang.String, java.util.Map, java.lang.String, java.util.Map, java.util.Map, java.util.Set, boolean)
      */
     @Override
-    public void modifyAce(Session jcrSession, String resourcePath, String principalId, Map<String, String> privileges,
-            String order, Map<String, Value> restrictions, Map<String, Value[]> mvRestrictions,
-            Set<String> removeRestrictionNames, boolean autoSave) throws RepositoryException {
-        modifyAce(jcrSession, resourcePath, principalId, privileges, order, 
-                restrictions, mvRestrictions, removeRestrictionNames, autoSave, null);
+    public void modifyAce(
+            Session jcrSession,
+            String resourcePath,
+            String principalId,
+            Map<String, String> privileges,
+            String order,
+            Map<String, Value> restrictions,
+            Map<String, Value[]> mvRestrictions,
+            Set<String> removeRestrictionNames,
+            boolean autoSave)
+            throws RepositoryException {
+        modifyAce(
+                jcrSession,
+                resourcePath,
+                principalId,
+                privileges,
+                order,
+                restrictions,
+                mvRestrictions,
+                removeRestrictionNames,
+                autoSave,
+                null);
     }
 
     protected void modifyAce( // NOSONAR
-            Session jcrSession, String resourcePath, String principalId, Map<String, String> privileges,
-            String order, Map<String, Value> restrictions, Map<String, Value[]> mvRestrictions,
-            Set<String> removeRestrictionNames, boolean autoSave, List<Modification> changes) throws RepositoryException {
+            Session jcrSession,
+            String resourcePath,
+            String principalId,
+            Map<String, String> privileges,
+            String order,
+            Map<String, Value> restrictions,
+            Map<String, Value[]> mvRestrictions,
+            Set<String> removeRestrictionNames,
+            boolean autoSave,
+            List<Modification> changes)
+            throws RepositoryException {
 
         Principal principal = validateArgs(jcrSession, resourcePath, principalId);
 
@@ -1019,18 +1127,26 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
         // Use for fast lookup during the calls below.
         AccessControlManager acm = jcrSession.getAccessControlManager();
         Map<String, RestrictionDefinition> srMap = buildRestrictionNameToDefinitionMap(resourcePath);
-        Map<Privilege, Integer> privilegeLongestDepthMap = PrivilegesHelper.buildPrivilegeLongestDepthMap(acm.privilegeFromName(PrivilegeConstants.JCR_ALL));
+        Map<Privilege, Integer> privilegeLongestDepthMap =
+                PrivilegesHelper.buildPrivilegeLongestDepthMap(acm.privilegeFromName(PrivilegeConstants.JCR_ALL));
 
         // first calculate what is currently stored in the ace
-        Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap = loadStoredAce(acm, resourcePath, principal, srMap);
+        Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap =
+                loadStoredAce(acm, resourcePath, principal, srMap);
 
-        //process the restrictions to remove
+        // process the restrictions to remove
         for (LocalPrivilege lp : privilegeToLocalPrivilegesMap.values()) {
             if (lp.isAllow()) {
-                PrivilegesHelper.unallowRestrictions(privilegeToLocalPrivilegesMap, removeRestrictionNames, Collections.singleton(lp.getPrivilege()));
+                PrivilegesHelper.unallowRestrictions(
+                        privilegeToLocalPrivilegesMap,
+                        removeRestrictionNames,
+                        Collections.singleton(lp.getPrivilege()));
             }
             if (lp.isDeny()) {
-                PrivilegesHelper.undenyRestrictions(privilegeToLocalPrivilegesMap, removeRestrictionNames, Collections.singleton(lp.getPrivilege()));
+                PrivilegesHelper.undenyRestrictions(
+                        privilegeToLocalPrivilegesMap,
+                        removeRestrictionNames,
+                        Collections.singleton(lp.getPrivilege()));
             }
         }
 
@@ -1040,7 +1156,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             for (Entry<String, Value> entry : restrictions.entrySet()) {
                 RestrictionDefinition rd = srMap.get(entry.getKey());
                 if (rd == null) {
-                    //illegal restriction name?
+                    // illegal restriction name?
                     throw new AccessControlException(INVALID_OR_NOT_SUPPORTED_RESTRICTION_NAME_WAS_SUPPLIED);
                 }
                 localRestrictions.add(new LocalRestriction(rd, entry.getValue()));
@@ -1050,7 +1166,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             for (Entry<String, Value[]> entry : mvRestrictions.entrySet()) {
                 RestrictionDefinition rd = srMap.get(entry.getKey());
                 if (rd == null) {
-                    //illegal restriction name?
+                    // illegal restriction name?
                     throw new AccessControlException(INVALID_OR_NOT_SUPPORTED_RESTRICTION_NAME_WAS_SUPPLIED);
                 }
                 localRestrictions.add(new LocalRestriction(rd, entry.getValue()));
@@ -1061,7 +1177,7 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
         Map<PrivilegeValues, Set<Privilege>> privilegeValueToPrivilegesMap = new EnumMap<>(PrivilegeValues.class);
         for (Entry<String, String> entry : privileges.entrySet()) {
             String privilegeName = entry.getKey();
-            // for backward compatibility, deal with a prefixed value 
+            // for backward compatibility, deal with a prefixed value
             if (privilegeName.startsWith("privilege@")) {
                 privilegeName = privilegeName.substring(10);
             }
@@ -1074,26 +1190,32 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
         // process the new privileges
         for (Entry<PrivilegeValues, Set<Privilege>> entry : privilegeValueToPrivilegesMap.entrySet()) {
             switch (entry.getKey()) {
-            case GRANTED, ALLOW:
-                PrivilegesHelper.allow(privilegeToLocalPrivilegesMap, localRestrictions, entry.getValue());
-                break;
-            case DENIED, DENY:
-                PrivilegesHelper.deny(privilegeToLocalPrivilegesMap, localRestrictions, entry.getValue());
-                break;
-            case NONE:
-                PrivilegesHelper.none(privilegeToLocalPrivilegesMap, entry.getValue());
-                break;
-            default:
-                break;
+                case GRANTED, ALLOW:
+                    PrivilegesHelper.allow(privilegeToLocalPrivilegesMap, localRestrictions, entry.getValue());
+                    break;
+                case DENIED, DENY:
+                    PrivilegesHelper.deny(privilegeToLocalPrivilegesMap, localRestrictions, entry.getValue());
+                    break;
+                case NONE:
+                    PrivilegesHelper.none(privilegeToLocalPrivilegesMap, entry.getValue());
+                    break;
+                default:
+                    break;
             }
         }
 
         // combine any aggregates that are still valid
-        PrivilegesHelper.consolidateAggregates(jcrSession, resourcePath, privilegeToLocalPrivilegesMap, privilegeLongestDepthMap);
+        PrivilegesHelper.consolidateAggregates(
+                jcrSession, resourcePath, privilegeToLocalPrivilegesMap, privilegeLongestDepthMap);
 
-        modifyAce(jcrSession, resourcePath, principalId, 
-                privilegeToLocalPrivilegesMap.values(), order, 
-                autoSave, changes);
+        modifyAce(
+                jcrSession,
+                resourcePath,
+                principalId,
+                privilegeToLocalPrivilegesMap.values(),
+                order,
+                autoSave,
+                changes);
     }
 
     /* (non-Javadoc)
@@ -1101,31 +1223,39 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
      */
     @Override
     public void modifyAce(
-            Session jcrSession, String resourcePath, String principalId, 
-            Collection<LocalPrivilege> localPrivileges, String order, 
-            boolean autoSave) throws RepositoryException {
-        modifyAce(jcrSession, resourcePath, principalId, 
-                localPrivileges, order, 
-                autoSave, null);
+            Session jcrSession,
+            String resourcePath,
+            String principalId,
+            Collection<LocalPrivilege> localPrivileges,
+            String order,
+            boolean autoSave)
+            throws RepositoryException {
+        modifyAce(jcrSession, resourcePath, principalId, localPrivileges, order, autoSave, null);
     }
 
     protected void modifyAce(
-            Session jcrSession, String resourcePath, String principalId, 
-            Collection<LocalPrivilege> localPrivileges, String order, 
-            boolean autoSave, List<Modification> changes) throws RepositoryException {
-        @NotNull
-        Principal principal = validateArgs(jcrSession, resourcePath, principalId);
+            Session jcrSession,
+            String resourcePath,
+            String principalId,
+            Collection<LocalPrivilege> localPrivileges,
+            String order,
+            boolean autoSave,
+            List<Modification> changes)
+            throws RepositoryException {
+        @NotNull Principal principal = validateArgs(jcrSession, resourcePath, principalId);
 
         // build a list of each of the LocalPrivileges that have the same restrictions
         Map<Set<LocalRestriction>, List<LocalPrivilege>> allowRestrictionsToLocalPrivilegesMap = new HashMap<>();
         Map<Set<LocalRestriction>, List<LocalPrivilege>> denyRestrictionsToLocalPrivilegesMap = new HashMap<>();
-        for (LocalPrivilege localPrivilege: localPrivileges) {
+        for (LocalPrivilege localPrivilege : localPrivileges) {
             if (localPrivilege.isAllow()) {
-                List<LocalPrivilege> list = allowRestrictionsToLocalPrivilegesMap.computeIfAbsent(localPrivilege.getAllowRestrictions(), key -> new ArrayList<>());
+                List<LocalPrivilege> list = allowRestrictionsToLocalPrivilegesMap.computeIfAbsent(
+                        localPrivilege.getAllowRestrictions(), key -> new ArrayList<>());
                 list.add(localPrivilege);
             }
             if (localPrivilege.isDeny()) {
-                List<LocalPrivilege> list = denyRestrictionsToLocalPrivilegesMap.computeIfAbsent(localPrivilege.getDenyRestrictions(), key -> new ArrayList<>());
+                List<LocalPrivilege> list = denyRestrictionsToLocalPrivilegesMap.computeIfAbsent(
+                        localPrivilege.getDenyRestrictions(), key -> new ArrayList<>());
                 list.add(localPrivilege);
             }
         }
@@ -1139,9 +1269,22 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             order = removeAces(resourcePath, order, principal, acl);
 
             // now add all the new aces that we have collected
-            Map<Privilege, Integer> privilegeLongestDepthMap = PrivilegesHelper.buildPrivilegeLongestDepthMap(acm.privilegeFromName(PrivilegeConstants.JCR_ALL));
-            addAces(resourcePath, principal, denyRestrictionsToLocalPrivilegesMap, false, acl, privilegeLongestDepthMap);
-            addAces(resourcePath, principal, allowRestrictionsToLocalPrivilegesMap, true, acl, privilegeLongestDepthMap);
+            Map<Privilege, Integer> privilegeLongestDepthMap =
+                    PrivilegesHelper.buildPrivilegeLongestDepthMap(acm.privilegeFromName(PrivilegeConstants.JCR_ALL));
+            addAces(
+                    resourcePath,
+                    principal,
+                    denyRestrictionsToLocalPrivilegesMap,
+                    false,
+                    acl,
+                    privilegeLongestDepthMap);
+            addAces(
+                    resourcePath,
+                    principal,
+                    allowRestrictionsToLocalPrivilegesMap,
+                    true,
+                    acl,
+                    privilegeLongestDepthMap);
 
             // reorder the aces
             reorderAccessControlEntries(acl, principal, order);
@@ -1160,5 +1303,4 @@ public class ModifyAceServlet extends AbstractAccessPostServlet implements Modif
             throw new RepositoryException("Failed to create ace.", re);
         }
     }
-
 }

@@ -1,20 +1,28 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager;
+
+import javax.jcr.Node;
+import javax.jcr.RepositoryException;
+import javax.jcr.Session;
+import javax.jcr.security.AccessControlManager;
+import javax.jcr.security.Privilege;
 
 import java.security.Principal;
 import java.util.Collections;
@@ -27,12 +35,8 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import javax.jcr.Node;
-import javax.jcr.RepositoryException;
-import javax.jcr.Session;
-import javax.jcr.security.AccessControlManager;
-import javax.jcr.security.Privilege;
-
+import jakarta.json.JsonObject;
+import jakarta.json.JsonValue;
 import org.apache.jackrabbit.api.JackrabbitSession;
 import org.apache.jackrabbit.api.security.principal.PrincipalManager;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
@@ -44,9 +48,6 @@ import org.osgi.framework.ServiceReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jakarta.json.JsonObject;
-import jakarta.json.JsonValue;
-
 /**
  * Helper class to assist in the usage of access control from scripts.
  */
@@ -55,30 +56,30 @@ public class PrivilegesInfo {
 
     /**
      * Return the supported Privileges for the specified node.
-     * 
+     *
      * @param node the node to check
      * @return array of Privileges
      * @throws RepositoryException if any errors reading the information
      */
-    public Privilege [] getSupportedPrivileges(Node node) throws RepositoryException {
+    public Privilege[] getSupportedPrivileges(Node node) throws RepositoryException {
         return getSupportedPrivileges(node.getSession(), node.getPath());
     }
 
     /**
      * Returns the supported privileges for the specified path.
-     * 
+     *
      * @param session the session for the current user
      * @param absPath the path to get the privileges for
      * @return array of Privileges
      * @throws RepositoryException if any errors reading the information
      */
-    public Privilege [] getSupportedPrivileges(Session session, String absPath) throws RepositoryException {
+    public Privilege[] getSupportedPrivileges(Session session, String absPath) throws RepositoryException {
         AccessControlManager accessControlManager = session.getAccessControlManager();
         return accessControlManager.getSupportedPrivileges(absPath);
     }
 
     /**
-     * Wrapper class that holds the set of Privileges that are granted 
+     * Wrapper class that holds the set of Privileges that are granted
      * and/or denied for a specific principal.
      */
     public static class AccessRights {
@@ -86,9 +87,11 @@ public class PrivilegesInfo {
         private Set<Privilege> denied = new HashSet<>();
 
         private ResourceBundle resBundle = null;
+
         private ResourceBundle getResourceBundle(Locale locale) {
             if (resBundle == null || !resBundle.getLocale().equals(locale)) {
-                resBundle = ResourceBundle.getBundle(getClass().getPackage().getName() + ".PrivilegesResources", locale);
+                resBundle =
+                        ResourceBundle.getBundle(getClass().getPackage().getName() + ".PrivilegesResources", locale);
             }
             return resBundle;
         }
@@ -96,6 +99,7 @@ public class PrivilegesInfo {
         public Set<Privilege> getGranted() {
             return granted;
         }
+
         public Set<Privilege> getDenied() {
             return denied;
         }
@@ -104,36 +108,36 @@ public class PrivilegesInfo {
             String displayName = null;
             ResourceBundle rb = getResourceBundle(locale);
             if (!denied.isEmpty()) {
-                //if there are any denied privileges, then this is a custom privilege set
+                // if there are any denied privileges, then this is a custom privilege set
                 displayName = rb.getString("privilegeset.custom");
             } else {
                 if (granted.isEmpty()) {
-                    //appears to have an empty privilege set
+                    // appears to have an empty privilege set
                     displayName = rb.getString("privilegeset.none");
                 } else if (granted.size() == 1) {
-                    //check if the single privilege is jcr:all or jcr:read
+                    // check if the single privilege is jcr:all or jcr:read
                     Iterator<Privilege> iterator = granted.iterator();
                     Privilege next = iterator.next();
                     if (PrivilegeConstants.JCR_ALL.equals(next.getName())) {
-                        //full control privilege set
+                        // full control privilege set
                         displayName = rb.getString("privilegeset.all");
                     } else if (PrivilegeConstants.JCR_READ.equals(next.getName())) {
-                        //readonly privilege set
+                        // readonly privilege set
                         displayName = rb.getString("privilegeset.readonly");
                     }
                 } else if (granted.size() == 2) {
-                    //check if the two privileges are jcr:read and jcr:write
+                    // check if the two privileges are jcr:read and jcr:write
                     boolean hasRead = granted.stream().anyMatch(p -> PrivilegeConstants.JCR_READ.equals(p.getName()));
                     boolean hasWrite = granted.stream().anyMatch(p -> PrivilegeConstants.JCR_WRITE.equals(p.getName()));
                     if (hasRead && hasWrite) {
-                        //read/write privileges
+                        // read/write privileges
                         displayName = rb.getString("privilegeset.readwrite");
                     }
                 }
 
-                //some other set of privileges
+                // some other set of privileges
                 if (displayName == null) {
-                    displayName = rb.getString("privilegeset.custom"); 
+                    displayName = rb.getString("privilegeset.custom");
                 }
             }
             return displayName;
@@ -142,8 +146,8 @@ public class PrivilegesInfo {
 
     /**
      * Returns the mapping of declared access rights that have been set for the resource at
-     * the given path. 
-     * 
+     * the given path.
+     *
      * @param node the node to get the access rights for
      * @return map of access rights.  Key is the user/group principal, value contains the granted/denied privileges
      * @throws RepositoryException if any errors reading the information
@@ -161,15 +165,16 @@ public class PrivilegesInfo {
      * @return map of access rights.  Key is the user/group principal, value contains the granted/denied privileges
      * @throws RepositoryException if any errors reading the information
      */
-    public Map<Principal, AccessRights> getDeclaredAccessRights(Session session, String absPath) throws RepositoryException {
+    public Map<Principal, AccessRights> getDeclaredAccessRights(Session session, String absPath)
+            throws RepositoryException {
         return toMap(session, useGetAcl(json -> {
-                try {
-                    return json.getAcl(session, absPath);
-                } catch (RepositoryException e) {
-                    logger.warn("Failed to load Acl", e);
-                }
-                return null;
-            }));
+            try {
+                return json.getAcl(session, absPath);
+            } catch (RepositoryException e) {
+                logger.warn("Failed to load Acl", e);
+            }
+            return null;
+        }));
     }
 
     /**
@@ -178,48 +183,45 @@ public class PrivilegesInfo {
      * @param aclJson the acl JSON object
      * @return map of Principal to AccessRights
      */
-    protected Map<Principal, AccessRights> toMap(Session session, JsonObject aclJson)
-            throws RepositoryException {
+    protected Map<Principal, AccessRights> toMap(Session session, JsonObject aclJson) throws RepositoryException {
         if (aclJson == null) {
             return Collections.emptyMap();
         }
 
         Map<Principal, AccessRights> map;
         AccessControlManager acm = session.getAccessControlManager();
-        PrincipalManager principalManager = ((JackrabbitSession)session).getPrincipalManager();
+        PrincipalManager principalManager = ((JackrabbitSession) session).getPrincipalManager();
         Function<? super JsonValue, ? extends Principal> keyMapper = val -> {
-            String principalId = ((JsonObject)val).getString(JsonConvert.KEY_PRINCIPAL);
+            String principalId = ((JsonObject) val).getString(JsonConvert.KEY_PRINCIPAL);
             return principalManager.getPrincipal(principalId);
         };
         Function<? super JsonValue, ? extends AccessRights> valueMapper = val -> {
             AccessRights rights = new AccessRights();
-            JsonObject privilegesObj = ((JsonObject)val).getJsonObject(JsonConvert.KEY_PRIVILEGES);
+            JsonObject privilegesObj = ((JsonObject) val).getJsonObject(JsonConvert.KEY_PRIVILEGES);
             if (privilegesObj != null) {
-                privilegesObj.entrySet().stream()
-                    .forEach(entry -> {
-                        Privilege privilege = null;
-                        try {
-                            privilege = acm.privilegeFromName(entry.getKey());
-                        } catch (RepositoryException e) {
-                            logger.warn("Failed to resolve privilege", e);
-                        }
-                        if (privilege != null) {
-                            JsonValue value = entry.getValue();
-                            if (value instanceof JsonObject privilegeObj) {
-                                if (privilegeObj.containsKey(JsonConvert.KEY_ALLOW)) {
-                                    rights.granted.add(privilege);
-                                }
-                                if (privilegeObj.containsKey(JsonConvert.KEY_DENY)) {
-                                    rights.denied.add(privilege);
-                                }
+                privilegesObj.entrySet().stream().forEach(entry -> {
+                    Privilege privilege = null;
+                    try {
+                        privilege = acm.privilegeFromName(entry.getKey());
+                    } catch (RepositoryException e) {
+                        logger.warn("Failed to resolve privilege", e);
+                    }
+                    if (privilege != null) {
+                        JsonValue value = entry.getValue();
+                        if (value instanceof JsonObject privilegeObj) {
+                            if (privilegeObj.containsKey(JsonConvert.KEY_ALLOW)) {
+                                rights.granted.add(privilege);
+                            }
+                            if (privilegeObj.containsKey(JsonConvert.KEY_DENY)) {
+                                rights.denied.add(privilege);
                             }
                         }
-                    });
+                    }
+                });
             }
             return rights;
         };
-        map = aclJson.values().stream()
-                .collect(Collectors.toMap(keyMapper, valueMapper));
+        map = aclJson.values().stream().collect(Collectors.toMap(keyMapper, valueMapper));
         return map;
     }
 
@@ -246,9 +248,10 @@ public class PrivilegesInfo {
      * @return access rights for the specified principal
      * @throws RepositoryException if any errors reading the information
      */
-    public AccessRights getDeclaredAccessRightsForPrincipal(Session session, String absPath, String principalId) throws RepositoryException {
+    public AccessRights getDeclaredAccessRightsForPrincipal(Session session, String absPath, String principalId)
+            throws RepositoryException {
         Map<Principal, AccessRights> declaredAccessRights = getDeclaredAccessRights(session, absPath);
-        PrincipalManager principalManager = ((JackrabbitSession)session).getPrincipalManager();
+        PrincipalManager principalManager = ((JackrabbitSession) session).getPrincipalManager();
         Principal principal = principalManager.getPrincipal(principalId);
         return declaredAccessRights.get(principal);
     }
@@ -274,21 +277,22 @@ public class PrivilegesInfo {
      * @return map of access rights.  Key is the user/group principal, value contains the granted/denied privileges
      * @throws RepositoryException if any errors reading the information
      */
-    public Map<Principal, AccessRights> getEffectiveAccessRights(Session session, String absPath) throws RepositoryException {
+    public Map<Principal, AccessRights> getEffectiveAccessRights(Session session, String absPath)
+            throws RepositoryException {
         return toMap(session, useGetEffectiveAcl(json -> {
-                try {
-                    return json.getEffectiveAcl(session, absPath);
-                } catch (RepositoryException e) {
-                    logger.warn("Failed to load EffectiveAcl", e);
-                }
-                return null;
-            }));
+            try {
+                return json.getEffectiveAcl(session, absPath);
+            } catch (RepositoryException e) {
+                logger.warn("Failed to load EffectiveAcl", e);
+            }
+            return null;
+        }));
     }
 
     /**
      * Returns the effective access rights for the specified Node for the given
      * principalId.
-     * 
+     *
      * @param node the JCR node to retrieve the access rights for
      * @param principalId the principalId to get the access rights for
      * @return access rights for the specified principal
@@ -308,9 +312,10 @@ public class PrivilegesInfo {
      * @return access rights for the specified principal
      * @throws RepositoryException if any errors reading the information
      */
-    public AccessRights getEffectiveAccessRightsForPrincipal(Session session, String absPath, String principalId) throws RepositoryException {
+    public AccessRights getEffectiveAccessRightsForPrincipal(Session session, String absPath, String principalId)
+            throws RepositoryException {
         Map<Principal, AccessRights> effectiveAccessRights = getEffectiveAccessRights(session, absPath);
-        PrincipalManager principalManager = ((JackrabbitSession)session).getPrincipalManager();
+        PrincipalManager principalManager = ((JackrabbitSession) session).getPrincipalManager();
         Principal principal = principalManager.getPrincipal(principalId);
         return effectiveAccessRights.get(principal);
     }
@@ -341,9 +346,8 @@ public class PrivilegesInfo {
     public boolean canAddChildren(Session session, String absPath) {
         try {
             AccessControlManager accessControlManager = session.getAccessControlManager();
-            return accessControlManager.hasPrivileges(absPath, new Privilege[] {
-                            accessControlManager.privilegeFromName(Privilege.JCR_ADD_CHILD_NODES)
-                        });
+            return accessControlManager.hasPrivileges(
+                    absPath, new Privilege[] {accessControlManager.privilegeFromName(Privilege.JCR_ADD_CHILD_NODES)});
         } catch (RepositoryException e) {
             return false;
         }
@@ -375,9 +379,9 @@ public class PrivilegesInfo {
     public boolean canDeleteChildren(Session session, String absPath) {
         try {
             AccessControlManager accessControlManager = session.getAccessControlManager();
-            return accessControlManager.hasPrivileges(absPath, new Privilege[] {
-                            accessControlManager.privilegeFromName(Privilege.JCR_REMOVE_CHILD_NODES)
-                        });
+            return accessControlManager.hasPrivileges(
+                    absPath,
+                    new Privilege[] {accessControlManager.privilegeFromName(Privilege.JCR_REMOVE_CHILD_NODES)});
         } catch (RepositoryException e) {
             return false;
         }
@@ -413,15 +417,16 @@ public class PrivilegesInfo {
             String parentPath;
             int lastSlash = absPath.lastIndexOf('/');
             if (lastSlash == 0) {
-                //the parent is the root folder.
+                // the parent is the root folder.
                 parentPath = "/";
             } else {
-                //strip the last segment
+                // strip the last segment
                 parentPath = absPath.substring(0, lastSlash);
             }
-            return accessControlManager.hasPrivileges(absPath, new Privilege[] {
-                            accessControlManager.privilegeFromName(Privilege.JCR_REMOVE_NODE)
-                        }) && canDeleteChildren(session, parentPath);
+            return accessControlManager.hasPrivileges(
+                            absPath,
+                            new Privilege[] {accessControlManager.privilegeFromName(Privilege.JCR_REMOVE_NODE)})
+                    && canDeleteChildren(session, parentPath);
         } catch (RepositoryException e) {
             return false;
         }
@@ -453,9 +458,8 @@ public class PrivilegesInfo {
     public boolean canModifyProperties(Session session, String absPath) {
         try {
             AccessControlManager accessControlManager = session.getAccessControlManager();
-            return accessControlManager.hasPrivileges(absPath, new Privilege[] {
-                            accessControlManager.privilegeFromName(Privilege.JCR_MODIFY_PROPERTIES)
-                        });
+            return accessControlManager.hasPrivileges(
+                    absPath, new Privilege[] {accessControlManager.privilegeFromName(Privilege.JCR_MODIFY_PROPERTIES)});
         } catch (RepositoryException e) {
             return false;
         }
@@ -487,9 +491,9 @@ public class PrivilegesInfo {
     public boolean canReadAccessControl(Session session, String absPath) {
         try {
             AccessControlManager accessControlManager = session.getAccessControlManager();
-            return accessControlManager.hasPrivileges(absPath, new Privilege[] {
-                            accessControlManager.privilegeFromName(Privilege.JCR_READ_ACCESS_CONTROL)
-                        });
+            return accessControlManager.hasPrivileges(
+                    absPath,
+                    new Privilege[] {accessControlManager.privilegeFromName(Privilege.JCR_READ_ACCESS_CONTROL)});
         } catch (RepositoryException e) {
             return false;
         }
@@ -521,9 +525,9 @@ public class PrivilegesInfo {
     public boolean canModifyAccessControl(Session session, String absPath) {
         try {
             AccessControlManager accessControlManager = session.getAccessControlManager();
-            return accessControlManager.hasPrivileges(absPath, new Privilege[] {
-                            accessControlManager.privilegeFromName(Privilege.JCR_MODIFY_ACCESS_CONTROL)
-                        });
+            return accessControlManager.hasPrivileges(
+                    absPath,
+                    new Privilege[] {accessControlManager.privilegeFromName(Privilege.JCR_MODIFY_ACCESS_CONTROL)});
         } catch (RepositoryException e) {
             return false;
         }
@@ -531,7 +535,7 @@ public class PrivilegesInfo {
 
     /**
      * Utility to lookup a service and then run a function
-     * 
+     *
      * @param <S> the service interface type
      * @param <T> the return type of the fun
      * @param svc the service class
@@ -570,5 +574,4 @@ public class PrivilegesInfo {
     private static <T> T useGetEffectiveAcl(Function<GetEffectiveAcl, T> fn) {
         return useSvc(GetEffectiveAcl.class, fn);
     }
-
 }

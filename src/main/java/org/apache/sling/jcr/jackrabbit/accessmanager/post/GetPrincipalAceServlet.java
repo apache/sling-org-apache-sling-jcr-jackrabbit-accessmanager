@@ -18,17 +18,19 @@
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager.post;
 
+import javax.jcr.RepositoryException;
+import javax.jcr.Session;
+import javax.jcr.security.AccessControlEntry;
+import javax.jcr.security.AccessControlManager;
+
 import java.security.Principal;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import javax.jcr.RepositoryException;
-import javax.jcr.Session;
-import javax.jcr.security.AccessControlEntry;
-import javax.jcr.security.AccessControlManager;
-
+import jakarta.json.JsonObject;
+import jakarta.servlet.Servlet;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlManager;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlPolicy;
@@ -43,9 +45,6 @@ import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.component.annotations.ReferencePolicyOption;
-
-import jakarta.json.JsonObject;
-import jakarta.servlet.Servlet;
 
 /**
  * <p>
@@ -78,23 +77,24 @@ import jakarta.servlet.Servlet;
  * <dd>Failure. JSON explains the failure.</dd>
  * </dl>
  */
-@Component(service = {Servlet.class, GetPrincipalAce.class},
-property= {
-        "sling.servlet.resourceTypes=sling/servlet/default",
-        "sling.servlet.methods=GET",
-        "sling.servlet.selectors=pace",
-        "sling.servlet.selectors=tidy.pace",
-        "sling.servlet.extensions=json",
-        "sling.servlet.prefix:Integer=-1"
-},
-reference = {
-        @Reference(name="RestrictionProvider",
-                bind = "bindRestrictionProvider",
-                cardinality = ReferenceCardinality.MULTIPLE,
-                policyOption = ReferencePolicyOption.GREEDY,
-                service = RestrictionProvider.class)
-}
-)
+@Component(
+        service = {Servlet.class, GetPrincipalAce.class},
+        property = {
+            "sling.servlet.resourceTypes=sling/servlet/default",
+            "sling.servlet.methods=GET",
+            "sling.servlet.selectors=pace",
+            "sling.servlet.selectors=tidy.pace",
+            "sling.servlet.extensions=json",
+            "sling.servlet.prefix:Integer=-1"
+        },
+        reference = {
+            @Reference(
+                    name = "RestrictionProvider",
+                    bind = "bindRestrictionProvider",
+                    cardinality = ReferenceCardinality.MULTIPLE,
+                    policyOption = ReferencePolicyOption.GREEDY,
+                    service = RestrictionProvider.class)
+        })
 @SuppressWarnings("java:S110")
 public class GetPrincipalAceServlet extends AbstractGetAceServlet implements GetPrincipalAce {
     private static final long serialVersionUID = 1654062732084983394L;
@@ -116,12 +116,17 @@ public class GetPrincipalAceServlet extends AbstractGetAceServlet implements Get
     }
 
     @Override
-    protected Map<String, List<AccessControlEntry>> getAccessControlEntriesMap(Session session, String absPath,
-            Principal principal, Map<Principal, Map<DeclarationType, Set<String>>> declaredAtPaths) throws RepositoryException {
+    protected Map<String, List<AccessControlEntry>> getAccessControlEntriesMap(
+            Session session,
+            String absPath,
+            Principal principal,
+            Map<Principal, Map<DeclarationType, Set<String>>> declaredAtPaths)
+            throws RepositoryException {
         AccessControlManager acMgr = session.getAccessControlManager();
         if (acMgr instanceof JackrabbitAccessControlManager jacMgr) {
             JackrabbitAccessControlPolicy[] policies = jacMgr.getPolicies(principal);
-            return entriesSortedByEffectivePath(policies, ace -> matchesPrincipalAccessControlEntry(ace, absPath, principal), declaredAtPaths);
+            return entriesSortedByEffectivePath(
+                    policies, ace -> matchesPrincipalAccessControlEntry(ace, absPath, principal), declaredAtPaths);
         } else {
             return Collections.emptyMap();
         }
@@ -130,21 +135,20 @@ public class GetPrincipalAceServlet extends AbstractGetAceServlet implements Get
     /**
      * Checks if the entry is for the specified principal and the effective path is
      * equal to the resourcePath
-     * 
+     *
      * @param entry the ACE to check
      * @param resourcePath the resource path
      * @param forPrincipal the principal
      * @return true for a match, false otherwise
      */
-    protected boolean matchesPrincipalAccessControlEntry(@NotNull AccessControlEntry entry, @NotNull String resourcePath,
-            @NotNull Principal forPrincipal) {
+    protected boolean matchesPrincipalAccessControlEntry(
+            @NotNull AccessControlEntry entry, @NotNull String resourcePath, @NotNull Principal forPrincipal) {
         JackrabbitAccessControlEntry jrEntry = null;
-        if (entry instanceof PrincipalAccessControlList.Entry &&
-                entry.getPrincipal().equals(forPrincipal) &&
-                PrincipalAceHelper.matchesResourcePath(resourcePath, entry)) {
-            jrEntry = (JackrabbitAccessControlEntry)entry;
+        if (entry instanceof PrincipalAccessControlList.Entry
+                && entry.getPrincipal().equals(forPrincipal)
+                && PrincipalAceHelper.matchesResourcePath(resourcePath, entry)) {
+            jrEntry = (JackrabbitAccessControlEntry) entry;
         }
         return jrEntry != null;
     }
-
 }

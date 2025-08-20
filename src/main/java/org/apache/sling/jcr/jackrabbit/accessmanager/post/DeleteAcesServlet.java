@@ -1,20 +1,28 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager.post;
+
+import javax.jcr.RepositoryException;
+import javax.jcr.Session;
+import javax.jcr.security.AccessControlEntry;
+import javax.jcr.security.AccessControlList;
+import javax.jcr.security.AccessControlManager;
 
 import java.security.Principal;
 import java.util.ArrayList;
@@ -22,20 +30,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import javax.jcr.RepositoryException;
-import javax.jcr.Session;
-import javax.jcr.security.AccessControlEntry;
-import javax.jcr.security.AccessControlList;
-import javax.jcr.security.AccessControlManager;
 import jakarta.servlet.Servlet;
-
 import org.apache.jackrabbit.api.JackrabbitSession;
 import org.apache.jackrabbit.api.security.principal.PrincipalManager;
 import org.apache.sling.api.SlingJakartaHttpServletRequest;
 import org.apache.sling.jcr.jackrabbit.accessmanager.DeleteAces;
-import org.apache.sling.servlets.post.Modification;
 import org.apache.sling.servlets.post.JakartaPostResponse;
 import org.apache.sling.servlets.post.JakartaPostResponseCreator;
+import org.apache.sling.servlets.post.Modification;
 import org.apache.sling.servlets.post.SlingPostConstants;
 import org.jetbrains.annotations.NotNull;
 import org.osgi.service.component.annotations.Component;
@@ -77,21 +79,22 @@ import org.slf4j.LoggerFactory;
  * <dd>Failure. HTML explains the failure.</dd>
  * </dl>
  */
-
-@Component(service = {Servlet.class, DeleteAces.class},
-    property= {
+@Component(
+        service = {Servlet.class, DeleteAces.class},
+        property = {
             "sling.servlet.resourceTypes=sling/servlet/default",
             "sling.servlet.methods=POST",
             "sling.servlet.selectors=deleteAce",
             "sling.servlet.prefix:Integer=-1"
-    },
-    reference = {
-            @Reference(name = "PostResponseCreator",
+        },
+        reference = {
+            @Reference(
+                    name = "PostResponseCreator",
                     bind = "bindPostResponseCreator",
                     cardinality = ReferenceCardinality.MULTIPLE,
                     policyOption = ReferencePolicyOption.GREEDY,
                     service = JakartaPostResponseCreator.class)
-    })
+        })
 @SuppressWarnings("java:S110")
 public class DeleteAcesServlet extends AbstractAccessPostServlet implements DeleteAces {
     private static final long serialVersionUID = 3784866802938282971L;
@@ -105,8 +108,8 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
      * @see org.apache.sling.jackrabbit.accessmanager.post.AbstractAccessPostServlet#handleOperation(org.apache.sling.api.SlingJakartaHttpServletRequest, org.apache.sling.servlets.post.JakartaPostResponse, java.util.List)
      */
     @Override
-    protected void handleOperation(SlingJakartaHttpServletRequest request,
-            JakartaPostResponse htmlResponse, List<Modification> changes)
+    protected void handleOperation(
+            SlingJakartaHttpServletRequest request, JakartaPostResponse htmlResponse, List<Modification> changes)
             throws RepositoryException {
 
         Session session = request.getResourceResolver().adaptTo(Session.class);
@@ -118,20 +121,21 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
     /* (non-Javadoc)
      * @see org.apache.sling.jcr.jackrabbit.accessmanager.DeleteAces#deleteAces(javax.jcr.Session, java.lang.String, java.lang.String[])
      */
-    public void deleteAces(Session jcrSession, String resourcePath,
-            String[] principalNamesToDelete) throws RepositoryException {
+    public void deleteAces(Session jcrSession, String resourcePath, String[] principalNamesToDelete)
+            throws RepositoryException {
         deleteAces(jcrSession, resourcePath, principalNamesToDelete, null);
     }
 
     /**
      * Verify that the user supplied arguments are valid
-     * 
+     *
      * @param jcrSession the JCR session
      * @param resourcePath the resource path
      * @param principalNamesToDelete the principal ids to delelete
      * @return the principals for the requested principalIds
      */
-    protected @NotNull Set<Principal> validateArgs(Session jcrSession, String resourcePath, String[] principalNamesToDelete) throws RepositoryException {
+    protected @NotNull Set<Principal> validateArgs(
+            Session jcrSession, String resourcePath, String[] principalNamesToDelete) throws RepositoryException {
         Set<Principal> found = new HashSet<>();
         if (principalNamesToDelete == null) {
             throw new RepositoryException("principalIds were not sumitted.");
@@ -144,7 +148,7 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
         validateResourcePath(jcrSession, resourcePath);
 
         // validate that the submitted names are valid
-        PrincipalManager principalManager = ((JackrabbitSession)jcrSession).getPrincipalManager();
+        PrincipalManager principalManager = ((JackrabbitSession) jcrSession).getPrincipalManager();
         for (String pid : principalNamesToDelete) {
             Principal principal = principalManager.getPrincipal(pid);
             if (principal == null) {
@@ -160,10 +164,10 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
     /* (non-Javadoc)
      * @see org.apache.sling.jcr.jackrabbit.accessmanager.DeleteAces#deleteAces(javax.jcr.Session, java.lang.String, java.lang.String[])
      */
-    protected void deleteAces(Session jcrSession, String resourcePath,
-            String[] principalNamesToDelete, List<Modification> changes) throws RepositoryException {
-        @NotNull
-        Set<Principal> found = validateArgs(jcrSession, resourcePath, principalNamesToDelete);
+    protected void deleteAces(
+            Session jcrSession, String resourcePath, String[] principalNamesToDelete, List<Modification> changes)
+            throws RepositoryException {
+        @NotNull Set<Principal> found = validateArgs(jcrSession, resourcePath, principalNamesToDelete);
         try {
             AccessControlManager accessControlManager = jcrSession.getAccessControlManager();
             AccessControlList updatedAcl = getAccessControlListOrNull(accessControlManager, resourcePath, false);
@@ -175,7 +179,7 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
                     log.warn("No AccessControlEntry was found to be deleted for principal: {}", principal.getName());
                 }
             } else {
-                //keep track of the existing Aces for the target principal
+                // keep track of the existing Aces for the target principal
                 AccessControlEntry[] accessControlEntries = updatedAcl.getAccessControlEntries();
                 List<AccessControlEntry> oldAces = new ArrayList<>();
                 for (AccessControlEntry ace : accessControlEntries) {
@@ -187,7 +191,7 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
                 // track which of the submitted principals had an ACE removed
                 Set<Principal> removedPrincipalSet = new HashSet<>();
 
-                //remove the old aces
+                // remove the old aces
                 if (!oldAces.isEmpty()) {
                     for (AccessControlEntry ace : oldAces) {
                         updatedAcl.removeAccessControlEntry(ace);
@@ -204,16 +208,16 @@ public class DeleteAcesServlet extends AbstractAccessPostServlet implements Dele
                             changes.add(Modification.onDeleted(principal.getName()));
                         }
                     } else {
-                        log.warn("No AccessControlEntry was found to be deleted for principal: {}", principal.getName());
+                        log.warn(
+                                "No AccessControlEntry was found to be deleted for principal: {}", principal.getName());
                     }
                 }
 
-                //apply the changed policy
+                // apply the changed policy
                 accessControlManager.setPolicy(resourcePath, updatedAcl);
             }
         } catch (RepositoryException re) {
             throw new RepositoryException("Failed to delete access control.", re);
         }
     }
-
 }

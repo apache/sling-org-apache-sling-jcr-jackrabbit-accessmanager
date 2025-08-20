@@ -1,34 +1,22 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager.post;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anyString;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
 
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
@@ -36,6 +24,11 @@ import javax.jcr.security.AccessControlList;
 import javax.jcr.security.AccessControlManager;
 import javax.jcr.security.AccessControlPolicy;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+
+import jakarta.servlet.ServletException;
 import org.apache.jackrabbit.commons.iterator.AccessControlPolicyIteratorAdapter;
 import org.apache.sling.api.SlingJakartaHttpServletRequest;
 import org.apache.sling.api.SlingJakartaHttpServletResponse;
@@ -62,7 +55,15 @@ import org.junit.Test.None;
 import org.mockito.Mockito;
 import org.osgi.framework.Constants;
 
-import jakarta.servlet.ServletException;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 
 /**
  * Simple test of the common AbstractAccessPostServlet
@@ -91,23 +92,26 @@ public class AbstractAccessPostServletTest {
 
         taps = Mockito.spy(taps);
         Mockito.doAnswer(invocation -> {
-            @SuppressWarnings("unchecked")
-            List<Modification> changes = invocation.getArgument(2, List.class);
-            changes.add(Modification.onModified("/modified"));
-            changes.add(Modification.onDeleted("/deleted"));
-            changes.add(Modification.onMoved("/moveSrcPath", "/moveDestPath"));
-            changes.add(Modification.onCopied("/copySrcPath", "/copyDestPath"));
-            changes.add(Modification.onCreated("/created"));
-            changes.add(Modification.onOrder("/ordered", "beforesibling"));
-            changes.add(Modification.onCheckin("/checkin"));
+                    @SuppressWarnings("unchecked")
+                    List<Modification> changes = invocation.getArgument(2, List.class);
+                    changes.add(Modification.onModified("/modified"));
+                    changes.add(Modification.onDeleted("/deleted"));
+                    changes.add(Modification.onMoved("/moveSrcPath", "/moveDestPath"));
+                    changes.add(Modification.onCopied("/copySrcPath", "/copyDestPath"));
+                    changes.add(Modification.onCreated("/created"));
+                    changes.add(Modification.onOrder("/ordered", "beforesibling"));
+                    changes.add(Modification.onCheckin("/checkin"));
 
-            return null;
-        }).when(taps).handleOperation(any(SlingJakartaHttpServletRequest.class), any(JakartaPostResponse.class), anyList());
+                    return null;
+                })
+                .when(taps)
+                .handleOperation(any(SlingJakartaHttpServletRequest.class), any(JakartaPostResponse.class), anyList());
 
         taps.doPost(jakartaRequest, jakartaResponse);
 
         assertEquals(SlingJakartaHttpServletResponse.SC_OK, jakartaResponse.getStatus());
     }
+
     @Test
     public void testDoPostWithResourceNotFound() throws ServletException, IOException, RepositoryException {
         MockSlingHttpServletRequest request = context.request();
@@ -120,7 +124,8 @@ public class AbstractAccessPostServletTest {
 
         taps = Mockito.spy(taps);
         Mockito.doThrow(ResourceNotFoundException.class)
-            .when(taps).handleOperation(any(SlingJakartaHttpServletRequest.class), any(JakartaPostResponse.class), anyList());
+                .when(taps)
+                .handleOperation(any(SlingJakartaHttpServletRequest.class), any(JakartaPostResponse.class), anyList());
 
         taps.doPost(jakartaRequest, jakartaResponse);
 
@@ -129,7 +134,7 @@ public class AbstractAccessPostServletTest {
 
     /**
      * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.post.AbstractAccessPostServlet#validateResourcePath(javax.jcr.Session, java.lang.String)}.
-     * @throws RepositoryException 
+     * @throws RepositoryException
      */
     @Test
     public void testValidateResourcePath() throws RepositoryException {
@@ -141,6 +146,7 @@ public class AbstractAccessPostServletTest {
         jcrSession.getRootNode().addNode("content").addNode("node1");
         taps.validateResourcePath(jcrSession, "/content/node1");
     }
+
     @Test(expected = None.class)
     public void testValidateResourcePathWithAllowNonExistingPath() throws RepositoryException {
         taps = Mockito.spy(taps);
@@ -168,6 +174,7 @@ public class AbstractAccessPostServletTest {
         Mockito.when(mockPostResponseCreator.createPostResponse(jakartaRequest)).thenReturn(mockPostResponse);
         assertEquals(mockPostResponse, taps.createPostResponse(jakartaRequest));
     }
+
     @Test
     public void testCreatePostResponseWithNoAcceptParamOrHeader() {
         MockSlingHttpServletRequest request = context.request();
@@ -180,6 +187,7 @@ public class AbstractAccessPostServletTest {
         request.setResponseContentType("application/json");
         assertTrue(taps.createPostResponse(jakartaRequest) instanceof JakartaJSONResponse);
     }
+
     @Test
     public void testCreatePostResponseWithEmptyAcceptParamOrHeader() {
         MockSlingHttpServletRequest request = context.request();
@@ -189,6 +197,7 @@ public class AbstractAccessPostServletTest {
         request.setHeader(JakartaMediaRangeList.HEADER_ACCEPT, "");
         assertTrue(taps.createPostResponse(jakartaRequest) instanceof JakartaHtmlResponse);
     }
+
     @Test
     public void testCreatePostResponseWithAcceptParam() {
         MockSlingHttpServletRequest request = context.request();
@@ -197,6 +206,7 @@ public class AbstractAccessPostServletTest {
         request.setParameterMap(Map.of(JakartaMediaRangeList.PARAM_ACCEPT, "application/json"));
         assertTrue(taps.createPostResponse(jakartaRequest) instanceof JakartaJSONResponse);
     }
+
     @Test
     public void testCreatePostResponseWithAcceptHeader() {
         MockSlingHttpServletRequest request = context.request();
@@ -220,6 +230,7 @@ public class AbstractAccessPostServletTest {
         request.setParameterMap(Map.of(SlingPostConstants.RP_REDIRECT_TO, "/content/node"));
         assertEquals("/content/node", taps.getRedirectUrl(jakartaRequest, postResponse));
     }
+
     @Test
     public void testGetRedirectUrlWithHost() throws IOException {
         MockSlingHttpServletRequest request = context.request();
@@ -231,6 +242,7 @@ public class AbstractAccessPostServletTest {
         request.setParameterMap(Map.of(SlingPostConstants.RP_REDIRECT_TO, "https://localhost/content/node"));
         assertThrows(IOException.class, () -> taps.getRedirectUrl(jakartaRequest, postResponse));
     }
+
     @Test
     public void testGetRedirectUrlWithInvalidSyntax() throws IOException {
         MockSlingHttpServletRequest request = context.request();
@@ -242,6 +254,7 @@ public class AbstractAccessPostServletTest {
         request.setParameterMap(Map.of(SlingPostConstants.RP_REDIRECT_TO, "https://"));
         assertThrows(IOException.class, () -> taps.getRedirectUrl(jakartaRequest, postResponse));
     }
+
     @Test
     public void testGetRedirectUrlToCreated() throws IOException {
         MockSlingHttpServletRequest request = context.request();
@@ -302,6 +315,7 @@ public class AbstractAccessPostServletTest {
 
         assertEquals("/content/node1", taps.getItemPath(jakartaRequest));
     }
+
     @Test
     public void testGetItemPathWithAllowNonExistingPaths() throws RepositoryException {
         taps = Mockito.spy(taps);
@@ -317,7 +331,7 @@ public class AbstractAccessPostServletTest {
 
         assertEquals("/content/node1", taps.getItemPath(jakartaRequest));
 
-        MockRequestPathInfo rpi = (MockRequestPathInfo)jakartaRequest.getRequestPathInfo();
+        MockRequestPathInfo rpi = (MockRequestPathInfo) jakartaRequest.getRequestPathInfo();
         rpi.setResourcePath("/content");
         context.currentResource(rr.resolve("/content/notexisting1"));
         assertEquals("/content", taps.getItemPath(jakartaRequest));
@@ -337,6 +351,7 @@ public class AbstractAccessPostServletTest {
         assertNull(taps.externalizePath(jakartaRequest, null));
         assertEquals("/path", taps.externalizePath(jakartaRequest, "/content/path"));
     }
+
     @Test
     public void testExternalizePathWithAllowNonExistingPaths() {
         MockSlingHttpServletRequest request = context.request();
@@ -346,6 +361,7 @@ public class AbstractAccessPostServletTest {
         Mockito.doReturn(true).when(taps).allowNonExistingPaths();
         assertEquals(PrincipalAceHelper.RESOURCE_PATH_REPOSITORY, taps.externalizePath(jakartaRequest, null));
     }
+
     @Test
     public void testExternalizePathWithDisplayExtension() {
         MockSlingHttpServletRequest request = context.request();
@@ -390,6 +406,7 @@ public class AbstractAccessPostServletTest {
         Mockito.when(acManager.getApplicablePolicies(anyString())).thenReturn(AccessControlPolicyIteratorAdapter.EMPTY);
         assertThrows(RepositoryException.class, () -> taps.getAccessControlList(acManager, "/content/node1", true));
     }
+
     @Test
     public void testGetAccessControlListWithFoundACL() throws RepositoryException {
         AccessControlManager acManager = Mockito.mock(AccessControlManager.class);
@@ -398,13 +415,15 @@ public class AbstractAccessPostServletTest {
         Mockito.when(acManager.getPolicies(anyString())).thenReturn(new AccessControlPolicy[] {mockNonAcl, mockAcl});
         assertSame(mockAcl, taps.getAccessControlList(acManager, "/content/node1", false));
     }
+
     @Test
     public void testGetAccessControlListWithCreatedNewACL() throws RepositoryException {
         AccessControlManager acManager = Mockito.mock(AccessControlManager.class);
         AccessControlPolicy mockNonAcl = Mockito.mock(AccessControlPolicy.class);
         AccessControlList mockAcl = Mockito.mock(AccessControlList.class);
         Mockito.when(acManager.getPolicies(anyString())).thenReturn(new AccessControlPolicy[0]);
-        Mockito.when(acManager.getApplicablePolicies(anyString())).thenReturn(new AccessControlPolicyIteratorAdapter(List.of(mockNonAcl, mockAcl)));
+        Mockito.when(acManager.getApplicablePolicies(anyString()))
+                .thenReturn(new AccessControlPolicyIteratorAdapter(List.of(mockNonAcl, mockAcl)));
 
         assertSame(mockAcl, taps.getAccessControlList(acManager, "/content/node1", true));
     }
@@ -421,6 +440,7 @@ public class AbstractAccessPostServletTest {
         Mockito.when(acManager.getApplicablePolicies(anyString())).thenReturn(AccessControlPolicyIteratorAdapter.EMPTY);
         assertNull(taps.getAccessControlListOrNull(acManager, "/content/node1", true));
     }
+
     @Test
     public void testGetAccessControlListOrNullWithFoundACL() throws RepositoryException {
         AccessControlManager acManager = Mockito.mock(AccessControlManager.class);
@@ -429,17 +449,18 @@ public class AbstractAccessPostServletTest {
         Mockito.when(acManager.getPolicies(anyString())).thenReturn(new AccessControlPolicy[] {mockNonAcl, mockAcl});
         assertSame(mockAcl, taps.getAccessControlListOrNull(acManager, "/content/node1", false));
     }
+
     @Test
     public void testGetAccessControlListOrNullWithCreatedNewACL() throws RepositoryException {
         AccessControlManager acManager = Mockito.mock(AccessControlManager.class);
         AccessControlPolicy mockNonAcl = Mockito.mock(AccessControlPolicy.class);
         AccessControlList mockAcl = Mockito.mock(AccessControlList.class);
         Mockito.when(acManager.getPolicies(anyString())).thenReturn(new AccessControlPolicy[0]);
-        Mockito.when(acManager.getApplicablePolicies(anyString())).thenReturn(new AccessControlPolicyIteratorAdapter(List.of(mockNonAcl, mockAcl)));
+        Mockito.when(acManager.getApplicablePolicies(anyString()))
+                .thenReturn(new AccessControlPolicyIteratorAdapter(List.of(mockNonAcl, mockAcl)));
 
         assertSame(mockAcl, taps.getAccessControlListOrNull(acManager, "/content/node1", true));
     }
-
 
     /**
      * Test method for {@link org.apache.sling.jcr.jackrabbit.accessmanager.post.AbstractAccessPostServlet#bindPostResponseCreator(org.apache.sling.servlets.post.JakartaPostResponseCreator, java.util.Map)}.
@@ -500,8 +521,9 @@ public class AbstractAccessPostServletTest {
         private static final long serialVersionUID = -2948341218853558959L;
 
         @Override
-        protected void handleOperation(SlingJakartaHttpServletRequest request, JakartaPostResponse response,
-                List<Modification> changes) throws RepositoryException {
+        protected void handleOperation(
+                SlingJakartaHttpServletRequest request, JakartaPostResponse response, List<Modification> changes)
+                throws RepositoryException {
             // do nothing
         }
     }

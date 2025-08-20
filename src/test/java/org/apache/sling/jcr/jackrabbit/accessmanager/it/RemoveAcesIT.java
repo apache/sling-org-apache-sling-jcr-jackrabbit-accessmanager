@@ -1,23 +1,24 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager.it;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import javax.jcr.RepositoryException;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -25,13 +26,10 @@ import java.util.Dictionary;
 import java.util.Hashtable;
 import java.util.List;
 
-import javax.jcr.RepositoryException;
-
 import jakarta.json.JsonArray;
 import jakarta.json.JsonException;
 import jakarta.json.JsonObject;
 import jakarta.servlet.http.HttpServletResponse;
-
 import org.apache.http.NameValuePair;
 import org.apache.http.auth.Credentials;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -50,6 +48,9 @@ import org.osgi.framework.Bundle;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.ServiceRegistration;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
 /**
  * Tests for the 'removeAce' Sling POST operation
  */
@@ -64,8 +65,8 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
     public void before() throws Exception {
         Bundle bundle = FrameworkUtil.getBundle(getClass());
         Dictionary<String, Object> props = new Hashtable<>(); // NOSONAR
-        serviceReg = bundle.getBundleContext().registerService(JakartaPostResponseCreator.class,
-                new CustomPostResponseCreatorImpl(), props);
+        serviceReg = bundle.getBundleContext()
+                .registerService(JakartaPostResponseCreator.class, new CustomPostResponseCreatorImpl(), props);
 
         super.before();
     }
@@ -79,7 +80,6 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
 
         super.after();
     }
-
 
     private String createFolderWithAces(boolean addGroupAce) throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
@@ -101,7 +101,7 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
             addOrUpdateAce(testFolderUrl, postParams);
         }
 
-        //fetch the JSON for the acl to verify the settings.
+        // fetch the JSON for the acl to verify the settings.
         JsonObject jsonObject = getAcl(testFolderUrl);
 
         if (addGroupAce) {
@@ -121,9 +121,9 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
         JsonObject privilegesObject = aceObject.getJsonObject("privileges");
         assertNotNull(privilegesObject);
         assertEquals(2, privilegesObject.size());
-        //allow privileges
+        // allow privileges
         assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ);
-        //deny privileges
+        // deny privileges
         assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_WRITE);
 
         if (addGroupAce) {
@@ -138,26 +138,26 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
             privilegesObject = aceObject.getJsonObject("privileges");
             assertNotNull(privilegesObject);
             assertEquals(1, privilegesObject.size());
-            //allow privileges
+            // allow privileges
             assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ);
         }
 
         return testFolderUrl;
     }
 
-    //test removing a single ace
+    // test removing a single ace
     @Test
     public void testRemoveAce() throws IOException, JsonException, RepositoryException {
         String folderUrl = createFolderWithAces(false);
 
-        //remove the ace for the testUser principal
+        // remove the ace for the testUser principal
         String postUrl = folderUrl + ".deleteAce.html";
         List<NameValuePair> postParams = new ArrayList<>();
         postParams.add(new BasicNameValuePair(":applyTo", testUserId));
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
         assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
 
-        //fetch the JSON for the acl to verify the settings.
+        // fetch the JSON for the acl to verify the settings.
         String getUrl = folderUrl + ".acl.json";
 
         String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
@@ -175,23 +175,24 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
     public void testRemoveAceCustomPostResponse() throws IOException, JsonException, RepositoryException {
         String folderUrl = createFolderWithAces(false);
 
-        //remove the ace for the testUser principal
+        // remove the ace for the testUser principal
         String postUrl = folderUrl + ".deleteAce.html";
         List<NameValuePair> postParams = new ArrayList<>();
         postParams.add(new BasicNameValuePair(":responseType", "custom"));
         postParams.add(new BasicNameValuePair(":applyTo", testUserId));
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        String content = getAuthenticatedPostContent(creds, postUrl, CONTENT_TYPE_HTML, postParams, HttpServletResponse.SC_OK);
-        assertEquals("Thanks!", content); //verify that the content matches the custom response
+        String content =
+                getAuthenticatedPostContent(creds, postUrl, CONTENT_TYPE_HTML, postParams, HttpServletResponse.SC_OK);
+        assertEquals("Thanks!", content); // verify that the content matches the custom response
     }
 
-    //test removing multiple aces
+    // test removing multiple aces
     @Test
     public void testRemoveAces() throws IOException, JsonException, RepositoryException {
         String folderUrl = createFolderWithAces(true);
 
-        //remove the ace for the testUser principal
+        // remove the ace for the testUser principal
         String postUrl = folderUrl + ".deleteAce.html";
         List<NameValuePair> postParams = new ArrayList<>();
         postParams.add(new BasicNameValuePair(":applyTo", testUserId));
@@ -199,7 +200,7 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
         assertAuthenticatedPostStatus(creds, postUrl, HttpServletResponse.SC_OK, postParams, null);
 
-        //fetch the JSON for the acl to verify the settings.
+        // fetch the JSON for the acl to verify the settings.
         String getUrl = folderUrl + ".acl.json";
 
         String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
@@ -217,15 +218,16 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
     public void testRemoveAcesResponseAsJSON() throws IOException, JsonException, RepositoryException {
         String folderUrl = createFolderWithAces(true);
 
-        //remove the ace for the testUser principal
+        // remove the ace for the testUser principal
         String postUrl = folderUrl + ".deleteAce.json";
         List<NameValuePair> postParams = new ArrayList<>();
         postParams.add(new BasicNameValuePair(":applyTo", testUserId));
         postParams.add(new BasicNameValuePair(":applyTo", testGroupId));
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        String json = getAuthenticatedPostContent(creds, postUrl, CONTENT_TYPE_JSON, postParams, HttpServletResponse.SC_OK);
+        String json =
+                getAuthenticatedPostContent(creds, postUrl, CONTENT_TYPE_JSON, postParams, HttpServletResponse.SC_OK);
 
-        //make sure the json response can be parsed as a JSON object
+        // make sure the json response can be parsed as a JSON object
         JsonObject jsonObject = parseJson(json);
         assertNotNull(jsonObject);
     }
@@ -236,7 +238,8 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
      * in a consistent way to other scenarios
      */
     @Test
-    public void testRemoveAceWhenAccessControlListDoesNotExist() throws IOException, JsonException, RepositoryException {
+    public void testRemoveAceWhenAccessControlListDoesNotExist()
+            throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder();
 
@@ -247,7 +250,8 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
         postParams.add(new BasicNameValuePair(":applyTo", testUserId));
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        String json = getAuthenticatedPostContent(creds, postUrl, CONTENT_TYPE_JSON, postParams, HttpServletResponse.SC_OK);
+        String json =
+                getAuthenticatedPostContent(creds, postUrl, CONTENT_TYPE_JSON, postParams, HttpServletResponse.SC_OK);
         assertNotNull(json);
 
         JsonObject jsonObject = parseJson(json);
@@ -273,11 +277,14 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
         postParams.add(new BasicNameValuePair(":applyTo", invalidUserId));
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        String json = getAuthenticatedPostContent(creds, postUrl, CONTENT_TYPE_JSON, postParams, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        String json = getAuthenticatedPostContent(
+                creds, postUrl, CONTENT_TYPE_JSON, postParams, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         assertNotNull(json);
 
         JsonObject jsonObject = parseJson(json);
-        assertEquals("javax.jcr.RepositoryException: Invalid principalId was submitted.", jsonObject.getString("status.message"));
+        assertEquals(
+                "javax.jcr.RepositoryException: Invalid principalId was submitted.",
+                jsonObject.getString("status.message"));
     }
 
     /**
@@ -295,7 +302,8 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
         postParams.add(new BasicNameValuePair(":applyTo", testUserId));
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        String json = getAuthenticatedPostContent(creds, postUrl, CONTENT_TYPE_JSON, postParams, HttpServletResponse.SC_OK);
+        String json =
+                getAuthenticatedPostContent(creds, postUrl, CONTENT_TYPE_JSON, postParams, HttpServletResponse.SC_OK);
         assertNotNull(json);
 
         JsonObject jsonObject = parseJson(json);
@@ -307,10 +315,11 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
         assertEquals(testUserId, change.getString("argument"));
     }
 
-    private void testRemoveAceRedirect(String redirectTo, int expectedStatus) throws IOException, JsonException, RepositoryException {
+    private void testRemoveAceRedirect(String redirectTo, int expectedStatus)
+            throws IOException, JsonException, RepositoryException {
         String folderUrl = createFolderWithAces(false);
 
-        //remove the ace for the testUser principal
+        // remove the ace for the testUser principal
         String postUrl = folderUrl + ".deleteAce.html";
         List<NameValuePair> postParams = new ArrayList<>();
         postParams.add(new BasicNameValuePair(":applyTo", testUserId));
@@ -333,6 +342,4 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
     public void testRemoveAceInvalidRedirectWithInvalidURI() throws IOException, JsonException, RepositoryException {
         testRemoveAceRedirect("https://", SC_UNPROCESSABLE_ENTITY);
     }
-
 }
-

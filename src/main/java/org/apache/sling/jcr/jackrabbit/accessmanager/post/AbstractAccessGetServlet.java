@@ -1,20 +1,30 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements. See the NOTICE file distributed with this
- * work for additional information regarding copyright ownership. The ASF
- * licenses this file to You under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager.post;
+
+import javax.jcr.AccessDeniedException;
+import javax.jcr.RepositoryException;
+import javax.jcr.Session;
+import javax.jcr.security.AccessControlEntry;
+import javax.jcr.security.AccessControlList;
+import javax.jcr.security.AccessControlPolicy;
+import javax.jcr.security.Privilege;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -32,14 +42,11 @@ import java.util.TreeMap;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import javax.jcr.AccessDeniedException;
-import javax.jcr.RepositoryException;
-import javax.jcr.Session;
-import javax.jcr.security.AccessControlEntry;
-import javax.jcr.security.AccessControlList;
-import javax.jcr.security.AccessControlPolicy;
-import javax.jcr.security.Privilege;
-
+import jakarta.json.Json;
+import jakarta.json.JsonObject;
+import jakarta.json.stream.JsonGenerator;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletResponse;
 import org.apache.jackrabbit.api.JackrabbitSession;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlList;
@@ -56,12 +63,6 @@ import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrivilegesHelper;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import jakarta.json.Json;
-import jakarta.json.JsonObject;
-import jakarta.json.stream.JsonGenerator;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletResponse;
-
 @SuppressWarnings("serial")
 public abstract class AbstractAccessGetServlet extends AbstractAccessServlet {
 
@@ -69,9 +70,8 @@ public abstract class AbstractAccessGetServlet extends AbstractAccessServlet {
      * @see org.apache.sling.api.servlets.SlingJakartaSafeMethodsServlet#doGet(org.apache.sling.api.SlingJakartaHttpServletRequest, org.apache.sling.api.SlingJakartaHttpServletResponse)
      */
     @Override
-    protected void doGet(SlingJakartaHttpServletRequest request,
-            SlingJakartaHttpServletResponse response) throws ServletException,
-            IOException {
+    protected void doGet(SlingJakartaHttpServletRequest request, SlingJakartaHttpServletResponse response)
+            throws ServletException, IOException {
 
         try {
             Session session = request.getResourceResolver().adaptTo(Session.class);
@@ -86,7 +86,7 @@ public abstract class AbstractAccessGetServlet extends AbstractAccessServlet {
             final String[] selectors = request.getRequestPathInfo().getSelectors();
             if (selectors.length > 0) {
                 for (final String level : selectors) {
-                    if("tidy".equals(level)) {
+                    if ("tidy".equals(level)) {
                         isTidy = true;
                         break;
                     }
@@ -103,9 +103,11 @@ public abstract class AbstractAccessGetServlet extends AbstractAccessServlet {
         } catch (ResourceNotFoundException rnfe) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND, rnfe.getMessage());
         } catch (Exception throwable) {
-            throw new ServletException(String.format("Exception while handling GET %s with %s",
-                                            request.getResource().getPath(), getClass().getName()),
-                                        throwable);
+            throw new ServletException(
+                    String.format(
+                            "Exception while handling GET %s with %s",
+                            request.getResource().getPath(), getClass().getName()),
+                    throwable);
         }
     }
 
@@ -116,17 +118,19 @@ public abstract class AbstractAccessGetServlet extends AbstractAccessServlet {
         return request.getResource().getPath();
     }
 
-    protected abstract JsonObject internalJson(Session session, String resourcePath, String principalId) throws RepositoryException;
+    protected abstract JsonObject internalJson(Session session, String resourcePath, String principalId)
+            throws RepositoryException;
 
     /**
      * Verify that the user supplied arguments are valid
-     * 
+     *
      * @param jcrSession the JCR session
      * @param resourcePath the resource path
      * @param principalId the principal id
      * @return the principal for the requested principalId
      */
-    protected @NotNull Principal validateArgs(Session jcrSession, String resourcePath, String principalId) throws RepositoryException {
+    protected @NotNull Principal validateArgs(Session jcrSession, String resourcePath, String principalId)
+            throws RepositoryException {
         validateArgs(jcrSession, resourcePath);
 
         if (principalId == null) {
@@ -134,7 +138,7 @@ public abstract class AbstractAccessGetServlet extends AbstractAccessServlet {
         }
 
         // validate that the submitted name is valid
-        PrincipalManager principalManager = ((JackrabbitSession)jcrSession).getPrincipalManager();
+        PrincipalManager principalManager = ((JackrabbitSession) jcrSession).getPrincipalManager();
         Principal principal = principalManager.getPrincipal(principalId);
         if (principal == null) {
             throw new RepositoryException("Invalid principalId was submitted.");
@@ -145,7 +149,7 @@ public abstract class AbstractAccessGetServlet extends AbstractAccessServlet {
 
     /**
      * Verify that the user supplied arguments are valid
-     * 
+     *
      * @param jcrSession the JCR session
      * @param resourcePath the resource path
      */
@@ -170,13 +174,15 @@ public abstract class AbstractAccessGetServlet extends AbstractAccessServlet {
         }
     }
 
-    protected void processACE(Map<String, RestrictionDefinition> srMap,
-            JackrabbitAccessControlEntry jrAccessControlEntry, Privilege[] privileges,
-            Map<Privilege, LocalPrivilege> map) throws RepositoryException {
+    protected void processACE(
+            Map<String, RestrictionDefinition> srMap,
+            JackrabbitAccessControlEntry jrAccessControlEntry,
+            Privilege[] privileges,
+            Map<Privilege, LocalPrivilege> map)
+            throws RepositoryException {
         boolean isAllow = jrAccessControlEntry.isAllow();
         // populate the declared restrictions
-        @NotNull
-        String[] restrictionNames = jrAccessControlEntry.getRestrictionNames();
+        @NotNull String[] restrictionNames = jrAccessControlEntry.getRestrictionNames();
         Set<LocalRestriction> restrictionItems = new HashSet<>();
         for (String restrictionName : restrictionNames) {
             RestrictionDefinition rd = srMap.get(restrictionName);
@@ -198,53 +204,56 @@ public abstract class AbstractAccessGetServlet extends AbstractAccessServlet {
     /**
      * Builds a map by merging all the entries for the supplied
      * policies and ordering them by the effective path
-     * 
+     *
      * @param policies the policies to process
      * @param accessControlEntryFilter a filter to find entries to include
-     * @param declaredAtPaths populated with details about where privileges are defined for the principal. 
+     * @param declaredAtPaths populated with details about where privileges are defined for the principal.
      *              In the map the key is the principal and the value is a map of paths the set of defined ACE
      *              types at that path.
      * @return map of sorted entries, key is the effectivePath and value is the list of entries for that path
      */
-    protected @NotNull Map<String, List<AccessControlEntry>> entriesSortedByEffectivePath(@NotNull AccessControlPolicy[] policies,
+    protected @NotNull Map<String, List<AccessControlEntry>> entriesSortedByEffectivePath(
+            @NotNull AccessControlPolicy[] policies,
             @NotNull Predicate<? super AccessControlEntry> accessControlEntryFilter,
-            Map<Principal, Map<DeclarationType, Set<String>>> declaredAtPaths) throws RepositoryException {
-        Comparator<? super String> effectivePathComparator = (k1, k2) -> Objects.compare(k1, k2, Comparator.nullsFirst(String::compareTo));
+            Map<Principal, Map<DeclarationType, Set<String>>> declaredAtPaths)
+            throws RepositoryException {
+        Comparator<? super String> effectivePathComparator =
+                (k1, k2) -> Objects.compare(k1, k2, Comparator.nullsFirst(String::compareTo));
         Map<String, List<AccessControlEntry>> effectivePathToEntriesMap = new TreeMap<>(effectivePathComparator);
 
         // map the effectivePaths to the entries for that path
         for (AccessControlPolicy accessControlPolicy : policies) {
-            AccessControlEntry[] accessControlEntries = ((AccessControlList)accessControlPolicy).getAccessControlEntries();
+            AccessControlEntry[] accessControlEntries =
+                    ((AccessControlList) accessControlPolicy).getAccessControlEntries();
             if (accessControlPolicy instanceof AccessControlList) {
-                Stream.of(accessControlEntries)
-                    .filter(accessControlEntryFilter)
-                    .forEach(entry -> {
-                        DeclarationType dt = null;
-                        String effectivePath = null;
-                        if (entry instanceof PrincipalAccessControlList.Entry paclEntry) {
-                            // for principal-based ACE, the effectivePath comes from the entry
-                            effectivePath = paclEntry.getEffectivePath();
-                            if (effectivePath == null) {
-                                // special case
-                                effectivePath = PrincipalAceHelper.RESOURCE_PATH_REPOSITORY;
-                            }
-                            dt = DeclarationType.PRINCIPAL;
-                        } else if (accessControlPolicy instanceof JackrabbitAccessControlList jacList) {
-                            // for basic ACE, the effectivePath comes from the ACL path
-                            effectivePath = jacList.getPath();
-                            dt = DeclarationType.NODE;
+                Stream.of(accessControlEntries).filter(accessControlEntryFilter).forEach(entry -> {
+                    DeclarationType dt = null;
+                    String effectivePath = null;
+                    if (entry instanceof PrincipalAccessControlList.Entry paclEntry) {
+                        // for principal-based ACE, the effectivePath comes from the entry
+                        effectivePath = paclEntry.getEffectivePath();
+                        if (effectivePath == null) {
+                            // special case
+                            effectivePath = PrincipalAceHelper.RESOURCE_PATH_REPOSITORY;
                         }
-                        List<AccessControlEntry> entriesForPath = effectivePathToEntriesMap.computeIfAbsent(effectivePath, key -> new ArrayList<>());
-                        entriesForPath.add(entry);
+                        dt = DeclarationType.PRINCIPAL;
+                    } else if (accessControlPolicy instanceof JackrabbitAccessControlList jacList) {
+                        // for basic ACE, the effectivePath comes from the ACL path
+                        effectivePath = jacList.getPath();
+                        dt = DeclarationType.NODE;
+                    }
+                    List<AccessControlEntry> entriesForPath =
+                            effectivePathToEntriesMap.computeIfAbsent(effectivePath, key -> new ArrayList<>());
+                    entriesForPath.add(entry);
 
-                        Map<DeclarationType, Set<String>> map = declaredAtPaths.computeIfAbsent(entry.getPrincipal(), k -> new HashMap<>());
-                        Set<String> set = map.computeIfAbsent(dt, k -> new HashSet<>());
-                        set.add(effectivePath);
-                    });
+                    Map<DeclarationType, Set<String>> map =
+                            declaredAtPaths.computeIfAbsent(entry.getPrincipal(), k -> new HashMap<>());
+                    Set<String> set = map.computeIfAbsent(dt, k -> new HashSet<>());
+                    set.add(effectivePath);
+                });
             }
         }
 
         return effectivePathToEntriesMap;
     }
-
 }

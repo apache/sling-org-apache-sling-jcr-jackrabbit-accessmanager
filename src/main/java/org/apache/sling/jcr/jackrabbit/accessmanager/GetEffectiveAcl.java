@@ -20,6 +20,7 @@ package org.apache.sling.jcr.jackrabbit.accessmanager;
 
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
+
 import jakarta.json.JsonObject;
 
 /**
@@ -33,14 +34,11 @@ public interface GetEffectiveAcl {
 
     /**
      * Gets the effective access control list for a resource.
-     * 
+     *
      * @param jcrSession the JCR session of the user updating the user
      * @param resourcePath The path of the resource to get the ACL for (required)
-     * @return the ACL as a JSON object 
+     * @return the ACL as a JSON object
      * @throws RepositoryException if any errors reading the information
      */
-    JsonObject getEffectiveAcl(Session jcrSession,
-                            String resourcePath
-                ) throws RepositoryException;
-
+    JsonObject getEffectiveAcl(Session jcrSession, String resourcePath) throws RepositoryException;
 }

@@ -1,30 +1,31 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager.it;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import javax.jcr.RepositoryException;
 
 import java.io.IOException;
 import java.util.List;
 
-import javax.jcr.RepositoryException;
-
+import jakarta.json.JsonException;
+import jakarta.json.JsonObject;
+import jakarta.servlet.http.HttpServletResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.auth.Credentials;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -35,9 +36,9 @@ import org.ops4j.pax.exam.junit.PaxExam;
 import org.ops4j.pax.exam.spi.reactors.ExamReactorStrategy;
 import org.ops4j.pax.exam.spi.reactors.PerClass;
 
-import jakarta.json.JsonException;
-import jakarta.json.JsonObject;
-import jakarta.servlet.http.HttpServletResponse;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the 'acl' and 'eacl' Sling Get Operation
@@ -54,10 +55,12 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         testUserId = createTestUser();
         testUserId2 = createTestUser();
 
-        testFolderUrl = createTestFolder(null, "sling-tests",
+        testFolderUrl = createTestFolder(
+                null,
+                "sling-tests",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"propOne\" : \"propOneValue\", \"child\" : { \"childPropOne\" : true } }");
 
-        //1. create an initial set of privileges
+        // 1. create an initial set of privileges
         List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
                 .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.ALLOW)
                 .build();
@@ -75,7 +78,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
 
-        //fetch the JSON for the eacl to verify the settings.
+        // fetch the JSON for the eacl to verify the settings.
         String getUrl = testFolderUrl + "/child.eacl.json";
 
         String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
@@ -91,7 +94,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         JsonObject privilegesObject = aceObject.getJsonObject("privileges");
         assertNotNull(privilegesObject);
         assertEquals(1, privilegesObject.size());
-        //allow privilege
+        // allow privilege
         assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE);
 
         JsonObject aceObject2 = jsonObject.getJsonObject(testUserId2);
@@ -103,7 +106,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         JsonObject privilegesObject2 = aceObject2.getJsonObject("privileges");
         assertNotNull(privilegesObject2);
         assertEquals(2, privilegesObject2.size());
-        //allow privilege
+        // allow privilege
         assertPrivilege(privilegesObject2, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE);
         assertPrivilege(privilegesObject2, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_LOCK_MANAGEMENT);
     }
@@ -112,13 +115,16 @@ public class GetAclIT extends AccessManagerClientTestSupport {
      * Test for SLING-2600, Effective ACL servlet returns incorrect information
      */
     @Test
-    public void testEffectiveAclMergeForUserReplacePrivilegeOnChild() throws IOException, JsonException, RepositoryException {
+    public void testEffectiveAclMergeForUserReplacePrivilegeOnChild()
+            throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
 
-        testFolderUrl = createTestFolder(null, "sling-tests",
+        testFolderUrl = createTestFolder(
+                null,
+                "sling-tests",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"propOne\" : \"propOneValue\", \"child\" : { \"childPropOne\" : true } }");
 
-        //1. create an initial set of privileges
+        // 1. create an initial set of privileges
         List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
                 .withPrivilege(PrivilegeConstants.JCR_WRITE, PrivilegeValues.DENY)
                 .build();
@@ -131,7 +137,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
 
-        //fetch the JSON for the eacl to verify the settings.
+        // fetch the JSON for the eacl to verify the settings.
         String getUrl = testFolderUrl + "/child.eacl.json";
 
         String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
@@ -147,7 +153,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         JsonObject privilegesObject = aceObject.getJsonObject("privileges");
         assertNotNull(privilegesObject);
         assertEquals(1, privilegesObject.size());
-        //allow privilege
+        // allow privilege
         assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_WRITE);
     }
 
@@ -155,10 +161,13 @@ public class GetAclIT extends AccessManagerClientTestSupport {
      * Test for SLING-2600, Effective ACL servlet returns incorrect information
      */
     @Test
-    public void testEffectiveAclMergeForUserFewerPrivilegesGrantedOnChild() throws IOException, JsonException, RepositoryException {
+    public void testEffectiveAclMergeForUserFewerPrivilegesGrantedOnChild()
+            throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
 
-        testFolderUrl = createTestFolder(null, "sling-tests",
+        testFolderUrl = createTestFolder(
+                null,
+                "sling-tests",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"propOne\" : \"propOneValue\", \"child\" : { \"childPropOne\" : true } }");
 
         List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
@@ -173,7 +182,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
 
-        //fetch the JSON for the eacl to verify the settings.
+        // fetch the JSON for the eacl to verify the settings.
         String getUrl = testFolderUrl + "/child.eacl.json";
 
         String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
@@ -189,7 +198,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         JsonObject privilegesObject = aceObject.getJsonObject("privileges");
         assertNotNull(privilegesObject);
         assertEquals(1, privilegesObject.size());
-        //allow privilege
+        // allow privilege
         assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_ALL);
     }
 
@@ -197,10 +206,13 @@ public class GetAclIT extends AccessManagerClientTestSupport {
      * Test for SLING-2600, Effective ACL servlet returns incorrect information
      */
     @Test
-    public void testEffectiveAclMergeForUserMorePrivilegesGrantedOnChild() throws IOException, JsonException, RepositoryException {
+    public void testEffectiveAclMergeForUserMorePrivilegesGrantedOnChild()
+            throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
 
-        testFolderUrl = createTestFolder(null, "sling-tests",
+        testFolderUrl = createTestFolder(
+                null,
+                "sling-tests",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"propOne\" : \"propOneValue\", \"child\" : { \"childPropOne\" : true } }");
 
         List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
@@ -215,7 +227,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
 
-        //fetch the JSON for the eacl to verify the settings.
+        // fetch the JSON for the eacl to verify the settings.
         String getUrl = testFolderUrl + "/child.eacl.json";
 
         String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
@@ -231,7 +243,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         JsonObject privilegesObject = aceObject.getJsonObject("privileges");
         assertNotNull(privilegesObject);
         assertEquals(1, privilegesObject.size());
-        //allow privilege
+        // allow privilege
         assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_ALL);
     }
 
@@ -239,10 +251,13 @@ public class GetAclIT extends AccessManagerClientTestSupport {
      * Test for SLING-2600, Effective ACL servlet returns incorrect information
      */
     @Test
-    public void testEffectiveAclMergeForUserSubsetOfPrivilegesDeniedOnChild2() throws IOException, JsonException, RepositoryException {
+    public void testEffectiveAclMergeForUserSubsetOfPrivilegesDeniedOnChild2()
+            throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
 
-        testFolderUrl = createTestFolder(null, "sling-tests",
+        testFolderUrl = createTestFolder(
+                null,
+                "sling-tests",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"propOne\" : \"propOneValue\", \"child\" : { \"childPropOne\" : true } }");
 
         List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
@@ -257,7 +272,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
 
-        //fetch the JSON for the eacl to verify the settings.
+        // fetch the JSON for the eacl to verify the settings.
         String getUrl = testFolderUrl + "/child.eacl.json";
 
         String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
@@ -288,7 +303,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
         assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_MODIFY_PROPERTIES);
         assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_ADD_CHILD_NODES);
         assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_REMOVE_CHILD_NODES);
-        //deny privileges
+        // deny privileges
         assertPrivilege(privilegesObject, true, PrivilegeValues.DENY, PrivilegeConstants.JCR_REMOVE_NODE);
     }
 
@@ -296,10 +311,13 @@ public class GetAclIT extends AccessManagerClientTestSupport {
      * Test for SLING-2600, Effective ACL servlet returns incorrect information
      */
     @Test
-    public void testEffectiveAclMergeForUserSupersetOfPrivilegesDeniedOnChild() throws IOException, JsonException, RepositoryException {
+    public void testEffectiveAclMergeForUserSupersetOfPrivilegesDeniedOnChild()
+            throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
 
-        testFolderUrl = createTestFolder(null, "sling-tests",
+        testFolderUrl = createTestFolder(
+                null,
+                "sling-tests",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"propOne\" : \"propOneValue\", \"child\" : { \"childPropOne\" : true } }");
 
         List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
@@ -314,7 +332,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
 
-        //fetch the JSON for the eacl to verify the settings.
+        // fetch the JSON for the eacl to verify the settings.
         String getUrl = testFolderUrl + "/child.eacl.json";
 
         String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
@@ -337,10 +355,13 @@ public class GetAclIT extends AccessManagerClientTestSupport {
      * Test for SLING-2600, Effective ACL servlet returns incorrect information
      */
     @Test
-    public void testEffectiveAclMergeForUserSupersetOfPrivilegesDeniedOnChild2() throws IOException, JsonException, RepositoryException {
+    public void testEffectiveAclMergeForUserSupersetOfPrivilegesDeniedOnChild2()
+            throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
 
-        testFolderUrl = createTestFolder(null, "sling-tests",
+        testFolderUrl = createTestFolder(
+                null,
+                "sling-tests",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"propOne\" : \"propOneValue\", \"child\" : { \"childPropOne\" : true } }");
 
         List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
@@ -355,7 +376,7 @@ public class GetAclIT extends AccessManagerClientTestSupport {
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
 
-        //fetch the JSON for the eacl to verify the settings.
+        // fetch the JSON for the eacl to verify the settings.
         String getUrl = testFolderUrl + "/child.eacl.json";
 
         String json = getAuthenticatedContent(creds, getUrl, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
@@ -380,10 +401,12 @@ public class GetAclIT extends AccessManagerClientTestSupport {
     @Test
     public void testNoAccessToDeclaredAclForUser() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
-        testFolderUrl = createTestFolder(null, "sling-tests",
+        testFolderUrl = createTestFolder(
+                null,
+                "sling-tests",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"child\" : { \"childPropOne\" : true } }");
 
-        //1. create an initial set of privileges
+        // 1. create an initial set of privileges
         List<NameValuePair> postParams = new AcePostParamsBuilder(testUserId)
                 .withPrivilege(PrivilegeConstants.JCR_READ_ACCESS_CONTROL, PrivilegeValues.DENY)
                 .build();
@@ -391,9 +414,10 @@ public class GetAclIT extends AccessManagerClientTestSupport {
 
         Credentials creds = new UsernamePasswordCredentials(testUserId, "testPwd");
 
-        //fetch the JSON for the ace to verify the settings.
+        // fetch the JSON for the ace to verify the settings.
         String getUrl = testFolderUrl + "/child.acl.json";
         // no declared access control entry returns a 404
-        assertAuthenticatedHttpStatus(creds, getUrl, HttpServletResponse.SC_NOT_FOUND, "Did not expect an ace to be returned");
+        assertAuthenticatedHttpStatus(
+                creds, getUrl, HttpServletResponse.SC_NOT_FOUND, "Did not expect an ace to be returned");
     }
 }

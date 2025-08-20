@@ -19,5 +19,3 @@
 
 @org.osgi.annotation.versioning.Version("5.0.0")
 package org.apache.sling.jcr.jackrabbit.accessmanager;
-
-
