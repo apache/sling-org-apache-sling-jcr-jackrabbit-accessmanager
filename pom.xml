@@ -28,7 +28,7 @@
     </parent>
 
     <artifactId>org.apache.sling.jcr.jackrabbit.accessmanager</artifactId>
-    <version>4.0.3-SNAPSHOT</version>
+    <version>5.0.0-SNAPSHOT</version>
     <name>Apache Sling JCR Jackrabbit Access Manager</name>
     <description>
         Provides POST operations for JCR Jackrabbit Access Management
@@ -42,13 +42,14 @@
     </scm>
 
     <properties>
-        <sling.java.version>8</sling.java.version>
+        <sling.java.version>17</sling.java.version>
         <project.build.outputTimestamp>2024-01-08T23:41:57Z</project.build.outputTimestamp>
-        <org.ops4j.pax.exam.version>4.13.3</org.ops4j.pax.exam.version>
+        <org.ops4j.pax.exam.version>4.14.0</org.ops4j.pax.exam.version>
         <!-- To debug the pax process, override this with -D -->
         <pax.vm.options>-Xmx512M</pax.vm.options>
 
         <oak.version>1.44.0</oak.version>
+        <slf4j.version>2.0.17</slf4j.version>
     </properties>
 
     <build>
@@ -105,6 +106,11 @@
             <artifactId>org.osgi.annotation.versioning</artifactId>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+            <scope>provided</scope>
+        </dependency>
 
         <dependency>
             <groupId>javax.servlet</groupId>
@@ -112,9 +118,15 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <version>6.0.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>org.apache.sling</groupId>
             <artifactId>org.apache.sling.api</artifactId>
-            <version>2.25.4</version>
+            <version>3.0.0</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -126,7 +138,7 @@
         <dependency>
             <groupId>org.apache.sling</groupId>
             <artifactId>org.apache.sling.servlets.post</artifactId>
-            <version>2.3.22</version>
+            <version>3.0.0</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -143,6 +155,7 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -186,13 +199,19 @@
         <dependency>
             <groupId>org.apache.sling</groupId>
             <artifactId>org.apache.sling.testing.sling-mock-oak</artifactId>
-            <version>3.1.10-1.44.0</version>
+            <version>4.0.0-1.62.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.sling</groupId>
             <artifactId>org.apache.sling.testing.sling-mock.junit4</artifactId>
-            <version>3.4.12</version>
+            <version>3.5.4</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.sling</groupId>
+            <artifactId>org.apache.sling.testing.paxexam</artifactId>
+            <version>4.1.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -226,12 +245,6 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.apache.sling</groupId>
-            <artifactId>org.apache.sling.testing.paxexam</artifactId>
-            <version>4.0.0</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpcore</artifactId>
             <version>4.4.13</version>
@@ -259,7 +272,7 @@
        <dependency>
             <groupId>org.awaitility</groupId>
             <artifactId>awaitility</artifactId>
-            <version>4.2.0</version>
+            <version>4.3.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -273,10 +286,24 @@
             <version>7.0.5</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>5.11.0</version>
+            <scope>test</scope>
+        </dependency>
 
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
+            <version>${slf4j.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.felix</groupId>
+            <artifactId>org.apache.felix.http.wrappers</artifactId>
+            <version>1.1.10</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

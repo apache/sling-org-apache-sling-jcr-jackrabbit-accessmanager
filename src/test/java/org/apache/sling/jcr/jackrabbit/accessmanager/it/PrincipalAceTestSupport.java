@@ -26,15 +26,15 @@ import static org.ops4j.pax.exam.cm.ConfigurationAdminOptions.newConfiguration;
 import java.io.IOException;
 import java.util.List;
 
-import jakarta.json.JsonException;
-import jakarta.json.JsonObject;
-import javax.servlet.http.HttpServletResponse;
-
 import org.apache.http.NameValuePair;
 import org.apache.http.auth.Credentials;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
 import org.ops4j.pax.exam.Option;
+
+import jakarta.json.JsonException;
+import jakarta.json.JsonObject;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * Base class for testing of the principal ACE operations
@@ -64,8 +64,10 @@ public abstract class PrincipalAceTestSupport extends AccessManagerClientTestSup
                     .asOption(),
                 factoryConfiguration("org.apache.sling.jcr.repoinit.RepositoryInitializer")
                     .put("scripts", new String[] {
-                                "create service user pacetestuser with path /home/users/system/sling\n" +
-                                "create service user pacetestuser2 with path /home/users/system/sling\n"
+                                """
+                                create service user pacetestuser with path /home/users/system/sling
+                                create service user pacetestuser2 with path /home/users/system/sling
+                                """
                             })
                     .asOption()
            ).getOptions();

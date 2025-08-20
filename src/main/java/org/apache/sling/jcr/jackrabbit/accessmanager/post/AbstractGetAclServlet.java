@@ -30,38 +30,20 @@ import javax.jcr.Session;
 import javax.jcr.security.AccessControlEntry;
 import javax.jcr.security.AccessControlManager;
 import javax.jcr.security.Privilege;
-import jakarta.json.Json;
-import jakarta.json.JsonArrayBuilder;
-import jakarta.json.JsonObject;
-import jakarta.json.JsonObjectBuilder;
 
 import org.apache.jackrabbit.api.security.JackrabbitAccessControlEntry;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionDefinition;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
-import org.apache.sling.jcr.jackrabbit.accessmanager.LocalRestriction;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.JsonConvert;
 import org.apache.sling.jcr.jackrabbit.accessmanager.impl.PrivilegesHelper;
 
+import jakarta.json.Json;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonObjectBuilder;
+
 @SuppressWarnings({"serial", "java:S110"})
 public abstract class AbstractGetAclServlet extends AbstractAccessGetServlet {
-
-    /**
-     * @deprecated since 3.0.12, To be removed when the exported package version goes to 4.0
-     *      use {@link JsonConvert#KEY_ORDER} instead
-     */
-    @Deprecated
-    protected static final String KEY_ORDER = JsonConvert.KEY_ORDER;
-    /**
-     * @deprecated since 3.0.12, To be removed when the exported package version goes to 4.0
-     */
-    @Deprecated
-    protected static final String KEY_DENIED = "denied";
-    /**
-     * @deprecated since 3.0.12, To be removed when the exported package version goes to 4.0
-     */
-    @Deprecated
-    protected static final String KEY_GRANTED = "granted";
 
     @Override
     protected JsonObject internalJson(Session session, String resourcePath, String principalId) throws RepositoryException {
@@ -85,8 +67,7 @@ public abstract class AbstractGetAclServlet extends AbstractAccessGetServlet {
         for (Entry<String, List<AccessControlEntry>> entry : effectivePathToEntriesMap.entrySet()) {
             List<AccessControlEntry> accessControlEntries = entry.getValue();
             for (AccessControlEntry accessControlEntry : accessControlEntries) {
-                if (accessControlEntry instanceof JackrabbitAccessControlEntry) {
-                    JackrabbitAccessControlEntry jrAccessControlEntry = (JackrabbitAccessControlEntry)accessControlEntry;
+                if (accessControlEntry instanceof JackrabbitAccessControlEntry jrAccessControlEntry) {
                     Privilege[] privileges = jrAccessControlEntry.getPrivileges();
                     if (privileges != null) {
                         Principal principal = accessControlEntry.getPrincipal();
@@ -145,40 +126,7 @@ public abstract class AbstractGetAclServlet extends AbstractAccessGetServlet {
     }
 
 
-    /**
-     * @deprecated use {@link JsonConvert#addRestrictions(JsonObjectBuilder, String, Set)} instead
-     */
-    @Deprecated
-    protected void addRestrictions(JsonObjectBuilder privilegeObj, String key, Set<LocalRestriction> restrictions) {
-        JsonConvert.addRestrictions(privilegeObj, key, restrictions);
-    }
-
-    /**
-     * @deprecated use {@link JsonConvert#addTo(javax.json.JsonArrayBuilder, Object)} instead
-     */
-    @Deprecated
-    protected JsonObjectBuilder addTo(JsonObjectBuilder builder, String key, Object value) {
-        return JsonConvert.addTo(builder, key, value);
-    }
-
-    /**
-     * @deprecated use {@link JsonConvert#addTo(JsonObjectBuilder, String, Object)} instead
-     */
-    @Deprecated
-    protected JsonArrayBuilder addTo(JsonArrayBuilder builder, Object value) {
-        return JsonConvert.addTo(builder, value);
-    }
-
     protected abstract Map<String, List<AccessControlEntry>> getAccessControlEntriesMap(Session session, String absPath,
             Map<Principal, Map<DeclarationType, Set<String>>> declaredAtPaths) throws RepositoryException;
-
-    /**
-     * @deprecated use {@link #getAccessControlEntriesMap(Session, String, Map)} instead
-     */
-    @Deprecated
-    protected AccessControlEntry[] getAccessControlEntries(Session session, String absPath) throws RepositoryException {
-        return getAccessControlEntriesMap(session, absPath, new HashMap<>()).values().stream()
-                .toArray(size -> new AccessControlEntry[size]);
-    }
 
 }

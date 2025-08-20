@@ -19,7 +19,7 @@ package org.apache.sling.jcr.jackrabbit.accessmanager.impl;
 import javax.jcr.security.AccessControlEntry;
 
 import org.apache.jackrabbit.api.security.authorization.PrincipalAccessControlList;
-import org.apache.sling.api.SlingHttpServletRequest;
+import org.apache.sling.api.SlingJakartaHttpServletRequest;
 import org.apache.sling.api.request.RequestPathInfo;
 import org.apache.sling.api.resource.ResourceUtil;
 import org.jetbrains.annotations.NotNull;
@@ -42,7 +42,7 @@ public class PrincipalAceHelper {
      * @param request the current request
      * @return the effect path
      */
-    public static String getEffectivePath(SlingHttpServletRequest request) {
+    public static String getEffectivePath(SlingJakartaHttpServletRequest request) {
         String effectivePath = request.getResource().getPath();
         if (ResourceUtil.isNonExistingResource(request.getResource())) {
             // for non-existing resource trim the selectors and extension 
@@ -82,8 +82,8 @@ public class PrincipalAceHelper {
      */
     public static boolean matchesResourcePath(String resourcePath, AccessControlEntry entry) {
         boolean matches = false;
-        if (entry instanceof PrincipalAccessControlList.Entry) {
-            String effectivePath = ((PrincipalAccessControlList.Entry)entry).getEffectivePath();
+        if (entry instanceof PrincipalAccessControlList.Entry paclEntry) {
+            String effectivePath = paclEntry.getEffectivePath();
             if (resourcePath == null) {
                 matches = effectivePath == null;
             } else {

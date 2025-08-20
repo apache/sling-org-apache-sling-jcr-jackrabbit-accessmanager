@@ -26,12 +26,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.stream.Stream;
 
-import jakarta.json.JsonArray;
-import jakarta.json.JsonException;
-import jakarta.json.JsonObject;
-import jakarta.json.JsonString;
-import jakarta.json.JsonValue;
-import javax.servlet.http.HttpServletResponse;
+import javax.jcr.RepositoryException;
 
 import org.apache.http.NameValuePair;
 import org.apache.http.auth.Credentials;
@@ -44,6 +39,13 @@ import org.ops4j.pax.exam.junit.PaxExam;
 import org.ops4j.pax.exam.spi.reactors.ExamReactorStrategy;
 import org.ops4j.pax.exam.spi.reactors.PerClass;
 
+import jakarta.json.JsonArray;
+import jakarta.json.JsonException;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonString;
+import jakarta.json.JsonValue;
+import jakarta.servlet.http.HttpServletResponse;
+
 /**
  * Tests for the 'eace' Sling Get Operation
  */
@@ -51,7 +53,7 @@ import org.ops4j.pax.exam.spi.reactors.PerClass;
 @ExamReactorStrategy(PerClass.class)
 public class GetEaceIT extends AccessManagerClientTestSupport {
 
-    protected void commonEffectiveAceForUser(String selector) throws IOException {
+    protected void commonEffectiveAceForUser(String selector) throws IOException, RepositoryException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder(null, "sling-tests1",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"child\" : { \"childPropOne\" : true } }");
@@ -90,7 +92,7 @@ public class GetEaceIT extends AccessManagerClientTestSupport {
      * Effective ACE servlet returns correct information
      */
     @Test
-    public void testEffectiveAceForUser() throws IOException, JsonException {
+    public void testEffectiveAceForUser() throws IOException, JsonException, RepositoryException {
         commonEffectiveAceForUser("eace");
     }
 
@@ -98,7 +100,7 @@ public class GetEaceIT extends AccessManagerClientTestSupport {
      * Effective ACE servlet returns correct information
      */
     @Test
-    public void testTidyEffectiveAceForUser() throws IOException, JsonException {
+    public void testTidyEffectiveAceForUser() throws IOException, JsonException, RepositoryException {
         commonEffectiveAceForUser("tidy.eace");
     }
 
@@ -106,7 +108,7 @@ public class GetEaceIT extends AccessManagerClientTestSupport {
      * Effective ACE servlet returns correct information
      */
     @Test
-    public void testNoEffectiveAceForUser() throws IOException, JsonException {
+    public void testNoEffectiveAceForUser() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
         testUserId2 = createTestUser();
         testFolderUrl = createTestFolder(null, "sling-tests2",
@@ -129,7 +131,7 @@ public class GetEaceIT extends AccessManagerClientTestSupport {
      * Effective ACE servlet returns 404 when no read access rights permissions
      */
     @Test
-    public void testNoAccessToEffectiveAceForUser() throws IOException, JsonException {
+    public void testNoAccessToEffectiveAceForUser() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder(null, "sling-tests2",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"child\" : { \"childPropOne\" : true } }");
@@ -152,7 +154,7 @@ public class GetEaceIT extends AccessManagerClientTestSupport {
      * ACE servlet returns restriction details for leaf of also allowed aggregate
      */
     @Test
-    public void testEffectiveAceWithLeafRestrictionForUser() throws IOException, JsonException {
+    public void testEffectiveAceWithLeafRestrictionForUser() throws IOException, JsonException, RepositoryException {
         commonEffectiveAceWithLeafRestrictionForUser(1);
     }
 
@@ -161,11 +163,11 @@ public class GetEaceIT extends AccessManagerClientTestSupport {
      * update to verify that the ordering doesn't get broken during update
      */
     @Test
-    public void testEffectiveAceWithLeafRestrictionForUserAfterSecondUpdate() throws IOException, JsonException {
+    public void testEffectiveAceWithLeafRestrictionForUserAfterSecondUpdate() throws IOException, JsonException, RepositoryException {
         commonEffectiveAceWithLeafRestrictionForUser(2);
     }
 
-    protected void commonEffectiveAceWithLeafRestrictionForUser(int numberOfUpdateAceCalls) throws IOException {
+    protected void commonEffectiveAceWithLeafRestrictionForUser(int numberOfUpdateAceCalls) throws IOException, RepositoryException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder(null, "sling-tests2",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"child\" : { \"childPropOne\" : true } }");
@@ -231,7 +233,7 @@ public class GetEaceIT extends AccessManagerClientTestSupport {
      * declaredAt structure
      */
     @Test
-    public void testDeclaredAtArrayInEffectiveAceForUser() throws IOException {
+    public void testDeclaredAtArrayInEffectiveAceForUser() throws IOException, RepositoryException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder(null, "sling-tests1",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"child\" : { \"childPropOne\" : true } }");
@@ -283,7 +285,7 @@ public class GetEaceIT extends AccessManagerClientTestSupport {
      * Effective ACE servlet returns correct information
      */
     @Test
-    public void testEffectiveAceForUserWithMergedRestrictionValues() throws IOException, JsonException {
+    public void testEffectiveAceForUserWithMergedRestrictionValues() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder(null, "sling-tests2",
                 "{ \"jcr:primaryType\": \"nt:unstructured\", \"child\" : { \"childPropOne\" : true, \"childPropTwo\" : \"two\" } }");

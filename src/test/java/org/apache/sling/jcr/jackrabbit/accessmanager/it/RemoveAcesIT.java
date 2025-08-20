@@ -25,18 +25,20 @@ import java.util.Dictionary;
 import java.util.Hashtable;
 import java.util.List;
 
+import javax.jcr.RepositoryException;
+
 import jakarta.json.JsonArray;
 import jakarta.json.JsonException;
 import jakarta.json.JsonObject;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
 
 import org.apache.http.NameValuePair;
 import org.apache.http.auth.Credentials;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
-import org.apache.sling.servlets.post.JSONResponse;
-import org.apache.sling.servlets.post.PostResponseCreator;
+import org.apache.sling.servlets.post.JakartaJSONResponse;
+import org.apache.sling.servlets.post.JakartaPostResponseCreator;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -55,14 +57,14 @@ import org.osgi.framework.ServiceRegistration;
 @ExamReactorStrategy(PerClass.class)
 public class RemoveAcesIT extends AccessManagerClientTestSupport {
 
-    private ServiceRegistration<PostResponseCreator> serviceReg;
+    private ServiceRegistration<JakartaPostResponseCreator> serviceReg;
 
     @Before
     @Override
     public void before() throws Exception {
         Bundle bundle = FrameworkUtil.getBundle(getClass());
         Dictionary<String, Object> props = new Hashtable<>(); // NOSONAR
-        serviceReg = bundle.getBundleContext().registerService(PostResponseCreator.class,
+        serviceReg = bundle.getBundleContext().registerService(JakartaPostResponseCreator.class,
                 new CustomPostResponseCreatorImpl(), props);
 
         super.before();
@@ -79,7 +81,7 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
     }
 
 
-    private String createFolderWithAces(boolean addGroupAce) throws IOException, JsonException {
+    private String createFolderWithAces(boolean addGroupAce) throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder();
 
@@ -145,7 +147,7 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
 
     //test removing a single ace
     @Test
-    public void testRemoveAce() throws IOException, JsonException {
+    public void testRemoveAce() throws IOException, JsonException, RepositoryException {
         String folderUrl = createFolderWithAces(false);
 
         //remove the ace for the testUser principal
@@ -170,7 +172,7 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
      * Test for SLING-7831
      */
     @Test
-    public void testRemoveAceCustomPostResponse() throws IOException, JsonException {
+    public void testRemoveAceCustomPostResponse() throws IOException, JsonException, RepositoryException {
         String folderUrl = createFolderWithAces(false);
 
         //remove the ace for the testUser principal
@@ -186,7 +188,7 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
 
     //test removing multiple aces
     @Test
-    public void testRemoveAces() throws IOException, JsonException {
+    public void testRemoveAces() throws IOException, JsonException, RepositoryException {
         String folderUrl = createFolderWithAces(true);
 
         //remove the ace for the testUser principal
@@ -212,7 +214,7 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
      * Test for SLING-1677
      */
     @Test
-    public void testRemoveAcesResponseAsJSON() throws IOException, JsonException {
+    public void testRemoveAcesResponseAsJSON() throws IOException, JsonException, RepositoryException {
         String folderUrl = createFolderWithAces(true);
 
         //remove the ace for the testUser principal
@@ -234,14 +236,14 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
      * in a consistent way to other scenarios
      */
     @Test
-    public void testRemoveAceWhenAccessControlListDoesNotExist() throws IOException, JsonException {
+    public void testRemoveAceWhenAccessControlListDoesNotExist() throws IOException, JsonException, RepositoryException {
         testUserId = createTestUser();
         testFolderUrl = createTestFolder();
 
         String postUrl = testFolderUrl + ".deleteAce.json";
 
         List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair(":http-equiv-accept", JSONResponse.RESPONSE_CONTENT_TYPE));
+        postParams.add(new BasicNameValuePair(":http-equiv-accept", JakartaJSONResponse.RESPONSE_CONTENT_TYPE));
         postParams.add(new BasicNameValuePair(":applyTo", testUserId));
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
@@ -259,7 +261,7 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
      * good error message instead of a NullPointerException
      */
     @Test
-    public void testRemoveAceForInvalidUser() throws IOException, JsonException {
+    public void testRemoveAceForInvalidUser() throws IOException, JsonException, RepositoryException {
         String invalidUserId = "notRealUser123";
 
         String folderUrl = createFolderWithAces(true);
@@ -267,7 +269,7 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
         String postUrl = folderUrl + ".deleteAce.json";
 
         List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair(":http-equiv-accept", JSONResponse.RESPONSE_CONTENT_TYPE));
+        postParams.add(new BasicNameValuePair(":http-equiv-accept", JakartaJSONResponse.RESPONSE_CONTENT_TYPE));
         postParams.add(new BasicNameValuePair(":applyTo", invalidUserId));
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
@@ -283,13 +285,13 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
      * returns the list of principals that were changed
      */
     @Test
-    public void testRemoveAceChangesInResponse() throws IOException, JsonException {
+    public void testRemoveAceChangesInResponse() throws IOException, JsonException, RepositoryException {
         String folderUrl = createFolderWithAces(true);
 
         String postUrl = folderUrl + ".deleteAce.json";
 
         List<NameValuePair> postParams = new ArrayList<>();
-        postParams.add(new BasicNameValuePair(":http-equiv-accept", JSONResponse.RESPONSE_CONTENT_TYPE));
+        postParams.add(new BasicNameValuePair(":http-equiv-accept", JakartaJSONResponse.RESPONSE_CONTENT_TYPE));
         postParams.add(new BasicNameValuePair(":applyTo", testUserId));
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
@@ -305,7 +307,7 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
         assertEquals(testUserId, change.getString("argument"));
     }
 
-    private void testRemoveAceRedirect(String redirectTo, int expectedStatus) throws IOException {
+    private void testRemoveAceRedirect(String redirectTo, int expectedStatus) throws IOException, JsonException, RepositoryException {
         String folderUrl = createFolderWithAces(false);
 
         //remove the ace for the testUser principal
@@ -318,17 +320,17 @@ public class RemoveAcesIT extends AccessManagerClientTestSupport {
     }
 
     @Test
-    public void testRemoveAceValidRedirect() throws IOException, JsonException {
+    public void testRemoveAceValidRedirect() throws IOException, JsonException, RepositoryException {
         testRemoveAceRedirect("/*.html", HttpServletResponse.SC_MOVED_TEMPORARILY);
     }
 
     @Test
-    public void testRemoveAceInvalidRedirectWithAuthority() throws IOException, JsonException {
+    public void testRemoveAceInvalidRedirectWithAuthority() throws IOException, JsonException, RepositoryException {
         testRemoveAceRedirect("https://sling.apache.org", SC_UNPROCESSABLE_ENTITY);
     }
 
     @Test
-    public void testRemoveAceInvalidRedirectWithInvalidURI() throws IOException, JsonException {
+    public void testRemoveAceInvalidRedirectWithInvalidURI() throws IOException, JsonException, RepositoryException {
         testRemoveAceRedirect("https://", SC_UNPROCESSABLE_ENTITY);
     }
 
