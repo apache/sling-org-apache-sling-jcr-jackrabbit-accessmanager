@@ -18,17 +18,11 @@
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager.it;
 
-import static org.apache.sling.testing.paxexam.SlingOptions.slingBundleresource;
-import static org.apache.sling.testing.paxexam.SlingOptions.slingCommonsCompiler;
-import static org.apache.sling.testing.paxexam.SlingOptions.slingScriptingJavascript;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.ops4j.pax.exam.CoreOptions.when;
-import static org.ops4j.pax.exam.cm.ConfigurationAdminOptions.factoryConfiguration;
+import javax.inject.Inject;
+import javax.jcr.LoginException;
+import javax.jcr.RepositoryException;
+import javax.jcr.Session;
+import javax.jcr.SimpleCredentials;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -43,12 +37,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import javax.inject.Inject;
-import javax.jcr.LoginException;
-import javax.jcr.RepositoryException;
-import javax.jcr.Session;
-import javax.jcr.SimpleCredentials;
-
+import jakarta.json.Json;
+import jakarta.json.JsonException;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonReader;
+import jakarta.json.JsonValue;
+import jakarta.servlet.http.HttpServletResponse;
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
@@ -89,12 +83,17 @@ import org.ops4j.pax.exam.Option;
 import org.osgi.service.cm.Configuration;
 import org.osgi.service.cm.ConfigurationAdmin;
 
-import jakarta.json.Json;
-import jakarta.json.JsonException;
-import jakarta.json.JsonObject;
-import jakarta.json.JsonReader;
-import jakarta.json.JsonValue;
-import jakarta.servlet.http.HttpServletResponse;
+import static org.apache.sling.testing.paxexam.SlingOptions.slingBundleresource;
+import static org.apache.sling.testing.paxexam.SlingOptions.slingCommonsCompiler;
+import static org.apache.sling.testing.paxexam.SlingOptions.slingScriptingJavascript;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.ops4j.pax.exam.CoreOptions.when;
+import static org.ops4j.pax.exam.cm.ConfigurationAdminOptions.factoryConfiguration;
 
 /**
  * base class for tests doing http requests to verify calls to the accessmanager
@@ -145,7 +144,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         // optionally create a tinybundle that contains a test script
         final Option bundle = buildBundleResourcesBundle();
 
-        return new Option[]{
+        return new Option[] {
             slingBundleresource(),
             // add javascript support for the test script
             slingCommonsCompiler(),
@@ -157,25 +156,25 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
             // enable the healthcheck configuration for checking when the server is ready to
             //  receive http requests.  (adapted from the starter healthcheck.json configuration)
             factoryConfiguration("org.apache.felix.hc.generalchecks.FrameworkStartCheck")
-                .put("hc.tags", new String[] {"systemalive"})
-                .put("targetStartLevel", 5)
-                .asOption(),
+                    .put("hc.tags", new String[] {"systemalive"})
+                    .put("targetStartLevel", 5)
+                    .asOption(),
             factoryConfiguration("org.apache.felix.hc.generalchecks.ServicesCheck")
-                .put("hc.tags", new String[] {"systemalive"})
-                .put("services.list", new String[] {
+                    .put("hc.tags", new String[] {"systemalive"})
+                    .put("services.list", new String[] {
                         "org.apache.sling.jcr.api.SlingRepository",
                         "org.apache.sling.engine.auth.Authenticator",
                         "org.apache.sling.api.resource.ResourceResolverFactory",
                         "org.apache.sling.api.servlets.ServletResolver",
                         "javax.script.ScriptEngineManager"
-                })
-                .asOption(),
+                    })
+                    .asOption(),
             factoryConfiguration("org.apache.felix.hc.generalchecks.BundlesStartedCheck")
-                .put("hc.tags", new String[] {"bundles"})
-                .asOption(),
+                    .put("hc.tags", new String[] {"bundles"})
+                    .asOption(),
             factoryConfiguration("org.apache.sling.jcr.contentloader.hc.BundleContentLoadedCheck")
-                .put("hc.tags", new String[] {"bundles"})
-                .asOption(),
+                    .put("hc.tags", new String[] {"bundles"})
+                    .asOption(),
         };
     }
 
@@ -197,11 +196,11 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         httpContext.setCookieStore(new BasicCookieStore());
         httpContext.setCredentialsProvider(new BasicCredentialsProvider());
         httpContext.setAuthCache(authCache);
-        RequestConfig requestConfig = RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD_STRICT).build();
-        httpContext.setRequestConfig(requestConfig);
-        httpClient = HttpClients.custom()
-                .disableRedirectHandling()
+        RequestConfig requestConfig = RequestConfig.custom()
+                .setCookieSpec(CookieSpecs.STANDARD_STRICT)
                 .build();
+        httpContext.setRequestConfig(requestConfig);
+        httpClient = HttpClients.custom().disableRedirectHandling().build();
 
         adminSession = repository.login(new SimpleCredentials("admin", "admin".toCharArray()));
         assertNotNull("Expected adminSession to not be null", adminSession);
@@ -209,10 +208,10 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         // SLING-12081 - wait for the /content resource to be available to try to avoid flaky
         //   failures
         Awaitility.await("content resource available")
-            .atMost(10000, TimeUnit.MILLISECONDS)
-            .pollInterval(1000, TimeUnit.MILLISECONDS)
-            .ignoreException(LoginException.class)
-            .until(() -> {
+                .atMost(10000, TimeUnit.MILLISECONDS)
+                .pollInterval(1000, TimeUnit.MILLISECONDS)
+                .ignoreException(LoginException.class)
+                .until(() -> {
                     Map<String, Object> authInfo = new HashMap<>();
                     authInfo.put(ResourceResolverFactory.USER, "admin");
                     authInfo.put(ResourceResolverFactory.PASSWORD, "admin".toCharArray());
@@ -229,21 +228,21 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
 
         if (testFolderUrl != null) {
-            //remove the test user if it exists.
+            // remove the test user if it exists.
             List<NameValuePair> postParams = new ArrayList<>();
             postParams.add(new BasicNameValuePair(":operation", "delete"));
             assertAuthenticatedPostStatus(creds, testFolderUrl, HttpServletResponse.SC_OK, postParams, null);
         }
         if (testGroupId != null) {
-            //remove the test user if it exists.
+            // remove the test user if it exists.
             maybeRemoveAuthorizable(testGroupId);
         }
         if (testUserId != null) {
-            //remove the test user if it exists.
+            // remove the test user if it exists.
             maybeRemoveAuthorizable(testUserId);
         }
         if (testUserId2 != null) {
-            //remove the test user if it exists.
+            // remove the test user if it exists.
             maybeRemoveAuthorizable(testUserId2);
         }
 
@@ -278,7 +277,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
             host = "localhost";
         } else {
             assertTrue(hostObj instanceof String);
-            host = (String)hostObj;
+            host = (String) hostObj;
         }
         assertNotNull(host);
 
@@ -299,7 +298,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         }
         int port = -1;
         if (portObj instanceof Number) {
-            port = ((Number)portObj).intValue();
+            port = ((Number) portObj).intValue();
         }
         assertTrue(port > 0);
 
@@ -307,21 +306,35 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
     }
 
     protected void assertPrivilege(Collection<String> privileges, boolean expected, String privilegeName) {
-        if(expected != privileges.contains(privilegeName)) {
+        if (expected != privileges.contains(privilegeName)) {
             fail("Expected privilege " + privilegeName + " to be "
                     + (expected ? "included" : "NOT INCLUDED")
                     + " in supplied list: " + privileges + ")");
         }
     }
 
-    protected void assertPrivilege(JsonObject privilegesObject, boolean expectedPrivilege, PrivilegeValues privilegeState, String privilegeName) {
+    protected void assertPrivilege(
+            JsonObject privilegesObject,
+            boolean expectedPrivilege,
+            PrivilegeValues privilegeState,
+            String privilegeName) {
         assertPrivilege(privilegesObject, expectedPrivilege, privilegeState, privilegeName, null);
     }
-    protected void assertPrivilege(JsonObject privilegesObject, boolean expectedPrivilege, PrivilegeValues privilegeState, String privilegeName,
+
+    protected void assertPrivilege(
+            JsonObject privilegesObject,
+            boolean expectedPrivilege,
+            PrivilegeValues privilegeState,
+            String privilegeName,
             VerifyAce verifyAce) {
         assertPrivilege(privilegesObject, expectedPrivilege, privilegeState, privilegeName, true, verifyAce);
     }
-    protected void assertPrivilege(JsonObject privilegesObject, boolean expectedPrivilege, PrivilegeValues privilegeState, String privilegeName,
+
+    protected void assertPrivilege(
+            JsonObject privilegesObject,
+            boolean expectedPrivilege,
+            PrivilegeValues privilegeState,
+            String privilegeName,
             boolean expectedForAllow,
             VerifyAce verifyAce) {
         assertNotNull(privilegesObject);
@@ -335,16 +348,18 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
             assertNull(privilegeObj);
         } else {
             assertNotNull(privilegeObj);
-            String key = privilegeState.toString();;
+            String key = privilegeState.toString();
+            ;
             if (expectedForAllow) {
-                assertTrue("Expected privilege " + privilegeName + " to have key: " + key,
-                        privilegeObj.containsKey(key));
+                assertTrue(
+                        "Expected privilege " + privilegeName + " to have key: " + key, privilegeObj.containsKey(key));
                 JsonValue jsonValue = privilegeObj.get(key);
                 if (verifyAce != null) {
                     verifyAce.verify(jsonValue);
                 }
             } else {
-                assertFalse("Did not expect privilege " + privilegeName + " to have key: " + key,
+                assertFalse(
+                        "Did not expect privilege " + privilegeName + " to have key: " + key,
                         privilegeObj.containsKey(key));
             }
         }
@@ -352,7 +367,8 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
 
     protected Object doAuthenticatedWork(Credentials creds, AuthenticatedWorker worker) throws IOException {
         Object result = null;
-        AuthScope authScope = new AuthScope(baseServerUri.getHost(), baseServerUri.getPort(), baseServerUri.getScheme());
+        AuthScope authScope =
+                new AuthScope(baseServerUri.getHost(), baseServerUri.getPort(), baseServerUri.getScheme());
         CredentialsProvider oldCredentialsProvider = httpContext.getCredentialsProvider();
         try {
             BasicCredentialsProvider credentialsProvider = new BasicCredentialsProvider();
@@ -366,7 +382,9 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         return result;
     }
 
-    protected void assertAuthenticatedPostStatus(Credentials creds, String url, int expectedStatusCode, List<NameValuePair> postParams, String assertMessage) throws IOException {
+    protected void assertAuthenticatedPostStatus(
+            Credentials creds, String url, int expectedStatusCode, List<NameValuePair> postParams, String assertMessage)
+            throws IOException {
         doAuthenticatedWork(creds, () -> {
             HttpPost postRequest = new HttpPost(url);
             postRequest.setEntity(new UrlEncodedFormEntity(postParams));
@@ -377,7 +395,8 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         });
     }
 
-    protected void assertAuthenticatedHttpStatus(Credentials creds, String urlString, int expectedStatusCode, String assertMessage) throws IOException {
+    protected void assertAuthenticatedHttpStatus(
+            Credentials creds, String urlString, int expectedStatusCode, String assertMessage) throws IOException {
         doAuthenticatedWork(creds, () -> {
             HttpGet getRequest = new HttpGet(urlString);
             try (CloseableHttpResponse response = httpClient.execute(getRequest, httpContext)) {
@@ -387,8 +406,9 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         });
     }
 
-    protected String getAuthenticatedContent(Credentials creds, String url, String expectedContentType, int expectedStatusCode) throws IOException {
-        return (String)doAuthenticatedWork(creds, () -> {
+    protected String getAuthenticatedContent(
+            Credentials creds, String url, String expectedContentType, int expectedStatusCode) throws IOException {
+        return (String) doAuthenticatedWork(creds, () -> {
             HttpGet getRequest = new HttpGet(url);
             try (CloseableHttpResponse response = httpClient.execute(getRequest, httpContext)) {
                 verifyHttpStatus(response, null, expectedStatusCode);
@@ -398,24 +418,27 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
                         fail("Expected null Content-Type, got " + h.getValue());
                     }
                 } else if (h == null) {
-                    fail(
-                            "Expected Content-Type that starts with '" + expectedContentType
-                            +" but got no Content-Type header at " + url
-                    );
+                    fail("Expected Content-Type that starts with '" + expectedContentType
+                            + " but got no Content-Type header at " + url);
                 } else {
                     assertTrue(
-                        "Expected Content-Type that starts with '" + expectedContentType
-                        + "' for " + url + ", got '" + h.getValue() + "'",
-                        h.getValue().startsWith(expectedContentType)
-                    );
+                            "Expected Content-Type that starts with '" + expectedContentType + "' for " + url
+                                    + ", got '" + h.getValue() + "'",
+                            h.getValue().startsWith(expectedContentType));
                 }
                 return EntityUtils.toString(response.getEntity());
             }
         });
     }
 
-    protected String getAuthenticatedPostContent(Credentials creds, String url, String expectedContentType, List<NameValuePair> postParams, int expectedStatusCode) throws IOException {
-        return (String)doAuthenticatedWork(creds, () -> {
+    protected String getAuthenticatedPostContent(
+            Credentials creds,
+            String url,
+            String expectedContentType,
+            List<NameValuePair> postParams,
+            int expectedStatusCode)
+            throws IOException {
+        return (String) doAuthenticatedWork(creds, () -> {
             HttpPost postRequest = new HttpPost(url);
             postRequest.setEntity(new UrlEncodedFormEntity(postParams));
             try (CloseableHttpResponse response = httpClient.execute(postRequest, httpContext)) {
@@ -426,16 +449,13 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
                         fail("Expected null Content-Type, got " + h.getValue());
                     }
                 } else if (h == null) {
-                    fail(
-                            "Expected Content-Type that starts with '" + expectedContentType
-                            +" but got no Content-Type header at " + url
-                    );
+                    fail("Expected Content-Type that starts with '" + expectedContentType
+                            + " but got no Content-Type header at " + url);
                 } else {
                     assertTrue(
-                        "Expected Content-Type that starts with '" + expectedContentType
-                        + "' for " + url + ", got '" + h.getValue() + "'",
-                        h.getValue().startsWith(expectedContentType)
-                    );
+                            "Expected Content-Type that starts with '" + expectedContentType + "' for " + url
+                                    + ", got '" + h.getValue() + "'",
+                            h.getValue().startsWith(expectedContentType));
                 }
                 return EntityUtils.toString(response.getEntity());
             }
@@ -443,15 +463,16 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
     }
 
     protected void maybeRemoveAuthorizable(String id) throws RepositoryException {
-        UserManager userManager = ((JackrabbitSession)adminSession).getUserManager();
+        UserManager userManager = ((JackrabbitSession) adminSession).getUserManager();
         Authorizable authorizable = userManager.getAuthorizable(id);
         if (authorizable != null) {
             authorizable.remove();
             adminSession.save();
         }
     }
+
     protected String createTestUser() throws RepositoryException {
-        UserManager userManager = ((JackrabbitSession)adminSession).getUserManager();
+        UserManager userManager = ((JackrabbitSession) adminSession).getUserManager();
         String userId = "testUser" + getNextInt();
         User user = userManager.createUser(userId, "testPwd");
         adminSession.save();
@@ -459,7 +480,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
     }
 
     protected String createTestGroup() throws RepositoryException {
-        UserManager userManager = ((JackrabbitSession)adminSession).getUserManager();
+        UserManager userManager = ((JackrabbitSession) adminSession).getUserManager();
         String groupId = "testGroup" + getNextInt();
         Group group = userManager.createGroup(groupId);
         adminSession.save();
@@ -467,7 +488,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
     }
 
     protected void addUserToGroup(String userId, String groupId) throws RepositoryException {
-        UserManager userManager = ((JackrabbitSession)adminSession).getUserManager();
+        UserManager userManager = ((JackrabbitSession) adminSession).getUserManager();
         Group group = userManager.getAuthorizable(groupId, Group.class);
         User user = userManager.getAuthorizable(userId, User.class);
         group.addMember(user);
@@ -481,6 +502,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
     protected String createTestFolder(String parentPath, String nameHint) throws IOException {
         return createTestFolder(parentPath, nameHint, TEST_FOLDER_JSON);
     }
+
     protected String createTestFolder(String parentPath, String nameHint, String jsonImport) throws IOException {
         JsonObject json = importJSON(parentPath, nameHint, jsonImport);
         return String.format("%s%s", baseServerUri, json.getString("path"));
@@ -493,7 +515,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
     protected JsonObject importJSON(String parentPath, String nameHint, String jsonImport) throws IOException {
         JsonObject result = null;
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
-        result = (JsonObject)doAuthenticatedWork(creds, () -> {
+        result = (JsonObject) doAuthenticatedWork(creds, () -> {
             List<NameValuePair> parameters = new ArrayList<>();
             parameters.add(new BasicNameValuePair(":operation", "import"));
             if (nameHint != null) {
@@ -541,7 +563,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         ALLOW("allow"),
         DENY("deny"),
         NONE("none"),
-        BOGUS("bogus"); //to simulate invalid value
+        BOGUS("bogus"); // to simulate invalid value
 
         private String paramValue;
 
@@ -595,6 +617,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         public AcePostParamsBuilder withRestriction(String restrictionName, String restrictionValue) {
             return with(String.format("restriction@%s", restrictionName), restrictionValue);
         }
+
         public AcePostParamsBuilder withRestriction(String restrictionName, String[] restrictionValues) {
             return with(String.format("restriction@%s", restrictionName), restrictionValues);
         }
@@ -603,27 +626,31 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
             return with(String.format("restriction@%s@Delete", restrictionName), "true");
         }
 
-        public AcePostParamsBuilder withPrivilegeRestriction(PrivilegeValues value, String privilegeName, String restrictionName, String restrictionValue) {
+        public AcePostParamsBuilder withPrivilegeRestriction(
+                PrivilegeValues value, String privilegeName, String restrictionName, String restrictionValue) {
             switch (value) {
-            case ALLOW:
-                with(String.format("restriction@%s@%s@Allow", privilegeName, restrictionName), restrictionValue);
-                break;
-            case DENY:
-                with(String.format("restriction@%s@%s@Deny", privilegeName, restrictionName), restrictionValue);
-                break;
-            default:
-                break;
+                case ALLOW:
+                    with(String.format("restriction@%s@%s@Allow", privilegeName, restrictionName), restrictionValue);
+                    break;
+                case DENY:
+                    with(String.format("restriction@%s@%s@Deny", privilegeName, restrictionName), restrictionValue);
+                    break;
+                default:
+                    break;
             }
             return this;
         }
-        public AcePostParamsBuilder withPrivilegeRestriction(PrivilegeValues value, String privilegeName, String restrictionName, String[] restrictionValues) {
+
+        public AcePostParamsBuilder withPrivilegeRestriction(
+                PrivilegeValues value, String privilegeName, String restrictionName, String[] restrictionValues) {
             for (String restrictionValue : restrictionValues) {
                 withPrivilegeRestriction(value, privilegeName, restrictionName, restrictionValue);
             }
             return this;
         }
 
-        public AcePostParamsBuilder withDeletePrivilegeRestriction(String privilegeName, String restrictionName, DeleteValues value) {
+        public AcePostParamsBuilder withDeletePrivilegeRestriction(
+                String privilegeName, String restrictionName, DeleteValues value) {
             return with(String.format("restriction@%s@%s@Delete", privilegeName, restrictionName), value.toString());
         }
 
@@ -650,24 +677,28 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
         public List<NameValuePair> build() {
             return list;
         }
-
     }
 
     protected void addOrUpdateAce(String folderUrl, List<NameValuePair> postParams) throws IOException, JsonException {
         addOrUpdateAce(folderUrl, postParams, HttpServletResponse.SC_OK);
     }
-    protected void addOrUpdateAce(String folderUrl, List<NameValuePair> postParams, int expectedStatus) throws IOException, JsonException {
+
+    protected void addOrUpdateAce(String folderUrl, List<NameValuePair> postParams, int expectedStatus)
+            throws IOException, JsonException {
         String postUrl = folderUrl + ".modifyAce.html";
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
         assertAuthenticatedPostStatus(creds, postUrl, expectedStatus, postParams, null);
     }
 
-    protected String addOrUpdateAce(String folderUrl, List<NameValuePair> postParams, String contentType) throws IOException, JsonException {
+    protected String addOrUpdateAce(String folderUrl, List<NameValuePair> postParams, String contentType)
+            throws IOException, JsonException {
         return addOrUpdateAce(folderUrl, postParams, contentType, HttpServletResponse.SC_OK);
     }
 
-    protected String addOrUpdateAce(String folderUrl, List<NameValuePair> postParams, String contentType, int expectedStatus) throws IOException, JsonException {
+    protected String addOrUpdateAce(
+            String folderUrl, List<NameValuePair> postParams, String contentType, int expectedStatus)
+            throws IOException, JsonException {
         String postUrl = folderUrl + ".modifyAce." + (CONTENT_TYPE_JSON.equals(contentType) ? "json" : "html");
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
@@ -688,7 +719,10 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
     protected JsonObject getPrincipalAce(String folderUrl, String principalId) throws IOException, JsonException {
         return getPrincipalAce(folderUrl, principalId, CONTENT_TYPE_JSON, HttpServletResponse.SC_OK);
     }
-    protected JsonObject getPrincipalAce(String folderUrl, String principalId, String expectedContentType, int expectedStatus) throws IOException, JsonException {
+
+    protected JsonObject getPrincipalAce(
+            String folderUrl, String principalId, String expectedContentType, int expectedStatus)
+            throws IOException, JsonException {
         String getUrl = folderUrl + ".pace.json?pid=" + principalId;
 
         Credentials creds = new UsernamePasswordCredentials("admin", "admin");
@@ -726,7 +760,8 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
      * @param errorMessage   error message; if {@code null}, errorMessage is extracted from response
      * @param expectedStatus List of acceptable HTTP Statuses
      */
-    protected void verifyHttpStatus(HttpResponse response, String errorMessage, int... expectedStatus) throws IOException {
+    protected void verifyHttpStatus(HttpResponse response, String errorMessage, int... expectedStatus)
+            throws IOException {
         if (!checkStatus(response, expectedStatus)) {
             failWithErrorAndResponseContent(response, errorMessage, expectedStatus);
         }
@@ -734,7 +769,7 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
 
     /**
      * Check if the response status matches one of the expected values
-     * 
+     *
      * @param response the response to check
      * @param expectedStatus the set of status values that are expected
      * @return true if the status is as expected, false otherwise
@@ -765,12 +800,13 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
 
     /**
      * Fail with a message that includes the response content
-     * 
+     *
      * @param response the response to check
      * @param errorMessage the extra error message to use (or null)
      * @param expectedStatus the set of status values that are expected
      */
-    protected void failWithErrorAndResponseContent(HttpResponse response, String errorMessage, int... expectedStatus) throws IOException {
+    protected void failWithErrorAndResponseContent(HttpResponse response, String errorMessage, int... expectedStatus)
+            throws IOException {
         // build error message
         StringBuilder errorMsgBuilder = new StringBuilder();
         errorMsgBuilder.append("Expected HTTP Status: ");
@@ -778,20 +814,19 @@ public abstract class AccessManagerClientTestSupport extends AccessManagerTestSu
             errorMsgBuilder.append(expected).append(" ");
         }
 
-        errorMsgBuilder.append(". Instead ")
-            .append(response.getStatusLine().getStatusCode())
-            .append(" was returned!\n");
+        errorMsgBuilder
+                .append(". Instead ")
+                .append(response.getStatusLine().getStatusCode())
+                .append(" was returned!\n");
 
         if (errorMessage != null) {
             errorMsgBuilder.append(errorMessage);
         }
 
         String content = EntityUtils.toString(response.getEntity());
-        errorMsgBuilder.append("\nResponse Content:\n")
-            .append(content);
+        errorMsgBuilder.append("\nResponse Content:\n").append(content);
 
         // fail with the error message
         fail(errorMsgBuilder.toString());
     }
-
 }

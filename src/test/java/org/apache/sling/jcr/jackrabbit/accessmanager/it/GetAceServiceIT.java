@@ -1,27 +1,22 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager.it;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
-
-import java.util.Collections;
 
 import javax.inject.Inject;
 import javax.jcr.Node;
@@ -30,6 +25,9 @@ import javax.jcr.RepositoryException;
 import javax.jcr.Value;
 import javax.jcr.ValueFactory;
 
+import java.util.Collections;
+
+import jakarta.json.JsonObject;
 import org.apache.jackrabbit.oak.spi.security.authorization.accesscontrol.AccessControlConstants;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
 import org.apache.sling.api.resource.ResourceNotFoundException;
@@ -43,7 +41,10 @@ import org.ops4j.pax.exam.junit.PaxExam;
 import org.ops4j.pax.exam.spi.reactors.ExamReactorStrategy;
 import org.ops4j.pax.exam.spi.reactors.PerClass;
 
-import jakarta.json.JsonObject;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the 'modifyAce' inproc service
@@ -98,7 +99,8 @@ public class GetAceServiceIT extends AccessManagerClientTestSupport {
     private Value val(int type, String value) throws RepositoryException {
         return adminSession.getValueFactory().createValue(value, type);
     }
-    private Value[] vals(int type, String ... value) throws RepositoryException {
+
+    private Value[] vals(int type, String... value) throws RepositoryException {
         Value[] values = new Value[value.length];
         ValueFactory vf = adminSession.getValueFactory();
         for (int i = 0; i < value.length; i++) {
@@ -110,7 +112,8 @@ public class GetAceServiceIT extends AccessManagerClientTestSupport {
     @Test
     public void testGetAceWithPrivileges() throws RepositoryException {
         assertNotNull(modifyAce);
-        modifyAce.modifyAce(adminSession,
+        modifyAce.modifyAce(
+                adminSession,
                 testNode.getPath(),
                 "everyone",
                 Collections.singletonMap(PrivilegeConstants.JCR_READ, "allow"),
@@ -123,20 +126,22 @@ public class GetAceServiceIT extends AccessManagerClientTestSupport {
         JsonObject privilegesObject = aceObject.getJsonObject("privileges");
         assertNotNull(privilegesObject);
         assertEquals(1, privilegesObject.size());
-        //allow
+        // allow
         assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ);
     }
 
     @Test
     public void testGetAceWithRestrictions() throws RepositoryException {
         assertNotNull(modifyAce);
-        modifyAce.modifyAce(adminSession,
+        modifyAce.modifyAce(
+                adminSession,
                 testNode.getPath(),
                 "everyone",
                 Collections.singletonMap(PrivilegeConstants.JCR_READ, "allow"),
                 "first",
                 Collections.singletonMap(AccessControlConstants.REP_GLOB, val(PropertyType.STRING, "/hello")),
-                Collections.singletonMap(AccessControlConstants.REP_ITEM_NAMES, vals(PropertyType.NAME, "child1", "child2")),
+                Collections.singletonMap(
+                        AccessControlConstants.REP_ITEM_NAMES, vals(PropertyType.NAME, "child1", "child2")),
                 Collections.emptySet());
         // autosaved, so should be nothing pending
         assertFalse(adminSession.hasPendingChanges());
@@ -146,7 +151,7 @@ public class GetAceServiceIT extends AccessManagerClientTestSupport {
         JsonObject privilegesObject = aceObject.getJsonObject("privileges");
         assertNotNull(privilegesObject);
         assertEquals(1, privilegesObject.size());
-        //allow
+        // allow
         assertPrivilege(privilegesObject, true, PrivilegeValues.ALLOW, PrivilegeConstants.JCR_READ);
     }
 
@@ -155,9 +160,7 @@ public class GetAceServiceIT extends AccessManagerClientTestSupport {
         assertNotNull(modifyAce);
         String resourcePath = testNode.getPath();
         try {
-            getAce.getAce(null,
-                    resourcePath,
-                    "everyone");
+            getAce.getAce(null, resourcePath, "everyone");
             fail("Expected RepositoryException");
         } catch (RepositoryException re) {
             assertEquals("JCR Session not found", re.getMessage());
@@ -168,12 +171,10 @@ public class GetAceServiceIT extends AccessManagerClientTestSupport {
     public void testGetAceWithNullResourcePathArg() throws RepositoryException {
         assertNotNull(modifyAce);
         try {
-            getAce.getAce(adminSession,
-                    null,
-                    "everyone");
+            getAce.getAce(adminSession, null, "everyone");
             fail("Expected ResourceNotFoundException");
         } catch (ResourceNotFoundException rnfe) {
-            //expected
+            // expected
         }
     }
 
@@ -181,12 +182,10 @@ public class GetAceServiceIT extends AccessManagerClientTestSupport {
     public void testGetAceWithNotExistingResourcePathArg() throws RepositoryException {
         assertNotNull(modifyAce);
         try {
-            getAce.getAce(adminSession,
-                    "/not_a_real_path",
-                    "everyone");
+            getAce.getAce(adminSession, "/not_a_real_path", "everyone");
             fail("Expected ResourceNotFoundException");
         } catch (ResourceNotFoundException rnfe) {
-            //expected
+            // expected
         }
     }
 
@@ -195,9 +194,7 @@ public class GetAceServiceIT extends AccessManagerClientTestSupport {
         assertNotNull(modifyAce);
         String resourcePath = testNode.getPath();
         try {
-            getAce.getAce(adminSession,
-                    resourcePath,
-                    null);
+            getAce.getAce(adminSession, resourcePath, null);
             fail("Expected RepositoryException");
         } catch (RepositoryException re) {
             assertEquals("principalId was not submitted.", re.getMessage());
@@ -209,13 +206,10 @@ public class GetAceServiceIT extends AccessManagerClientTestSupport {
         assertNotNull(modifyAce);
         String resourcePath = testNode.getPath();
         try {
-            getAce.getAce(adminSession,
-                    resourcePath,
-                    "not_a_real_principalid");
+            getAce.getAce(adminSession, resourcePath, "not_a_real_principalid");
             fail("Expected RepositoryException");
         } catch (RepositoryException re) {
             assertEquals("Invalid principalId was submitted.", re.getMessage());
         }
     }
-
 }

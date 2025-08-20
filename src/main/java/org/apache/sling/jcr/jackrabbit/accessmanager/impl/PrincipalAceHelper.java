@@ -1,18 +1,20 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager.impl;
 
@@ -26,7 +28,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Contains utility methods related to handling principal ace 
+ * Contains utility methods related to handling principal ace
  */
 public class PrincipalAceHelper {
 
@@ -38,27 +40,23 @@ public class PrincipalAceHelper {
 
     /**
      * Calculates the effective path of the request resource
-     * 
+     *
      * @param request the current request
      * @return the effect path
      */
     public static String getEffectivePath(SlingJakartaHttpServletRequest request) {
         String effectivePath = request.getResource().getPath();
         if (ResourceUtil.isNonExistingResource(request.getResource())) {
-            // for non-existing resource trim the selectors and extension 
+            // for non-existing resource trim the selectors and extension
             //   off the resource path
-            @NotNull
-            RequestPathInfo requestPathInfo = request.getRequestPathInfo();
-            @NotNull
-            String resourcePath = requestPathInfo.getResourcePath();
-            //trim the selectors and extension off the resource path
-            @Nullable
-            String extension = requestPathInfo.getExtension();
+            @NotNull RequestPathInfo requestPathInfo = request.getRequestPathInfo();
+            @NotNull String resourcePath = requestPathInfo.getResourcePath();
+            // trim the selectors and extension off the resource path
+            @Nullable String extension = requestPathInfo.getExtension();
             if (extension != null) {
                 resourcePath = resourcePath.substring(0, resourcePath.length() - extension.length() - 1);
             }
-            @Nullable
-            String selectorString = requestPathInfo.getSelectorString();
+            @Nullable String selectorString = requestPathInfo.getSelectorString();
             if (selectorString != null) {
                 resourcePath = resourcePath.substring(0, resourcePath.length() - selectorString.length() - 1);
             }
@@ -92,5 +90,4 @@ public class PrincipalAceHelper {
         }
         return matches;
     }
-
 }

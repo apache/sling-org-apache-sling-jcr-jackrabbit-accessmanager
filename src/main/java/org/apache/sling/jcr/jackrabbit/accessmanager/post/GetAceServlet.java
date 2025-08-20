@@ -18,26 +18,25 @@
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager.post;
 
-import java.security.Principal;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.jcr.security.AccessControlEntry;
 import javax.jcr.security.AccessControlManager;
 import javax.jcr.security.AccessControlPolicy;
 
+import java.security.Principal;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import jakarta.json.JsonObject;
+import jakarta.servlet.Servlet;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.sling.jcr.jackrabbit.accessmanager.GetAce;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.component.annotations.ReferencePolicyOption;
-
-import jakarta.json.JsonObject;
-import jakarta.servlet.Servlet;
 
 /**
  * <p>
@@ -70,39 +69,42 @@ import jakarta.servlet.Servlet;
  * <dd>Failure. JSON explains the failure.</dd>
  * </dl>
  */
-@Component(service = {Servlet.class, GetAce.class},
-property= {
-        "sling.servlet.resourceTypes=sling/servlet/default",
-        "sling.servlet.methods=GET",
-        "sling.servlet.selectors=ace",
-        "sling.servlet.selectors=tidy.ace",
-        "sling.servlet.extensions=json",
-        "sling.servlet.prefix:Integer=-1"
-},
-reference = {
-        @Reference(name="RestrictionProvider",
-                bind = "bindRestrictionProvider",
-                cardinality = ReferenceCardinality.MULTIPLE,
-                policyOption = ReferencePolicyOption.GREEDY,
-                service = RestrictionProvider.class)
-}
-)
+@Component(
+        service = {Servlet.class, GetAce.class},
+        property = {
+            "sling.servlet.resourceTypes=sling/servlet/default",
+            "sling.servlet.methods=GET",
+            "sling.servlet.selectors=ace",
+            "sling.servlet.selectors=tidy.ace",
+            "sling.servlet.extensions=json",
+            "sling.servlet.prefix:Integer=-1"
+        },
+        reference = {
+            @Reference(
+                    name = "RestrictionProvider",
+                    bind = "bindRestrictionProvider",
+                    cardinality = ReferenceCardinality.MULTIPLE,
+                    policyOption = ReferencePolicyOption.GREEDY,
+                    service = RestrictionProvider.class)
+        })
 @SuppressWarnings("java:S110")
 public class GetAceServlet extends AbstractGetAceServlet implements GetAce {
     private static final long serialVersionUID = 1654062732084983394L;
 
     @Override
-    public JsonObject getAce(Session jcrSession, String resourcePath, String principalId)
-            throws RepositoryException {
+    public JsonObject getAce(Session jcrSession, String resourcePath, String principalId) throws RepositoryException {
         return internalGetAce(jcrSession, resourcePath, principalId);
     }
 
     @Override
-    protected Map<String, List<AccessControlEntry>> getAccessControlEntriesMap(Session session, String absPath,
-            Principal principal, Map<Principal, Map<DeclarationType, Set<String>>> declaredAtPaths) throws RepositoryException {
+    protected Map<String, List<AccessControlEntry>> getAccessControlEntriesMap(
+            Session session,
+            String absPath,
+            Principal principal,
+            Map<Principal, Map<DeclarationType, Set<String>>> declaredAtPaths)
+            throws RepositoryException {
         AccessControlManager acMgr = session.getAccessControlManager();
         AccessControlPolicy[] policies = acMgr.getPolicies(absPath);
         return entriesSortedByEffectivePath(policies, ace -> principal.equals(ace.getPrincipal()), declaredAtPaths);
     }
-
 }

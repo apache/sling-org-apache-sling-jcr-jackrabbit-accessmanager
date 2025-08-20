@@ -1,36 +1,29 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import javax.jcr.Value;
+import javax.jcr.ValueFactory;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-
-import javax.jcr.Value;
-import javax.jcr.ValueFactory;
 
 import org.apache.jackrabbit.oak.security.authorization.restriction.RestrictionProviderImpl;
 import org.apache.jackrabbit.oak.spi.security.authorization.accesscontrol.AccessControlConstants;
@@ -44,6 +37,15 @@ import org.jetbrains.annotations.NotNull;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for {@link LocalRestriction}
@@ -63,9 +65,8 @@ public class LocalRestrictionTest {
 
     private RestrictionDefinition rd(String restrictionName) {
         if (srMap == null) {
-            //make a temp map for quick lookup below
-            @NotNull
-            RestrictionProvider[] services = context.getServices(RestrictionProvider.class, null);
+            // make a temp map for quick lookup below
+            @NotNull RestrictionProvider[] services = context.getServices(RestrictionProvider.class, null);
             RestrictionProvider restrictionProvider = CompositeRestrictionProvider.newInstance(services);
             Set<RestrictionDefinition> supportedRestrictions = restrictionProvider.getSupportedRestrictions("/");
             srMap = new HashMap<>();
@@ -79,7 +80,8 @@ public class LocalRestrictionTest {
     private Value val(String value) {
         return ValueFactoryImpl.getInstance().createValue(value);
     }
-    private Value[] vals(String ... value) {
+
+    private Value[] vals(String... value) {
         Value[] values = new Value[value.length];
         ValueFactory vf = ValueFactoryImpl.getInstance();
         for (int i = 0; i < value.length; i++) {
@@ -130,13 +132,13 @@ public class LocalRestrictionTest {
         LocalRestriction lr1 = new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello1"));
         assertEquals(val("/hello1"), lr1.getValue());
 
-        LocalRestriction lr2 = new LocalRestriction(rd(AccessControlConstants.REP_GLOB), (Value)null);
+        LocalRestriction lr2 = new LocalRestriction(rd(AccessControlConstants.REP_GLOB), (Value) null);
         assertNull(lr2.getValue());
 
         LocalRestriction lr3 = new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2"));
         assertEquals(val("item1"), lr3.getValue());
 
-        LocalRestriction lr4 = new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), (Value[])new Value[0]);
+        LocalRestriction lr4 = new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), (Value[]) new Value[0]);
         assertNull(lr4.getValue());
     }
 
@@ -148,7 +150,7 @@ public class LocalRestrictionTest {
         LocalRestriction lr1 = new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), vals("item1", "item2"));
         assertArrayEquals(vals("item1", "item2"), lr1.getValues());
 
-        LocalRestriction lr2 = new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), (Value[])null);
+        LocalRestriction lr2 = new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), (Value[]) null);
         assertNull(lr2.getValues());
 
         LocalRestriction lr3 = new LocalRestriction(rd(AccessControlConstants.REP_ITEM_NAMES), new Value[0]);
@@ -203,5 +205,4 @@ public class LocalRestrictionTest {
         LocalRestriction lr13 = new LocalRestriction(rd(AccessControlConstants.REP_GLOB), val("/hello2"));
         assertNotEquals(lr12, lr13);
     }
-
 }

@@ -20,6 +20,7 @@ package org.apache.sling.jcr.jackrabbit.accessmanager;
 
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
+
 import jakarta.json.JsonObject;
 
 /**
@@ -33,16 +34,12 @@ public interface GetEffectiveAce {
 
     /**
      * Gets the effective access control entry for a resource and principal
-     * 
+     *
      * @param jcrSession the JCR session of the user updating the user
      * @param resourcePath The path of the resource to get the ACE for (required)
      * @param principalId the principal to get the ACE for (required)
-     * @return the ACE as a JSON object 
+     * @return the ACE as a JSON object
      * @throws RepositoryException if any errors reading the information
      */
-    JsonObject getEffectiveAce(Session jcrSession,
-                            String resourcePath,
-                            String principalId
-                ) throws RepositoryException;
-
+    JsonObject getEffectiveAce(Session jcrSession, String resourcePath, String principalId) throws RepositoryException;
 }

@@ -18,6 +18,11 @@
  */
 package org.apache.sling.jcr.jackrabbit.accessmanager.impl;
 
+import javax.jcr.RepositoryException;
+import javax.jcr.Session;
+import javax.jcr.Workspace;
+import javax.jcr.security.Privilege;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -27,11 +32,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.jcr.RepositoryException;
-import javax.jcr.Session;
-import javax.jcr.Workspace;
-import javax.jcr.security.Privilege;
-
 import org.apache.jackrabbit.api.JackrabbitWorkspace;
 import org.apache.jackrabbit.api.security.authorization.PrivilegeManager;
 import org.apache.sling.jcr.jackrabbit.accessmanager.LocalPrivilege;
@@ -40,19 +40,18 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Contains utility methods related to handling privileges 
+ * Contains utility methods related to handling privileges
  */
 public final class PrivilegesHelper {
 
-    private PrivilegesHelper() {
-
-    }
+    private PrivilegesHelper() {}
 
     /**
      * If the privilege is contained in multiple aggregate privileges, then
      * calculate the instance with the greatest depth.
      */
-    private static void toLongestDepth(int parentDepth, Privilege parentPrivilege, Map<Privilege, Integer> privilegeToLongestDepth) {
+    private static void toLongestDepth(
+            int parentDepth, Privilege parentPrivilege, Map<Privilege, Integer> privilegeToLongestDepth) {
         Privilege[] declaredAggregatePrivileges = parentPrivilege.getDeclaredAggregatePrivileges();
         for (Privilege privilege : declaredAggregatePrivileges) {
             Integer oldValue = privilegeToLongestDepth.get(privilege);
@@ -68,7 +67,7 @@ public final class PrivilegesHelper {
 
     /**
      * Calculate the longest path for each of the possible privileges
-     * 
+     *
      * @param jcrSession the current users JCR session
      * @return map where the key is the privilege and the value is the longest path
      */
@@ -81,7 +80,7 @@ public final class PrivilegesHelper {
 
     /**
      * Populates a local allow and/or deny privilege in the privilegeToLocalPrivilegesMap
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param privilege the privilege to allow
      * @param allow true or false to set the allow value of the LocalPrivilege
@@ -90,11 +89,13 @@ public final class PrivilegesHelper {
      * @param denyRestrictions if deny is true, the set of restrictions
      * @return the LocalPrivileges that was populated
      */
-    public static LocalPrivilege localAllowAndDenyPriv(Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap, 
+    public static LocalPrivilege localAllowAndDenyPriv(
+            Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
             Privilege privilege,
-            boolean allow, @NotNull Set<LocalRestriction> allowRestrictions,
-            boolean deny, @NotNull Set<LocalRestriction> denyRestrictions
-            ) {
+            boolean allow,
+            @NotNull Set<LocalRestriction> allowRestrictions,
+            boolean deny,
+            @NotNull Set<LocalRestriction> denyRestrictions) {
         LocalPrivilege localPrivilege = privilegeToLocalPrivilegesMap.computeIfAbsent(privilege, LocalPrivilege::new);
         if (allow) {
             localPrivilege.setAllow(true);
@@ -121,15 +122,18 @@ public final class PrivilegesHelper {
 
     /**
      * Populates a local allow privilege in the privilegeToLocalPrivilegesMap
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param privilege the privilege to allow
      * @param isAllow true or false to set the allow value of the LocalPrivilege
      * @param restrictions if isAllow is true, the set of restrictions
      * @return the LocalPrivileges that was populated
      */
-    public static LocalPrivilege localAllowPriv(Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap, 
-            Privilege privilege, boolean isAllow, Set<LocalRestriction> restrictions) {
+    public static LocalPrivilege localAllowPriv(
+            Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            Privilege privilege,
+            boolean isAllow,
+            Set<LocalRestriction> restrictions) {
         LocalPrivilege localPrivilege = privilegeToLocalPrivilegesMap.computeIfAbsent(privilege, LocalPrivilege::new);
         localPrivilege.setAllow(isAllow);
         if (isAllow) {
@@ -147,15 +151,18 @@ public final class PrivilegesHelper {
 
     /**
      * Populates a local deny privilege in the privilegeToLocalPrivilegesMap
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param privilege the privilege to deny
      * @param isDeny true or false to set the deny value of the LocalPrivilege
      * @param restrictions if isDeny is true, the set of restrictions
      * @return the LocalPrivileges that was populated
      */
-    public static LocalPrivilege localDenyPriv(Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap, 
-            Privilege privilege, boolean isDeny, Set<LocalRestriction> restrictions) {
+    public static LocalPrivilege localDenyPriv(
+            Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            Privilege privilege,
+            boolean isDeny,
+            Set<LocalRestriction> restrictions) {
         LocalPrivilege localPrivilege = privilegeToLocalPrivilegesMap.computeIfAbsent(privilege, LocalPrivilege::new);
         localPrivilege.setDeny(isDeny);
         if (isDeny) {
@@ -175,7 +182,7 @@ public final class PrivilegesHelper {
      * Populates each of the local allow and/or deny privilege in the privilegeToLocalPrivilegesMap.  If the supplied
      * privilege is an aggregate then the data is populated for each of non-aggregate privileges contained in
      * the aggregate privilege.  Otherwise, the data is populated for the privilege itself.
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param p the privilege to update
      * @param allow true or false to set the allow value of the LocalPrivilege
@@ -183,28 +190,37 @@ public final class PrivilegesHelper {
      * @param deny true or false to set the allow value of the LocalPrivilege
      * @param denyRestrictions if deny is true, the set of restrictions
      */
-    private static void expandAllowAndDenyPrivWithoutAggregates(Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+    private static void expandAllowAndDenyPrivWithoutAggregates(
+            Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
             Privilege p,
-            boolean allow, @NotNull Set<LocalRestriction> allowRestrictions,
-            boolean deny, @NotNull Set<LocalRestriction> denyRestrictions
-            ) throws RepositoryException {
+            boolean allow,
+            @NotNull Set<LocalRestriction> allowRestrictions,
+            boolean deny,
+            @NotNull Set<LocalRestriction> denyRestrictions)
+            throws RepositoryException {
         if (p.isAggregate()) {
             Privilege[] aggregatePrivileges = p.getDeclaredAggregatePrivileges();
             for (Privilege aggregatePrivilege : aggregatePrivileges) {
                 if (aggregatePrivilege.isAggregate()) {
-                    expandAllowAndDenyPrivWithoutAggregates(privilegeToLocalPrivilegesMap, aggregatePrivilege,
-                            allow, allowRestrictions,
-                            deny, denyRestrictions);
+                    expandAllowAndDenyPrivWithoutAggregates(
+                            privilegeToLocalPrivilegesMap,
+                            aggregatePrivilege,
+                            allow,
+                            allowRestrictions,
+                            deny,
+                            denyRestrictions);
                 } else {
-                    localAllowAndDenyPriv(privilegeToLocalPrivilegesMap, aggregatePrivilege,
-                            allow, allowRestrictions,
-                            deny, denyRestrictions);
+                    localAllowAndDenyPriv(
+                            privilegeToLocalPrivilegesMap,
+                            aggregatePrivilege,
+                            allow,
+                            allowRestrictions,
+                            deny,
+                            denyRestrictions);
                 }
             }
         } else {
-            localAllowAndDenyPriv(privilegeToLocalPrivilegesMap, p,
-                    allow, allowRestrictions,
-                    deny, denyRestrictions);
+            localAllowAndDenyPriv(privilegeToLocalPrivilegesMap, p, allow, allowRestrictions, deny, denyRestrictions);
         }
     }
 
@@ -212,19 +228,24 @@ public final class PrivilegesHelper {
      * Populates each of the local allow privilege in the privilegeToLocalPrivilegesMap.  If the supplied
      * privilege is an aggregate then the data is populated for each of non-aggregate privileges contained in
      * the aggregate privilege.  Otherwise, the data is populated for the privilege itself.
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param p the privilege to update
      * @param isAllow true or false to set the allow value of the LocalPrivilege
      * @param restrictions if isAllow is true, the set of restrictions
      */
-    private static void expandAllowPrivWithoutAggregates(Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
-            Privilege p, boolean isAllow, Set<LocalRestriction> restrictions) throws RepositoryException {
+    private static void expandAllowPrivWithoutAggregates(
+            Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            Privilege p,
+            boolean isAllow,
+            Set<LocalRestriction> restrictions)
+            throws RepositoryException {
         if (p.isAggregate()) {
             Privilege[] aggregatePrivileges = p.getDeclaredAggregatePrivileges();
             for (Privilege aggregatePrivilege : aggregatePrivileges) {
                 if (aggregatePrivilege.isAggregate()) {
-                    expandAllowPrivWithoutAggregates(privilegeToLocalPrivilegesMap, aggregatePrivilege, isAllow, restrictions);
+                    expandAllowPrivWithoutAggregates(
+                            privilegeToLocalPrivilegesMap, aggregatePrivilege, isAllow, restrictions);
                 } else {
                     localAllowPriv(privilegeToLocalPrivilegesMap, aggregatePrivilege, isAllow, restrictions);
                 }
@@ -238,19 +259,24 @@ public final class PrivilegesHelper {
      * Populates each of the local deny privilege in the privilegeToLocalPrivilegesMap.  If the supplied
      * privilege is an aggregate then the data is populated for each of non-aggregate privileges contained in
      * the aggregate privilege.  Otherwise, the data is populated for the privilege itself.
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param p the privilege to update
      * @param isDeny true or false to set the allow value of the LocalPrivilege
      * @param restrictions if isDeny is true, the set of restrictions
      */
-    private static void expandDenyPrivWithoutAggregates(Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
-            Privilege p, boolean isDeny, Set<LocalRestriction> restrictions) throws RepositoryException {
+    private static void expandDenyPrivWithoutAggregates(
+            Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            Privilege p,
+            boolean isDeny,
+            Set<LocalRestriction> restrictions)
+            throws RepositoryException {
         if (p.isAggregate()) {
             Privilege[] aggregatePrivileges = p.getDeclaredAggregatePrivileges();
             for (Privilege aggregatePrivilege : aggregatePrivileges) {
                 if (aggregatePrivilege.isAggregate()) {
-                    expandDenyPrivWithoutAggregates(privilegeToLocalPrivilegesMap, aggregatePrivilege, isDeny, restrictions);
+                    expandDenyPrivWithoutAggregates(
+                            privilegeToLocalPrivilegesMap, aggregatePrivilege, isDeny, restrictions);
                 } else {
                     localDenyPriv(privilegeToLocalPrivilegesMap, aggregatePrivilege, isDeny, restrictions);
                 }
@@ -264,7 +290,7 @@ public final class PrivilegesHelper {
      * Populates each of the local allow and/or deny privilege in the privilegeToLocalPrivilegesMap.  If the supplied
      * privilege is an aggregate then the data is populated for each of non-aggregate privileges contained in
      * the aggregate privilege.  Otherwise, the data is populated for the privilege itself.
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param allow true or false to set the allow value of the LocalPrivilege
      * @param allowRestrictions if allow is true, the set of restrictions
@@ -272,25 +298,32 @@ public final class PrivilegesHelper {
      * @param denyRestrictions if deny is true, the set of restrictions
      * @param privileges the privilege to update
      */
-    public static void allowAndDeny(Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
-            boolean allow, @NotNull Set<LocalRestriction> allowRestrictions,
-            boolean deny, @NotNull Set<LocalRestriction> denyRestrictions,
-            @NotNull Collection<Privilege> privileges) throws RepositoryException {
+    public static void allowAndDeny(
+            Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            boolean allow,
+            @NotNull Set<LocalRestriction> allowRestrictions,
+            boolean deny,
+            @NotNull Set<LocalRestriction> denyRestrictions,
+            @NotNull Collection<Privilege> privileges)
+            throws RepositoryException {
         for (Privilege privilege : privileges) {
-            expandAllowAndDenyPrivWithoutAggregates(privilegeToLocalPrivilegesMap, privilege,
-                    allow, allowRestrictions, deny, denyRestrictions);
+            expandAllowAndDenyPrivWithoutAggregates(
+                    privilegeToLocalPrivilegesMap, privilege, allow, allowRestrictions, deny, denyRestrictions);
         }
     }
 
     /**
      * Populates each of the allow privilege in the privilegeToLocalPrivilegesMap.
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param restrictions the set of restrictions (possibly empty)
      * @param privileges the privilege to update
      */
-    public static void allow(@NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
-            @NotNull Set<LocalRestriction> restrictions, @NotNull Collection<Privilege> privileges) throws RepositoryException {
+    public static void allow(
+            @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            @NotNull Set<LocalRestriction> restrictions,
+            @NotNull Collection<Privilege> privileges)
+            throws RepositoryException {
         for (Privilege privilege : privileges) {
             expandAllowPrivWithoutAggregates(privilegeToLocalPrivilegesMap, privilege, true, restrictions);
         }
@@ -298,12 +331,14 @@ public final class PrivilegesHelper {
 
     /**
      * Unset each of the allow privilege in the privilegeToLocalPrivilegesMap.
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param privileges the privilege to update
      */
-    public static void unallow(@NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
-            @NotNull Collection<Privilege> privileges) throws RepositoryException {
+    public static void unallow(
+            @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            @NotNull Collection<Privilege> privileges)
+            throws RepositoryException {
         for (Privilege privilege : privileges) {
             expandAllowPrivWithoutAggregates(privilegeToLocalPrivilegesMap, privilege, false, Collections.emptySet());
         }
@@ -311,13 +346,16 @@ public final class PrivilegesHelper {
 
     /**
      * Populates each of the deny privilege in the privilegeToLocalPrivilegesMap.
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param restrictions the set of restrictions (possibly empty)
      * @param privileges the privilege to update
      */
-    public static void deny(@NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
-            @NotNull Set<LocalRestriction> restrictions, @NotNull Collection<Privilege> privileges) throws RepositoryException {
+    public static void deny(
+            @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            @NotNull Set<LocalRestriction> restrictions,
+            @NotNull Collection<Privilege> privileges)
+            throws RepositoryException {
         for (Privilege privilege : privileges) {
             expandDenyPrivWithoutAggregates(privilegeToLocalPrivilegesMap, privilege, true, restrictions);
         }
@@ -325,12 +363,14 @@ public final class PrivilegesHelper {
 
     /**
      * Unset each of the deny privilege in the privilegeToLocalPrivilegesMap.
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param privileges the privilege to update
      */
-    public static void undeny(@NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
-            @NotNull Collection<Privilege> privileges) throws RepositoryException {
+    public static void undeny(
+            @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            @NotNull Collection<Privilege> privileges)
+            throws RepositoryException {
         for (Privilege privilege : privileges) {
             expandDenyPrivWithoutAggregates(privilegeToLocalPrivilegesMap, privilege, false, Collections.emptySet());
         }
@@ -338,11 +378,14 @@ public final class PrivilegesHelper {
 
     /**
      * Unset each of the allow and deny privilege in the privilegeToLocalPrivilegesMap.
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param privileges the privilege to update
      */
-    public static void none(@NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap, @NotNull Collection<Privilege> privileges) throws RepositoryException {
+    public static void none(
+            @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            @NotNull Collection<Privilege> privileges)
+            throws RepositoryException {
         for (Privilege privilege : privileges) {
             expandAllowPrivWithoutAggregates(privilegeToLocalPrivilegesMap, privilege, false, Collections.emptySet());
             expandDenyPrivWithoutAggregates(privilegeToLocalPrivilegesMap, privilege, false, Collections.emptySet());
@@ -351,7 +394,7 @@ public final class PrivilegesHelper {
 
     /**
      * Remove the specified restrictions from the LocalPrivilege
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param privileges the privilege to update
      * @param forAllow true to remove allow restrictions
@@ -359,8 +402,12 @@ public final class PrivilegesHelper {
      * @param restrictionNames the set of restriction names to remove
      * @return the local privilege that was populated
      */
-    private static LocalPrivilege localPrivRemoveRestrictions(@NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap, 
-            @NotNull Privilege privilege, boolean forAllow, boolean forDeny, @NotNull Collection<String> restrictionNames) {
+    private static LocalPrivilege localPrivRemoveRestrictions(
+            @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            @NotNull Privilege privilege,
+            boolean forAllow,
+            boolean forDeny,
+            @NotNull Collection<String> restrictionNames) {
         LocalPrivilege localPrivilege = privilegeToLocalPrivilegesMap.computeIfAbsent(privilege, LocalPrivilege::new);
         // make sure allow/deny already exists
         forAllow &= localPrivilege.isAllow();
@@ -390,7 +437,7 @@ public final class PrivilegesHelper {
      * Remove the specified restrictions from each of the local privilege in the privilegeToLocalPrivilegesMap.
      * If the supplied privilege is an aggregate then the data is populated for each of non-aggregate privileges contained in
      * the aggregate privilege.  Otherwise, the data is populated for the privilege itself.
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param privileges the privilege to update
      * @param forAllow true to remove allow restrictions
@@ -398,15 +445,22 @@ public final class PrivilegesHelper {
      * @param restrictionNames the set of restriction names to remove
      * @return the local privilege that was populated
      */
-    private static void removeRestrictionsWithoutAggregates(@NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
-            @NotNull Privilege p, boolean forAllow, boolean forDeny, @NotNull Collection<String> restrictionNames) throws RepositoryException {
+    private static void removeRestrictionsWithoutAggregates(
+            @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            @NotNull Privilege p,
+            boolean forAllow,
+            boolean forDeny,
+            @NotNull Collection<String> restrictionNames)
+            throws RepositoryException {
         if (p.isAggregate()) {
             Privilege[] aggregatePrivileges = p.getDeclaredAggregatePrivileges();
             for (Privilege aggregatePrivilege : aggregatePrivileges) {
                 if (aggregatePrivilege.isAggregate()) {
-                    removeRestrictionsWithoutAggregates(privilegeToLocalPrivilegesMap, aggregatePrivilege, forAllow, forDeny, restrictionNames);
+                    removeRestrictionsWithoutAggregates(
+                            privilegeToLocalPrivilegesMap, aggregatePrivilege, forAllow, forDeny, restrictionNames);
                 } else {
-                    localPrivRemoveRestrictions(privilegeToLocalPrivilegesMap, aggregatePrivilege, forAllow, forDeny, restrictionNames);
+                    localPrivRemoveRestrictions(
+                            privilegeToLocalPrivilegesMap, aggregatePrivilege, forAllow, forDeny, restrictionNames);
                 }
             }
         } else {
@@ -416,7 +470,7 @@ public final class PrivilegesHelper {
 
     /**
      * Add the specified restriction to the LocalPrivilege
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param privileges the privilege to update
      * @param forAllow true to remove allow restrictions
@@ -425,13 +479,17 @@ public final class PrivilegesHelper {
      * @param requireAllowOrDenyAlreadySet if true, only do work if the allow/deny state is already set to true
      * @return the local privilege that was populated
      */
-    private static LocalPrivilege localPrivAddRestriction(@NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
-            @NotNull Privilege privilege, boolean forAllow, boolean forDeny, @NotNull LocalRestriction restriction,
+    private static LocalPrivilege localPrivAddRestriction(
+            @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            @NotNull Privilege privilege,
+            boolean forAllow,
+            boolean forDeny,
+            @NotNull LocalRestriction restriction,
             boolean requireAllowOrDenyAlreadySet) {
         LocalPrivilege localPrivilege = privilegeToLocalPrivilegesMap.computeIfAbsent(privilege, LocalPrivilege::new);
         if (forDeny) {
             if (requireAllowOrDenyAlreadySet && !localPrivilege.isDeny()) {
-                //skip it
+                // skip it
             } else {
                 localPrivilege.setDeny(true);
                 localPrivilege.unsetDenyRestrictions(Collections.singleton(restriction.getName()));
@@ -440,7 +498,7 @@ public final class PrivilegesHelper {
         }
         if (forAllow) {
             if (requireAllowOrDenyAlreadySet && !localPrivilege.isAllow()) {
-                //skip it
+                // skip it
             } else {
                 localPrivilege.setAllow(true);
                 localPrivilege.unsetAllowRestrictions(Collections.singleton(restriction.getName()));
@@ -466,7 +524,7 @@ public final class PrivilegesHelper {
      * Add the specified restrictions to each of the local privilege in the privilegeToLocalPrivilegesMap.
      * If the supplied privilege is an aggregate then the data is populated for each of non-aggregate privileges contained in
      * the aggregate privilege.  Otherwise, the data is populated for the privilege itself.
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param privileges the privilege to update
      * @param forAllow true to remove allow restrictions
@@ -474,31 +532,53 @@ public final class PrivilegesHelper {
      * @param restrictionNames the set of restriction names to remove
      * @return the local privilege that was populated
      */
-    private static void addRestrictionWithoutAggregates(Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
-            Privilege p, boolean forAllow, boolean forDeny, LocalRestriction restriction, boolean requireAllowOrDenyAlreadySet) throws RepositoryException {
+    private static void addRestrictionWithoutAggregates(
+            Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            Privilege p,
+            boolean forAllow,
+            boolean forDeny,
+            LocalRestriction restriction,
+            boolean requireAllowOrDenyAlreadySet)
+            throws RepositoryException {
         if (p.isAggregate()) {
             Privilege[] aggregatePrivileges = p.getDeclaredAggregatePrivileges();
             for (Privilege aggregatePrivilege : aggregatePrivileges) {
                 if (aggregatePrivilege.isAggregate()) {
-                    addRestrictionWithoutAggregates(privilegeToLocalPrivilegesMap, aggregatePrivilege, forAllow, forDeny, restriction, requireAllowOrDenyAlreadySet);
+                    addRestrictionWithoutAggregates(
+                            privilegeToLocalPrivilegesMap,
+                            aggregatePrivilege,
+                            forAllow,
+                            forDeny,
+                            restriction,
+                            requireAllowOrDenyAlreadySet);
                 } else {
-                    localPrivAddRestriction(privilegeToLocalPrivilegesMap, aggregatePrivilege, forAllow, forDeny, restriction, requireAllowOrDenyAlreadySet);
+                    localPrivAddRestriction(
+                            privilegeToLocalPrivilegesMap,
+                            aggregatePrivilege,
+                            forAllow,
+                            forDeny,
+                            restriction,
+                            requireAllowOrDenyAlreadySet);
                 }
             }
         } else {
-            localPrivAddRestriction(privilegeToLocalPrivilegesMap, p, forAllow, forDeny, restriction, requireAllowOrDenyAlreadySet);
+            localPrivAddRestriction(
+                    privilegeToLocalPrivilegesMap, p, forAllow, forDeny, restriction, requireAllowOrDenyAlreadySet);
         }
     }
 
     /**
      * Adds the restriction for each of the supplied allow privilege in the privilegeToLocalPrivilegesMap.
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param restriction the restrictions to add
      * @param privileges the privilege to update
      */
-    public static void allowRestriction(@NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
-            @NotNull LocalRestriction restriction, @NotNull Collection<Privilege> privileges) throws RepositoryException {
+    public static void allowRestriction(
+            @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            @NotNull LocalRestriction restriction,
+            @NotNull Collection<Privilege> privileges)
+            throws RepositoryException {
         for (Privilege privilege : privileges) {
             addRestrictionWithoutAggregates(privilegeToLocalPrivilegesMap, privilege, true, false, restriction, false);
         }
@@ -506,39 +586,49 @@ public final class PrivilegesHelper {
 
     /**
      * Remove the restriction for each of the supplied allow privilege in the privilegeToLocalPrivilegesMap.
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param restrictionName the restriction name to remove
      * @param privileges the privilege to update
      */
-    public static void unallowRestriction(@NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
-            @NotNull String restrictionName, @NotNull Collection<Privilege> privileges) throws RepositoryException {
+    public static void unallowRestriction(
+            @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            @NotNull String restrictionName,
+            @NotNull Collection<Privilege> privileges)
+            throws RepositoryException {
         unallowRestrictions(privilegeToLocalPrivilegesMap, Collections.singleton(restrictionName), privileges);
     }
 
     /**
      * Remove the restrictions for each of the supplied allow privilege in the privilegeToLocalPrivilegesMap.
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param restrictionNames the collection of restriction names to remove
      * @param privileges the privilege to update
      */
-    public static void unallowRestrictions(@NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
-            @NotNull Collection<String> restrictionNames, @NotNull Collection<Privilege> privileges) throws RepositoryException {
+    public static void unallowRestrictions(
+            @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            @NotNull Collection<String> restrictionNames,
+            @NotNull Collection<Privilege> privileges)
+            throws RepositoryException {
         for (Privilege privilege : privileges) {
-            removeRestrictionsWithoutAggregates(privilegeToLocalPrivilegesMap, privilege, true, false, restrictionNames);
+            removeRestrictionsWithoutAggregates(
+                    privilegeToLocalPrivilegesMap, privilege, true, false, restrictionNames);
         }
     }
 
     /**
      * Adds the restriction for each of the supplied deny privilege in the privilegeToLocalPrivilegesMap.
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param restriction the restrictions to add
      * @param privileges the privilege to update
      */
-    public static void denyRestriction(@NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
-            @NotNull LocalRestriction restriction, @NotNull Collection<Privilege> privileges) throws RepositoryException {
+    public static void denyRestriction(
+            @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            @NotNull LocalRestriction restriction,
+            @NotNull Collection<Privilege> privileges)
+            throws RepositoryException {
         for (Privilege privilege : privileges) {
             addRestrictionWithoutAggregates(privilegeToLocalPrivilegesMap, privilege, false, true, restriction, false);
         }
@@ -546,40 +636,50 @@ public final class PrivilegesHelper {
 
     /**
      * Remove the restriction for each of the supplied deny privilege in the privilegeToLocalPrivilegesMap.
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param restriction the restrictions to add
      * @param privileges the privilege to update
      */
-    public static void undenyRestriction(@NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
-            @NotNull String restrictionName, @NotNull Collection<Privilege> privileges) throws RepositoryException {
+    public static void undenyRestriction(
+            @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            @NotNull String restrictionName,
+            @NotNull Collection<Privilege> privileges)
+            throws RepositoryException {
         undenyRestrictions(privilegeToLocalPrivilegesMap, Collections.singleton(restrictionName), privileges);
     }
 
     /**
      * Remove the restrictions for each of the supplied deny privilege in the privilegeToLocalPrivilegesMap.
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param restrictionNames the collection of restriction names to remove
      * @param privileges the privilege to update
      */
-    public static void undenyRestrictions(@NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
-            @NotNull Collection<String> restrictionNames, @NotNull Collection<Privilege> privileges) throws RepositoryException {
+    public static void undenyRestrictions(
+            @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            @NotNull Collection<String> restrictionNames,
+            @NotNull Collection<Privilege> privileges)
+            throws RepositoryException {
         for (Privilege privilege : privileges) {
-            removeRestrictionsWithoutAggregates(privilegeToLocalPrivilegesMap, privilege, false, true, restrictionNames);
+            removeRestrictionsWithoutAggregates(
+                    privilegeToLocalPrivilegesMap, privilege, false, true, restrictionNames);
         }
     }
 
     /**
      * Adds the restriction for each of the supplied privilege in the privilegeToLocalPrivilegesMap that
      * is already has allow or deny set to true.
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param restriction the restrictions to add
      * @param privileges the privilege to update
      */
-    public static void allowOrDenyRestriction(@NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
-            @NotNull LocalRestriction restriction, @NotNull Collection<Privilege> privileges) throws RepositoryException {
+    public static void allowOrDenyRestriction(
+            @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            @NotNull LocalRestriction restriction,
+            @NotNull Collection<Privilege> privileges)
+            throws RepositoryException {
         for (Privilege privilege : privileges) {
             addRestrictionWithoutAggregates(privilegeToLocalPrivilegesMap, privilege, true, true, restriction, true);
         }
@@ -588,26 +688,32 @@ public final class PrivilegesHelper {
     /**
      * Remove the restriction for each of the supplied privilege in the privilegeToLocalPrivilegesMap that
      * is already has allow or deny set to true.
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param restriction the restrictions to add
      * @param privileges the privilege to update
      */
-    public static void unallowOrUndenyRestriction(@NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
-            @NotNull String restrictionName, @NotNull Collection<Privilege> privileges) throws RepositoryException {
+    public static void unallowOrUndenyRestriction(
+            @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            @NotNull String restrictionName,
+            @NotNull Collection<Privilege> privileges)
+            throws RepositoryException {
         unallowOrUndenyRestrictions(privilegeToLocalPrivilegesMap, Collections.singleton(restrictionName), privileges);
     }
 
     /**
      * Remove the restrictions for each of the supplied privilege in the privilegeToLocalPrivilegesMap that
      * is already has allow or deny set to true.
-     * 
+     *
      * @param privilegeToLocalPrivilegesMap the map containing the declared LocalPrivilege items
      * @param restrictionNames the collection of restriction names to remove
      * @param privileges the privilege to update
      */
-    public static void unallowOrUndenyRestrictions(@NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
-            @NotNull Collection<String> restrictionNames, @NotNull Collection<Privilege> privileges) throws RepositoryException {
+    public static void unallowOrUndenyRestrictions(
+            @NotNull Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
+            @NotNull Collection<String> restrictionNames,
+            @NotNull Collection<Privilege> privileges)
+            throws RepositoryException {
         for (Privilege privilege : privileges) {
             removeRestrictionsWithoutAggregates(privilegeToLocalPrivilegesMap, privilege, true, true, restrictionNames);
         }
@@ -616,14 +722,14 @@ public final class PrivilegesHelper {
     /**
      * Calculates the supported privileges in the resource path exists, or the registered
      * privileges if the resource path does not exist
-     * 
+     *
      * @param jcrSession the current session
      * @param resourcePath the resource path to consider
      * @return
      * @throws RepositoryException
      */
-    private static @NotNull Privilege[] getSupportedOrRegisteredPrivileges(@NotNull Session jcrSession, @Nullable String resourcePath) 
-            throws RepositoryException {
+    private static @NotNull Privilege[] getSupportedOrRegisteredPrivileges(
+            @NotNull Session jcrSession, @Nullable String resourcePath) throws RepositoryException {
         Privilege[] supportedPrivileges = null;
         if (resourcePath != null && jcrSession.nodeExists(resourcePath)) {
             supportedPrivileges = jcrSession.getAccessControlManager().getSupportedPrivileges(resourcePath);
@@ -631,7 +737,7 @@ public final class PrivilegesHelper {
             // non-existing path. We can't determine what is supported there, so consider all registered privileges
             Workspace workspace = jcrSession.getWorkspace();
             if (workspace instanceof JackrabbitWorkspace) {
-                PrivilegeManager privilegeManager = ((JackrabbitWorkspace)workspace).getPrivilegeManager();
+                PrivilegeManager privilegeManager = ((JackrabbitWorkspace) workspace).getPrivilegeManager();
                 supportedPrivileges = privilegeManager.getRegisteredPrivileges();
             }
         }
@@ -641,16 +747,19 @@ public final class PrivilegesHelper {
     /**
      * Process the supplied privileges and consolidate each aggregate whenever the state of all the
      * aggregated direct child privileges are allow or deny
-     * 
+     *
      * @param jcrSession the current session
      * @param resourcePath the path of the resource
      * @param privilegeToLocalPrivilegesMap map of privileges to process. The map entry key is the
      *          privilege and value is the associated LocalPrivilege.
      * @param privilegeLongestDepthMap map of privileges to the longest depth.  See {@link #buildPrivilegeLongestDepthMap(Privilege)}
      */
-    public static void consolidateAggregates(Session jcrSession, String resourcePath, 
+    public static void consolidateAggregates(
+            Session jcrSession,
+            String resourcePath,
             Map<Privilege, LocalPrivilege> privilegeToLocalPrivilegesMap,
-            Map<Privilege, Integer> privilegeLongestDepthMap) throws RepositoryException {
+            Map<Privilege, Integer> privilegeLongestDepthMap)
+            throws RepositoryException {
         Privilege[] supportedPrivileges = getSupportedOrRegisteredPrivileges(jcrSession, resourcePath);
         // sort the aggregates to process the deepest first
         Privilege[] supportedAggregatePrivileges = Stream.of(supportedPrivileges)
@@ -678,11 +787,14 @@ public final class PrivilegesHelper {
                 if (allAllow) {
                     // if the restrictions of all the items is the same then we should copy it up
                     //  and unset the data from each child
-                    Set<LocalRestriction> firstAllowRestrictions = childLocalPrivileges.get(0).getAllowRestrictions();
-                    boolean allRestrictionsSame = childLocalPrivileges.stream().allMatch(lp -> firstAllowRestrictions.equals(lp.getAllowRestrictions()));
+                    Set<LocalRestriction> firstAllowRestrictions =
+                            childLocalPrivileges.get(0).getAllowRestrictions();
+                    boolean allRestrictionsSame = childLocalPrivileges.stream()
+                            .allMatch(lp -> firstAllowRestrictions.equals(lp.getAllowRestrictions()));
                     if (allRestrictionsSame) {
                         // all the child privileges are allow so we can mark the parent as allow
-                        LocalPrivilege alp = privilegeToLocalPrivilegesMap.computeIfAbsent(aggregatePrivilege, LocalPrivilege::new);
+                        LocalPrivilege alp =
+                                privilegeToLocalPrivilegesMap.computeIfAbsent(aggregatePrivilege, LocalPrivilege::new);
                         alp.setAllow(true);
                         alp.setAllowRestrictions(firstAllowRestrictions);
 
@@ -699,11 +811,14 @@ public final class PrivilegesHelper {
                 if (allDeny) {
                     // if the restrictions of all the items is the same then we should copy it up
                     //  and unset the data from each child
-                    Set<LocalRestriction> firstDenyRestrictions = childLocalPrivileges.get(0).getDenyRestrictions();
-                    boolean allRestrictionsSame = childLocalPrivileges.stream().allMatch(lp -> firstDenyRestrictions.equals(lp.getDenyRestrictions()));
+                    Set<LocalRestriction> firstDenyRestrictions =
+                            childLocalPrivileges.get(0).getDenyRestrictions();
+                    boolean allRestrictionsSame = childLocalPrivileges.stream()
+                            .allMatch(lp -> firstDenyRestrictions.equals(lp.getDenyRestrictions()));
                     if (allRestrictionsSame) {
                         // all the child privileges are deny so we can mark the parent as deny
-                        LocalPrivilege alp = privilegeToLocalPrivilegesMap.computeIfAbsent(aggregatePrivilege, LocalPrivilege::new);
+                        LocalPrivilege alp =
+                                privilegeToLocalPrivilegesMap.computeIfAbsent(aggregatePrivilege, LocalPrivilege::new);
                         alp.setDeny(true);
                         alp.setDenyRestrictions(firstDenyRestrictions);
 
@@ -720,7 +835,7 @@ public final class PrivilegesHelper {
         }
 
         // remove any entries that are neither allow nor deny
-        privilegeToLocalPrivilegesMap.entrySet().removeIf(entry -> entry.getValue().isNone());
+        privilegeToLocalPrivilegesMap.entrySet().removeIf(entry -> entry.getValue()
+                .isNone());
     }
-
 }
