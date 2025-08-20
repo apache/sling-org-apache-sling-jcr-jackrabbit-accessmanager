@@ -28,20 +28,20 @@
     </parent>
 
     <artifactId>org.apache.sling.jcr.jackrabbit.accessmanager</artifactId>
-    <version>5.0.0</version>
+    <version>5.0.1-SNAPSHOT</version>
     <name>Apache Sling JCR Jackrabbit Access Manager</name>
     <description>Provides POST operations for JCR Jackrabbit Access Management</description>
 
     <scm>
         <connection>scm:git:https://gitbox.apache.org/repos/asf/sling-org-apache-sling-jcr-jackrabbit-accessmanager.git</connection>
         <developerConnection>scm:git:https://gitbox.apache.org/repos/asf/sling-org-apache-sling-jcr-jackrabbit-accessmanager.git</developerConnection>
-        <tag>org.apache.sling.jcr.jackrabbit.accessmanager-5.0.0</tag>
+        <tag>HEAD</tag>
         <url>https://github.com/apache/sling-org-apache-sling-jcr-jackrabbit-accessmanager/tree/${project.scm.tag}</url>
     </scm>
 
     <properties>
         <sling.java.version>17</sling.java.version>
-        <project.build.outputTimestamp>2025-08-20T22:32:15Z</project.build.outputTimestamp>
+        <project.build.outputTimestamp>2025-08-20T22:41:29Z</project.build.outputTimestamp>
         <org.ops4j.pax.exam.version>4.14.0</org.ops4j.pax.exam.version>
         <!-- To debug the pax process, override this with -D -->
         <pax.vm.options>-Xmx512M</pax.vm.options>
